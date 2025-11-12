@@ -227,6 +227,9 @@ jobs:
   create-release:
     needs: [version-bump, publish-python, publish-npm]
     runs-on: ubuntu-latest
+    if: needs.version-bump.outputs.should_release == 'true'
+    permissions:
+      contents: write
     
     steps:
     - name: Checkout code
@@ -236,8 +239,7 @@ jobs:
         fetch-depth: 0
     
     - name: Pull latest changes
-      run: |
-        git pull --tags
+      run: git pull --tags
     
     - name: Create GitHub Release
       uses: actions/github-script@v7
