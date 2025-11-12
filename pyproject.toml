@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "neuracore-types"
+version = "0.0.0"
+description = "Shared type definitions for Neuracore."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Neuracore"}
+]
+dependencies = [
+    "pydantic>=2.0.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pydantic-to-typescript2>=1.0.0",
+    "pre-commit"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["neuracore_types"]
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"

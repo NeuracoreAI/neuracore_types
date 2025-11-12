@@ -1,0 +1,20 @@
+# Source files
+typescript/
+neuracore_types/
+scripts/
+
+# Python files
+*.py
+pyproject.toml
+MANIFEST.in
+
+# Config files
+tsconfig.json
+.github/
+
+# Development
+node_modules/
+*.log
+
+# Keep only dist
+!dist/
