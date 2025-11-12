@@ -7,7 +7,7 @@ name = "neuracore-types"
 version = "1.0.0"
 description = "Shared type definitions for Neuracore."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
     {name = "Neuracore"}
@@ -28,8 +28,8 @@ packages = ["neuracore_types"]
 
 [tool.black]
 line-length = 88
-target-version = ['py310']
+target-version = ['py39']
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
+target-version = "py39"
