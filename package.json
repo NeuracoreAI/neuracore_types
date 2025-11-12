@@ -1,0 +1,36 @@
+{
+  "name": "@neuracore/types",
+  "version": "0.0.0",
+  "description": "Shared TypeScript type definitions for Neuracore robotics platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neuracoreai/neuracore_types.git"
+  },
+  "keywords": [
+    "neuracore",
+    "robotics",
+    "types",
+    "typescript"
+  ],
+  "author": "Neuracore Team",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "json-schema-to-typescript": "^15.0.4"
+  }
+}
