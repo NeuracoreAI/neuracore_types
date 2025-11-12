@@ -1,0 +1,263 @@
+name: Generate Types and Publish
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  generate-types:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - name: Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -e ".[dev]"
+    
+    - name: Install Node dependencies
+      run: npm install
+    
+    - name: Generate TypeScript types
+      run: python scripts/generate_types.py
+    
+    - name: Build TypeScript
+      run: npm run build
+    
+    - name: Upload TypeScript artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: typescript-types
+        path: dist/
+
+  check-version-bump:
+    needs: generate-types
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      bump_type: ${{ steps.check.outputs.bump_type }}
+      pr_number: ${{ steps.check.outputs.pr_number }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Get merged PR labels
+      id: pr_labels
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const commit = context.sha;
+          
+          // Find the PR associated with this merge commit
+          const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            commit_sha: commit
+          });
+          
+          if (prs.data.length === 0) {
+            console.log('No PR found for this commit');
+            return { bump_type: 'none' };
+          }
+
+          // Define valid version labels
+          const versionLabels = [
+            'version:major',
+            'version:minor', 
+            'version:patch',
+            'version:none'
+          ];
+          
+          const pr = prs.data[0];
+          const firstLabel = pr.labels[0]?.name;
+          let bump_type = firstLabel.split(':')[1];
+          return { bump_type, pr_number: pr.number };
+    
+    - name: Check if release needed
+      id: check
+      run: |
+        BUMP_TYPE="${{ fromJSON(steps.pr_labels.outputs.result).bump_type }}"
+        PR_NUMBER="${{ fromJSON(steps.pr_labels.outputs.result).pr_number }}"
+        
+        if [ "$BUMP_TYPE" = "none" ] || [ -z "$BUMP_TYPE" ]; then
+          echo "No version bump label found - skipping release"
+          echo "should_release=false" >> $GITHUB_OUTPUT
+          echo "bump_type=none" >> $GITHUB_OUTPUT
+        else
+          echo "Version bump type: $BUMP_TYPE"
+          echo "should_release=true" >> $GITHUB_OUTPUT
+          echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+        fi
+
+  version-bump:
+    needs: check-version-bump
+    runs-on: ubuntu-latest
+    if: needs.check-version-bump.outputs.should_release == 'true'
+    permissions:
+      contents: write
+      pull-requests: read
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install dependencies
+      run: |
+        pip install bump2version
+        npm install -g json
+    
+    - name: Bump version
+      id: bump
+      run: |
+        BUMP_TYPE="${{ needs.check-version-bump.outputs.bump_type }}"
+        
+        echo "Bumping $BUMP_TYPE version"
+        
+        # Use bump2version to bump the version
+        bump2version $BUMP_TYPE --allow-dirty
+        NEW_VERSION=$(grep -m 1 'version = ' pyproject.toml | cut -d'"' -f2)
+        
+        git push
+        git push --tags
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+  publish-python:
+    needs: version-bump
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+    
+    - name: Pull latest changes
+      run: |
+        git pull --tags
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install build tools
+      run: |
+        pip install --upgrade pip
+        pip install build twine
+    
+    - name: Build Python package
+      run: python -m build
+    
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+      run: twine upload dist/*
+
+  publish-npm:
+    needs: [version-bump, generate-types]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+    
+    - name: Pull latest changes
+      run: |
+        git pull --tags
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - name: Download TypeScript artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: typescript-types
+        path: dist/
+    
+    - name: Publish to NPM
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: npm publish
+
+  create-release:
+    needs: [version-bump, publish-python, publish-npm]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+    
+    - name: Pull latest changes
+      run: |
+        git pull --tags
+    
+    - name: Create GitHub Release
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const version = '${{ needs.version-bump.outputs.new_version }}';
+          
+          await github.rest.repos.createRelease({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            tag_name: `v${version}`,
+            name: `Release v${version}`,
+            body: `## Release v${version}\n\n` +
+                  `Published to:\n` +
+                  `- PyPI: https://pypi.org/project/neuracore-types/${version}/\n` +
+                  `- NPM: https://www.npmjs.com/package/@neuracore/types/v/${version}\n\n` +
+                  `### Installation\n` +
+                  `\`\`\`bash\n` +
+                  `pip install neuracore-types==${version}\n` +
+                  `npm install @neuracore/types@${version}\n` +
+                  `\`\`\``,
+            draft: false,
+            prerelease: false
+          });
