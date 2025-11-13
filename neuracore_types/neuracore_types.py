@@ -498,6 +498,8 @@ class DataItemStats(BaseModel):
         mean: List of means for each data dimension
         std: List of standard deviations for each data dimension
         count: List of counts for each data dimension
+        min: List of minimum values for each data dimension
+        max: List of maximum values for each data dimension
         max_len: Maximum length of the data arrays
         robot_to_ncdata_keys: Mapping of robot ids to their associated
             data keys for this data type
@@ -506,6 +508,8 @@ class DataItemStats(BaseModel):
     mean: list[float] = Field(default_factory=list)
     std: list[float] = Field(default_factory=list)
     count: list[int] = Field(default_factory=list)
+    min: list[float] = Field(default_factory=list)
+    max: list[float] = Field(default_factory=list)
     max_len: int = Field(default_factory=lambda data: len(data["mean"]))
     robot_to_ncdata_keys: dict[str, list[str]] = Field(default_factory=dict)
 
