@@ -522,6 +522,8 @@ class DatasetDescription(BaseModel):
     for determining which data types are present.
     """
 
+    total_num_transitions: int = 0
+
     # Joint data statistics
     joint_positions: DataItemStats = Field(default_factory=DataItemStats)
     joint_velocities: DataItemStats = Field(default_factory=DataItemStats)
