@@ -116,9 +116,17 @@ jobs:
       new_version: ${{ steps.bump.outputs.new_version }}
     
     steps:
+    - name: Generate GitHub App Token
+      id: generate-token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ vars.NC_VERSION_BUMPER_APP_ID }}
+        private-key: ${{ secrets.NC_VERSION_BUMPER_PRIVATE_KEY }}
+    
     - name: Checkout code
       uses: actions/checkout@v4
       with:
+        token: ${{ steps.generate-token.outputs.token }}
         fetch-depth: 0
     
     - name: Set up Python
