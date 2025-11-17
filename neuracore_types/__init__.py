@@ -2,4 +2,4 @@
 
 from neuracore_types.neuracore_types import *  # noqa: F403
 
-__version__ = "1.2.2"
+__version__ = "1.2.3"
