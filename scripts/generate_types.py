@@ -21,7 +21,7 @@ def generate_typescript_types():
         "--output",
         str(output_file),
         "--json2ts-cmd",
-        "npx json2ts",
+        "npx json2ts --inferStringEnumKeysFromValues",
     ]
 
     print(f"Generating TypeScript types to {output_file}...")
