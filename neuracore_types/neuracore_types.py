@@ -468,23 +468,23 @@ class DataType(str, Enum):
     """
 
     # Robot state
-    JOINT_POSITIONS = "joint_positions"
-    JOINT_VELOCITIES = "joint_velocities"
-    JOINT_TORQUES = "joint_torques"
-    JOINT_TARGET_POSITIONS = "joint_target_positions"
-    END_EFFECTORS = "end_effectors"
-    END_EFFECTOR_POSES = "end_effector_poses"
-    PARALLEL_GRIPPER_OPEN_AMOUNTS = "parallel_gripper_open_amounts"
+    JOINT_POSITIONS = "JOINT_POSITIONS"
+    JOINT_VELOCITIES = "JOINT_VELOCITIES"
+    JOINT_TORQUES = "JOINT_TORQUES"
+    JOINT_TARGET_POSITIONS = "JOINT_TARGET_POSITIONS"
+    END_EFFECTORS = "END_EFFECTORS"
+    END_EFFECTOR_POSES = "END_EFFECTOR_POSES"
+    PARALLEL_GRIPPER_OPEN_AMOUNTS = "PARALLEL_GRIPPER_OPEN_AMOUNTS"
 
     # Vision
-    RGB_IMAGE = "rgb_image"
-    DEPTH_IMAGE = "depth_image"
-    POINT_CLOUD = "point_cloud"
+    RGB_IMAGE = "RGB_IMAGE"
+    DEPTH_IMAGE = "DEPTH_IMAGE"
+    POINT_CLOUD = "POINT_CLOUD"
 
     # Other
-    POSES = "poses"
-    LANGUAGE = "language"
-    CUSTOM = "custom"
+    POSES = "POSES"
+    LANGUAGE = "LANGUAGE"
+    CUSTOM = "CUSTOM"
 
 
 class DataItemStats(BaseModel):
@@ -833,10 +833,17 @@ class MessageType(str, Enum):
     the signaling server during connection establishment.
     """
 
-    SDP_OFFER = "offer"  # Session Description Protocol (SDP) offer from the caller
-    SDP_ANSWER = "answer"  # Session Description Protocol (SDP) answer from the callee
-    ICE_CANDIDATE = "ice"  # Interactive Connectivity Establishment (ICE) candidate
-    OPEN_CONNECTION = "open_connection"  # Request to open a new connection
+    # Session Description Protocol (SDP) offer from the caller
+    SDP_OFFER = "SDP_OFFER"
+
+    # Session Description Protocol (SDP) answer from the callee
+    SDP_ANSWER = "SDP_ANSWER"
+
+    # Interactive Connectivity Establishment (ICE) candidate
+    ICE_CANDIDATE = "ICE_CANDIDATE"
+
+    # Request to open a new connection
+    OPEN_CONNECTION = "OPEN_CONNECTION"
 
 
 class HandshakeMessage(BaseModel):
@@ -939,16 +946,16 @@ class RobotInstanceIdentifier(NamedTuple):
 class TrackKind(str, Enum):
     """Enumerates the supported track kinds for streaming."""
 
-    JOINTS = "joints"
-    RGB = "rgb"
-    DEPTH = "depth"
-    LANGUAGE = "language"
-    GRIPPER = "gripper"
-    END_EFFECTOR_POSE = "end_effector_pose"
-    PARALLEL_GRIPPER_OPEN_AMOUNT = "parallel_gripper_open_amount"
-    POINT_CLOUD = "point_cloud"
-    POSE = "pose"
-    CUSTOM = "custom"
+    JOINTS = "JOINTS"
+    RGB = "RGB"
+    DEPTH = "DEPTH"
+    LANGUAGE = "LANGUAGE"
+    GRIPPER = "GRIPPER"
+    END_EFFECTOR_POSE = "END_EFFECTOR_POSE"
+    PARALLEL_GRIPPER_OPEN_AMOUNT = "PARALLEL_GRIPPER_OPEN_AMOUNT"
+    POINT_CLOUD = "POINT_CLOUD"
+    POSE = "POSE"
+    CUSTOM = "CUSTOM"
 
 
 class RobotStreamTrack(BaseModel):
@@ -1057,13 +1064,13 @@ class RecordingStartPayload(RecodingRequestedPayload):
 class RecordingNotificationType(str, Enum):
     """Types of recording lifecycle notifications."""
 
-    INIT = "init"
-    REQUESTED = "requested"
-    START = "start"
-    STOP = "stop"
-    SAVED = "saved"
-    DISCARDED = "discarded"
-    EXPIRED = "expired"
+    INIT = "INIT"
+    REQUESTED = "REQUESTED"
+    START = "START"
+    STOP = "STOP"
+    SAVED = "SAVED"
+    DISCARDED = "DISCARDED"
+    EXPIRED = "EXPIRED"
 
 
 class RecordingNotification(BaseModel):
