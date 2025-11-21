@@ -8,3 +8,5 @@ pydantic
 PYPI
 pyproject
 tobytes
+protoc
+protos
