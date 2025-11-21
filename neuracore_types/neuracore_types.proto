@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package neuracore_types;
+
+message FloatRow {
+  repeated float values = 1;
+}
+
+message JointData {
+  double timestamp = 1;
+  map<string, double> values = 2;
+  map<string, double> additional_values = 3;
+}
+
+message CameraData {
+  double timestamp = 1;
+  int32 frame_idx = 2;
+  repeated FloatRow extrinsics = 3;
+  repeated FloatRow intrinsics = 4;
+  bytes frame  = 5;
+}
+
+message PoseData {
+  double timestamp = 1;
+  map<string, FloatRow> pose = 2;
+}
+
+message EndEffectorData {
+  double timestamp = 1;
+  map<string, double> open_amounts = 2;
+}
+
+message EndEffectorPoseData {
+  double timestamp = 1;
+  map<string, FloatRow> poses = 2;
+}
+
+message ParallelGripperOpenAmountData {
+  double timestamp = 1;
+  map<string, double> open_amounts = 2;
+}
+
+message PointCloudData {
+  double timestamp = 1;
+  bytes points = 2;
+  bytes rgb_points = 3;
+  bytes extrinsics = 4;
+  bytes intrinsics = 5;
+}
+
+message LanguageData {
+  double timestamp = 1;
+  string text = 2;
+}
+
+message CustomData {
+  double timestamp = 1;
+  bytes data = 2;
+}
