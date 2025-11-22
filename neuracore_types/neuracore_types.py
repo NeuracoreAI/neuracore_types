@@ -744,6 +744,18 @@ class ModelPrediction(BaseModel):
     prediction_time: Optional[float] = None
 
 
+class PredictRequest(BaseModel):
+    """Request model for server policy inference.
+
+    Attributes:
+        sync_point: The current observation.
+        robot_name: The name of the robot to infer the policy for.
+    """
+
+    sync_point: SyncPoint
+    robot_name: Optional[str] = None
+
+
 class SyncedDataset(BaseModel):
     """Represents a dataset of robot demonstrations.
 
