@@ -4,10 +4,21 @@ import base64
 import time
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, List, NamedTuple, Optional, Tuple, Union
+from typing import (
+    Annotated,
+    Any,
+    Dict,
+    Literal,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+)
 from uuid import uuid4
 
 import numpy as np
+from PIL.Image import Image
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -18,7 +29,7 @@ from pydantic import (
 )
 
 
-def _sort_dict_by_keys(data_dict: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+def _sort_dict_by_keys(data_dict: Dict[str, Any]) -> Dict[str, Any]:
     """Sort a dictionary by its keys to ensure consistent ordering.
 
     This is a helper function used internally by the data models to ensure
@@ -31,9 +42,56 @@ def _sort_dict_by_keys(data_dict: Optional[dict[str, Any]]) -> Optional[dict[str
     Returns:
         New dictionary with keys sorted alphabetically, or None if input was None
     """
-    if data_dict is None:
-        return None
     return {key: data_dict[key] for key in sorted(data_dict.keys())}
+
+
+class DataType(str, Enum):
+    """Enumeration of supported data types in the Neuracore system.
+
+    Defines the standard data categories used for dataset organization,
+    model training, and data processing pipelines.
+    """
+
+    # Robot state
+    JOINT_POSITIONS = "JOINT_POSITIONS"
+    JOINT_VELOCITIES = "JOINT_VELOCITIES"
+    JOINT_TORQUES = "JOINT_TORQUES"
+    JOINT_TARGET_POSITIONS = "JOINT_TARGET_POSITIONS"
+    END_EFFECTOR_POSES = "END_EFFECTOR_POSES"
+    PARALLEL_GRIPPER_OPEN_AMOUNTS = "PARALLEL_GRIPPER_OPEN_AMOUNTS"
+
+    # Vision
+    RGB_IMAGES = "RGB_IMAGES"
+    DEPTH_IMAGES = "DEPTH_IMAGES"
+    POINT_CLOUDS = "POINT_CLOUDS"
+
+    # Other
+    POSES = "POSES"
+    LANGUAGE = "LANGUAGE"
+    CUSTOM = "CUSTOM"
+
+    def from_numpy(self, array: np.ndarray) -> "NCData":
+        """Create a sample NCData instance for this DataType.
+
+        Returns:
+            An instance of the corresponding NCData subclass.
+        """
+        mapping = {
+            DataType.JOINT_POSITIONS: JointData.from_numpy,
+            DataType.JOINT_VELOCITIES: JointData.from_numpy,
+            DataType.JOINT_TORQUES: JointData.from_numpy,
+            DataType.JOINT_TARGET_POSITIONS: JointData.from_numpy,
+            DataType.END_EFFECTOR_POSES: EndEffectorPoseData.from_numpy,
+            DataType.PARALLEL_GRIPPER_OPEN_AMOUNTS: (
+                ParallelGripperOpenAmountData.from_numpy
+            ),
+            DataType.POSES: PoseData.from_numpy,
+            DataType.POINT_CLOUDS: PointCloudData.from_numpy,
+            # LANGUAGE and CUSTOM types are not supported for from_numpy
+        }
+        if self not in mapping:
+            raise NotImplementedError(f"from_numpy not implemented for {self.value}")
+        return mapping[self](array)
 
 
 class NCData(BaseModel):
@@ -54,6 +112,26 @@ class NCData(BaseModel):
         """
         return self
 
+    def numpy(self) -> np.ndarray:
+        """Convert the data to a NumPy array.
+
+        Returns:
+            NumPy array representation of the data.
+        """
+        raise NotImplementedError("Subclasses must implement numpy() method.")
+
+    @staticmethod
+    def from_numpy(array: np.ndarray) -> "NCData":
+        """Create an NCData instance from a NumPy array.
+
+        Args:
+            array: NumPy array to convert.
+
+        Returns:
+            NCData instance created from the array.
+        """
+        raise NotImplementedError("Subclasses must implement from_numpy() method.")
+
 
 class JointData(NCData):
     """Robot joint state data including positions, velocities, or torques.
@@ -63,8 +141,8 @@ class JointData(NCData):
     torques, and target positions.
     """
 
+    type: Literal["JointData"] = "JointData"
     values: dict[str, float]
-    additional_values: Optional[dict[str, float]] = None
 
     def order(self) -> "JointData":
         """Return a new JointData instance with sorted joint names.
@@ -74,24 +152,45 @@ class JointData(NCData):
         """
         return JointData(
             timestamp=self.timestamp,
-            values=_sort_dict_by_keys(self.values) or {},
-            additional_values=_sort_dict_by_keys(self.additional_values),
+            values=_sort_dict_by_keys(self.values),
         )
 
-    def numpy(self, order: Optional[List[str]] = None) -> np.ndarray:
+    def numpy(self) -> np.ndarray:
         """Convert the joint values to a NumPy array.
-
-        Args:
-            order: The order in which the numpy array is returned.
 
         Returns:
             NumPy array of joint values.
         """
-        if order is not None:
-            values = [self.values[name] for name in order]
-        else:
-            values = list(self.values.values())
-        return np.array(values, dtype=np.float32)
+        return np.array(list(self.values.values()), dtype=np.float32)
+
+    @staticmethod
+    def from_numpy(array: np.ndarray) -> "JointData":
+        """Create a JointData instance from a NumPy array.
+
+        Args:
+            array: NumPy array to convert.
+
+        Returns:
+            JointData instance created from the array.
+        """
+        values = {f"joint{i}": float(val) for i, val in enumerate(array)}
+        return JointData(values=values)
+
+    def __getitem__(self, key: str) -> float:
+        """Get item by joint name."""
+        return self.values[key]
+
+    def __setitem__(self, key: str, value: float) -> None:
+        """Set item by joint name."""
+        self.values[key] = value
+
+    def __len__(self) -> int:
+        """Get the number of joints."""
+        return len(self.values)
+
+    def keys(self):
+        """Get the joint names."""
+        return self.values.keys()
 
 
 class CameraData(NCData):
@@ -102,10 +201,36 @@ class CameraData(NCData):
     is populated during dataset iteration for efficiency.
     """
 
+    type: Literal["CameraData"] = "CameraData"
     frame_idx: int = 0  # Needed so we can index video after sync
     extrinsics: Optional[list[list[float]]] = None
     intrinsics: Optional[list[list[float]]] = None
     frame: Optional[Union[Any, str]] = None  # Only filled in when using dataset iter
+
+    def numpy(self) -> np.ndarray:
+        """Convert the joint values to a NumPy array.
+
+        Returns:
+            NumPy array of joint values.
+        """
+        assert self.frame is not None, "Camera frame data is not available."
+        assert isinstance(self.frame, Image), "Camera frame is not a PIL Image."
+        return np.array(self.frame, dtype=np.float32)
+
+    @staticmethod
+    def from_numpy(array: np.ndarray) -> "CameraData":
+        """Create a CameraData instance from a NumPy array.
+
+        Args:
+            array: NumPy array to convert.
+
+        Returns:
+            CameraData instance created from the array.
+        """
+        from PIL import Image as PILImage
+
+        frame = PILImage.fromarray(array.astype(np.uint8))
+        return CameraData(frame=frame)
 
 
 class PoseData(NCData):
@@ -116,38 +241,29 @@ class PoseData(NCData):
     mapping pose names to [x, y, z, rx, ry, rz] values.
     """
 
-    pose: dict[str, list[float]]
+    type: Literal["PoseData"] = "PoseData"
+    pose: list[float]
 
-    def order(self) -> "PoseData":
-        """Return a new PoseData instance with sorted pose coordinates.
-
-        Returns:
-            New PoseData with alphabetically sorted pose coordinate names.
-        """
-        return PoseData(
-            timestamp=self.timestamp, pose=_sort_dict_by_keys(self.pose) or {}
-        )
-
-
-class EndEffectorData(NCData):
-    """End-effector state data including gripper and tool configurations.
-
-    Contains the state of robot end-effectors such as gripper opening amounts,
-    tool activations, or other end-effector specific parameters.
-    """
-
-    open_amounts: dict[str, float]
-
-    def order(self) -> "EndEffectorData":
-        """Return a new EndEffectorData instance with sorted effector names.
+    def numpy(self) -> np.ndarray:
+        """Convert the pose values to a NumPy array.
 
         Returns:
-            New EndEffectorData with alphabetically sorted effector names.
+            NumPy array of pose values.
         """
-        return EndEffectorData(
-            timestamp=self.timestamp,
-            open_amounts=_sort_dict_by_keys(self.open_amounts) or {},
-        )
+        return np.array(list(self.pose.values()), dtype=np.float32)
+
+    @staticmethod
+    def from_numpy(array: np.ndarray) -> "PoseData":
+        """Create a PoseData instance from a NumPy array.
+
+        Args:
+            array: NumPy array to convert.
+
+        Returns:
+            PoseData instance created from the array.
+        """
+        pose = {f"pose{i}": list(array[i]) for i in range(len(array))}
+        return PoseData(pose=pose)
 
 
 class EndEffectorPoseData(NCData):
@@ -157,18 +273,29 @@ class EndEffectorPoseData(NCData):
     position and unit quaternion orientation [x, y, z, qx, qy, qz, qw].
     """
 
-    poses: dict[str, list[float]]
+    type: Literal["EndEffectorPoseData"] = "EndEffectorPoseData"
+    pose: list[float]
 
-    def order(self) -> "EndEffectorPoseData":
-        """Return a new EndEffectorPoseData instance with sorted effector names.
+    def numpy(self) -> np.ndarray:
+        """Convert the end-effector pose values to a NumPy array.
 
         Returns:
-            New EndEffectorPoseData with alphabetically sorted effector names.
+            NumPy array of end-effector pose values.
         """
-        return EndEffectorPoseData(
-            timestamp=self.timestamp,
-            poses=_sort_dict_by_keys(self.poses) or {},
-        )
+        return np.array(list(self.poses.values()), dtype=np.float32)
+
+    @staticmethod
+    def from_numpy(array: np.ndarray) -> "EndEffectorPoseData":
+        """Create an EndEffectorPoseData instance from a NumPy array.
+
+        Args:
+            array: NumPy array to convert.
+
+        Returns:
+            EndEffectorPoseData instance created from the array.
+        """
+        poses = {f"effector{i}": list(array[i]) for i in range(len(array))}
+        return EndEffectorPoseData(poses=poses)
 
 
 class ParallelGripperOpenAmountData(NCData):
@@ -177,18 +304,29 @@ class ParallelGripperOpenAmountData(NCData):
     Contains the state of parallel gripper opening amounts.
     """
 
-    open_amounts: dict[str, float]
+    type: Literal["ParallelGripperOpenAmountData"] = "ParallelGripperOpenAmountData"
+    open_amounts: float
 
-    def order(self) -> "ParallelGripperOpenAmountData":
-        """Return a new Gripper Open Amount instance with sorted gripper names.
+    def numpy(self) -> np.ndarray:
+        """Convert the gripper open amount values to a NumPy array.
 
         Returns:
-            New ParallelGripperOpenAmountData with alphabetically sorted gripper names.
+            NumPy array of gripper open amount values.
         """
-        return ParallelGripperOpenAmountData(
-            timestamp=self.timestamp,
-            open_amounts=_sort_dict_by_keys(self.open_amounts) or {},
-        )
+        return np.array(list(self.open_amounts.values()), dtype=np.float32)
+
+    @staticmethod
+    def from_numpy(array: np.ndarray) -> "ParallelGripperOpenAmountData":
+        """Create a ParallelGripperOpenAmountData instance from a NumPy array.
+
+        Args:
+            array: NumPy array to convert.
+
+        Returns:
+            ParallelGripperOpenAmountData instance created from the array.
+        """
+        open_amounts = {f"gripper{i}": float(val) for i, val in enumerate(array)}
+        return ParallelGripperOpenAmountData(open_amounts=open_amounts)
 
 
 class PointCloudData(NCData):
@@ -200,6 +338,7 @@ class PointCloudData(NCData):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    type: Literal["PointCloudData"] = "PointCloudData"
     points: Optional[np.ndarray] = None  # (N, 3) float16
     rgb_points: Optional[np.ndarray] = None  # (N, 3) uint8
     extrinsics: Optional[np.ndarray] = None  # (4, 4) float16
@@ -316,6 +455,28 @@ class PointCloudData(NCData):
         """
         return self._encode(v, np.float16) if v is not None else None
 
+    def numpy(self) -> np.ndarray:
+        """Convert the point cloud points to a NumPy array.
+
+        Returns:
+            NumPy array of point cloud points.
+        """
+        if self.points is None:
+            raise ValueError("Point cloud data is not available.")
+        return self.points
+
+    @staticmethod
+    def from_numpy(array: np.ndarray) -> "PointCloudData":
+        """Create a PointCloudData instance from a NumPy array.
+
+        Args:
+            array: NumPy array to convert.
+
+        Returns:
+            PointCloudData instance created from the array.
+        """
+        return PointCloudData(points=array)
+
 
 class LanguageData(NCData):
     """Natural language instruction or description data.
@@ -324,6 +485,7 @@ class LanguageData(NCData):
     or other linguistic data associated with robot demonstrations.
     """
 
+    type: Literal["LanguageData"] = "LanguageData"
     text: str
 
 
@@ -334,10 +496,27 @@ class CustomData(NCData):
     information that doesn't fit into the standard data categories.
     """
 
+    type: Literal["CustomData"] = "CustomData"
     data: Any
 
 
-class SyncPoint(BaseModel):
+# Create a discriminated union type for all NCData subclasses
+NCDataUnion = Annotated[
+    Union[
+        JointData,
+        CameraData,
+        PoseData,
+        EndEffectorPoseData,
+        ParallelGripperOpenAmountData,
+        PointCloudData,
+        LanguageData,
+        CustomData,
+    ],
+    Field(discriminator="type"),
+]
+
+
+class SynchronizedPoint(BaseModel):
     """Synchronized collection of all sensor data at a single time point.
 
     Represents a complete snapshot of robot state and sensor information
@@ -346,145 +525,62 @@ class SyncPoint(BaseModel):
     """
 
     timestamp: float = Field(default_factory=lambda: time.time())
-    joint_positions: Optional[JointData] = None
-    joint_velocities: Optional[JointData] = None
-    joint_torques: Optional[JointData] = None
-    joint_target_positions: Optional[JointData] = None
-    end_effectors: Optional[EndEffectorData] = None
-    end_effector_poses: Optional[EndEffectorPoseData] = None
-    parallel_gripper_open_amounts: Optional[ParallelGripperOpenAmountData] = None
-    poses: Optional[PoseData] = None
-    rgb_images: Optional[dict[str, CameraData]] = None
-    depth_images: Optional[dict[str, CameraData]] = None
-    point_clouds: Optional[dict[str, PointCloudData]] = None
-    language_data: Optional[LanguageData] = None
-    custom_data: Optional[dict[str, CustomData]] = None
     robot_id: Optional[str] = None
+    data: dict[DataType, Mapping[str, NCDataUnion]] = Field(default_factory=dict)
 
-    def order(self) -> "SyncPoint":
-        """Return a new SyncPoint with all dictionary data consistently ordered.
-
-        This method ensures all dictionary keys in the sync point are sorted
-        alphabetically to provide consistent ordering for machine learning models.
-        This is critical for model training and inference as it ensures deterministic
-        input ordering across different sync points.
-
-        The following fields are ordered:
-        - RGB images (by camera name)
-        - Depth images (by camera name)
-        - Point clouds (by sensor name)
-        - Custom data (by data type name)
-        - Joint data values (by joint name)
-        - Pose data (by pose name and pose coordinate names)
-        - End effector data (by effector name)
-
-        Returns:
-            New SyncPoint with all dictionary data consistently ordered.
-
-        Example:
-            >>> sync_point = SyncPoint(
-            ...     rgb_images={"cam_2": data2, "cam_1": data1},
-            ...     joint_positions=JointData(values={"joint_2": 1.0, "joint_1": 0.5})
-            ... )
-            >>> ordered = sync_point.order()
-            >>> list(ordered.rgb_images.keys())
-            ['cam_1', 'cam_2']
-            >>> list(ordered.joint_positions.values.keys())
-            ['joint_1', 'joint_2']
-        """
-        return SyncPoint(
+    def order(self) -> "SynchronizedPoint":
+        """Return a new SynchronizedPoint with all dictionary data ordered."""
+        return SynchronizedPoint(
             timestamp=self.timestamp,
-            # Order joint data using their get_ordered methods
-            joint_positions=(
-                self.joint_positions.order() if self.joint_positions else None
-            ),
-            joint_velocities=(
-                self.joint_velocities.order() if self.joint_velocities else None
-            ),
-            joint_torques=(self.joint_torques.order() if self.joint_torques else None),
-            joint_target_positions=(
-                self.joint_target_positions.order()
-                if self.joint_target_positions
-                else None
-            ),
-            # Order end effector data
-            end_effectors=(self.end_effectors.order() if self.end_effectors else None),
-            # Order pose data (both pose names and pose coordinates)
-            poses=self.poses.order() if self.poses else None,
-            # Order end effector pose data
-            end_effector_poses=(
-                self.end_effector_poses.order() if self.end_effector_poses else None
-            ),
-            # Order parallel gripper open amount data
-            parallel_gripper_open_amounts=(
-                self.parallel_gripper_open_amounts.order()
-                if self.parallel_gripper_open_amounts
-                else None
-            ),
-            # Order camera data by camera/sensor names
-            rgb_images=_sort_dict_by_keys(self.rgb_images),
-            depth_images=_sort_dict_by_keys(self.depth_images),
-            point_clouds=_sort_dict_by_keys(self.point_clouds),
-            # Language data doesn't need ordering (single value)
-            language_data=self.language_data,
-            # Order custom data by data type names
-            custom_data=_sort_dict_by_keys(self.custom_data),
             robot_id=self.robot_id,
+            data={
+                dt: {
+                    name: data_item.order()
+                    for name, data_item in _sort_dict_by_keys(data_dict).items()
+                }
+                for dt, data_dict in self.data.items()
+            },
         )
 
+    def __getitem__(self, key: Union[DataType, str]) -> Mapping[str, NCDataUnion]:
+        """Get item by DataType or field name."""
+        # If key is a DataType enum, access the nested data dict
+        if isinstance(key, DataType):
+            return self.data[key]
+        # Otherwise, fall back to default Pydantic behavior for field names
+        return super().__getitem__(key)
 
-class SyncedData(BaseModel):
-    """Complete synchronized dataset containing a sequence of data points.
+    def __setitem__(
+        self, key: Union[DataType, str], value: Mapping[str, NCDataUnion]
+    ) -> None:
+        """Set item by DataType or field name."""
+        # Same for setting
+        if isinstance(key, DataType):
+            self.data[key] = value
+        else:
+            super().__setitem__(key, value)
 
-    Represents an entire recording or demonstration as a time-ordered sequence
-    of synchronized data points with start and end timestamps for temporal
-    reference.
-    """
 
-    frames: list[SyncPoint]
+class SynchronizedEpisode(BaseModel):
+    """Synchronized episode of time-ordered synchronized observations."""
+
+    observations: list[SynchronizedPoint]
     start_time: float
     end_time: float
     robot_id: str
 
-    def order(self) -> "SyncedData":
-        """Return a new SyncedData with all sync points ordered.
+    def order(self) -> "SynchronizedEpisode":
+        """Return a new SynchronizedEpisode with all synchronized observations ordered.
 
         Returns:
-            New SyncedData with all sync points having consistent ordering.
+            New SynchronizedEpisode with all synchronized observations ordered.
         """
-        return SyncedData(
-            frames=[frame.order() for frame in self.frames],
+        return SynchronizedEpisode(
+            observations=[observation.order() for observation in self.observations],
             start_time=self.start_time,
             end_time=self.end_time,
             robot_id=self.robot_id,
         )
-
-
-class DataType(str, Enum):
-    """Enumeration of supported data types in the Neuracore system.
-
-    Defines the standard data categories used for dataset organization,
-    model training, and data processing pipelines.
-    """
-
-    # Robot state
-    JOINT_POSITIONS = "JOINT_POSITIONS"
-    JOINT_VELOCITIES = "JOINT_VELOCITIES"
-    JOINT_TORQUES = "JOINT_TORQUES"
-    JOINT_TARGET_POSITIONS = "JOINT_TARGET_POSITIONS"
-    END_EFFECTORS = "END_EFFECTORS"
-    END_EFFECTOR_POSES = "END_EFFECTOR_POSES"
-    PARALLEL_GRIPPER_OPEN_AMOUNTS = "PARALLEL_GRIPPER_OPEN_AMOUNTS"
-
-    # Vision
-    RGB_IMAGE = "RGB_IMAGE"
-    DEPTH_IMAGE = "DEPTH_IMAGE"
-    POINT_CLOUD = "POINT_CLOUD"
-
-    # Other
-    POSES = "POSES"
-    LANGUAGE = "LANGUAGE"
-    CUSTOM = "CUSTOM"
 
 
 class DataItemStats(BaseModel):
@@ -514,7 +610,7 @@ class DataItemStats(BaseModel):
     robot_to_ncdata_keys: dict[str, list[str]] = Field(default_factory=dict)
 
 
-class DatasetDescription(BaseModel):
+class DatasetStatistics(BaseModel):
     """Comprehensive description of dataset contents and statistics.
 
     Provides metadata about a complete dataset including statistical summaries
@@ -523,35 +619,7 @@ class DatasetDescription(BaseModel):
     """
 
     total_num_transitions: int = 0
-
-    # Joint data statistics
-    joint_positions: DataItemStats = Field(default_factory=DataItemStats)
-    joint_velocities: DataItemStats = Field(default_factory=DataItemStats)
-    joint_torques: DataItemStats = Field(default_factory=DataItemStats)
-    joint_target_positions: DataItemStats = Field(default_factory=DataItemStats)
-
-    # End-effector statistics
-    end_effector_states: DataItemStats = Field(default_factory=DataItemStats)
-
-    # End-effector poses statistics
-    end_effector_poses: DataItemStats = Field(default_factory=DataItemStats)
-
-    # Parallel gripper open amount statistics
-    parallel_gripper_open_amounts: DataItemStats = Field(default_factory=DataItemStats)
-
-    # Pose statistics
-    poses: DataItemStats = Field(default_factory=DataItemStats)
-
-    # Visual data counts
-    rgb_images: DataItemStats = Field(default_factory=DataItemStats)
-    depth_images: DataItemStats = Field(default_factory=DataItemStats)
-    point_clouds: DataItemStats = Field(default_factory=DataItemStats)
-
-    # Language data
-    language: DataItemStats = Field(default_factory=DataItemStats)
-
-    # Custom data statistics
-    custom_data: dict[str, DataItemStats] = Field(default_factory=dict)
+    data: dict[DataType, dict[str, DataItemStats]] = Field(default_factory=dict)
 
     def get_data_types(self) -> list[DataType]:
         """Determine which data types are present in the dataset.
@@ -563,103 +631,46 @@ class DatasetDescription(BaseModel):
             List of DataType enums representing the data modalities
             present in this dataset.
         """
-        data_types = []
+        return list(self.data.keys())
 
-        # Joint data
-        if self.joint_positions.max_len > 0:
-            data_types.append(DataType.JOINT_POSITIONS)
-        if self.joint_velocities.max_len > 0:
-            data_types.append(DataType.JOINT_VELOCITIES)
-        if self.joint_torques.max_len > 0:
-            data_types.append(DataType.JOINT_TORQUES)
-        if self.joint_target_positions.max_len > 0:
-            data_types.append(DataType.JOINT_TARGET_POSITIONS)
-
-        # End-effector data
-        if self.end_effector_states.max_len > 0:
-            data_types.append(DataType.END_EFFECTORS)
-
-        # End effector pose data
-        if self.end_effector_poses.max_len > 0:
-            data_types.append(DataType.END_EFFECTOR_POSES)
-
-        # Parallel gripper open amount data
-        if self.parallel_gripper_open_amounts.max_len > 0:
-            data_types.append(DataType.PARALLEL_GRIPPER_OPEN_AMOUNTS)
-
-        # Pose data
-        if self.poses.max_len > 0:
-            data_types.append(DataType.POSES)
-
-        # Visual data
-        if self.rgb_images.max_len > 0:
-            data_types.append(DataType.RGB_IMAGE)
-        if self.depth_images.max_len > 0:
-            data_types.append(DataType.DEPTH_IMAGE)
-        if self.point_clouds.max_len > 0:
-            data_types.append(DataType.POINT_CLOUD)
-
-        # Language data
-        if self.language.max_len > 0:
-            data_types.append(DataType.LANGUAGE)
-
-        # Custom data
-        if self.custom_data:
-            data_types.append(DataType.CUSTOM)
-
-        return data_types
-
-    def add_custom_data(
-        self, key: str, stats: DataItemStats, max_length: int = 0
-    ) -> None:
-        """Add statistics for a custom data type.
+    def combine_for_data_type(self, data_type: DataType) -> DataItemStats:
+        """Combine DataItemStats for a specific DataType across all entries.
 
         Args:
-            key: Name of the custom data type
-            stats: Statistical information for the custom data
-            max_length: Maximum length of the custom data arrays
+            data_type: The DataType for which to combine statistics.
+
+        Returns:
+            Combined DataItemStats for the specified DataType.
         """
-        self.custom_data[key] = stats
+        if data_type not in self.data:
+            raise ValueError(f"DataType {data_type} not found in dataset statistics.")
+
+        combined_stats = DataItemStats()
+        for stats in self.data[data_type].values():
+            combined_stats.mean.extend(stats.mean)
+            combined_stats.std.extend(stats.std)
+            combined_stats.count.extend(stats.count)
+            combined_stats.min.extend(stats.min)
+            combined_stats.max.extend(stats.max)
+            combined_stats.max_len = max(combined_stats.max_len, stats.max_len)
+            for robot_id, keys in stats.robot_to_ncdata_keys.items():
+                if robot_id not in combined_stats.robot_to_ncdata_keys:
+                    combined_stats.robot_to_ncdata_keys[robot_id] = []
+                combined_stats.robot_to_ncdata_keys[robot_id].extend(keys)
+
+        return combined_stats
 
 
-class RecordingDescription(BaseModel):
-    """Description of a single recording episode with statistics and counts.
+class EpisodeStatistics(BaseModel):
+    """Description of a single episode with statistics and counts.
 
-    Provides metadata about an individual recording including data statistics,
+    Provides metadata about an individual episode including data statistics,
     sensor counts, and episode length for analysis and processing.
     """
 
-    # Joint data statistics
-    joint_positions: DataItemStats = Field(default_factory=DataItemStats)
-    joint_velocities: DataItemStats = Field(default_factory=DataItemStats)
-    joint_torques: DataItemStats = Field(default_factory=DataItemStats)
-    joint_target_positions: DataItemStats = Field(default_factory=DataItemStats)
-
-    # End-effector statistics
-    end_effector_states: DataItemStats = Field(default_factory=DataItemStats)
-
-    # End-effector pose statistics
-    end_effector_poses: DataItemStats = Field(default_factory=DataItemStats)
-
-    # Parallel gripper open amount statistics
-    parallel_gripper_open_amounts: DataItemStats = Field(default_factory=DataItemStats)
-
-    # Pose statistics
-    poses: DataItemStats = Field(default_factory=DataItemStats)
-
-    # Visual data counts
-    rgb_images: DataItemStats = Field(default_factory=DataItemStats)
-    depth_images: DataItemStats = Field(default_factory=DataItemStats)
-    point_clouds: DataItemStats = Field(default_factory=DataItemStats)
-
-    # Language data
-    language: DataItemStats = Field(default_factory=DataItemStats)
-
     # Episode metadata
     episode_length: int = 0
-
-    # Custom data statistics
-    custom_data: dict[str, DataItemStats] = Field(default_factory=dict)
+    data: dict[DataType, dict[str, DataItemStats]] = Field(default_factory=dict)
 
     def get_data_types(self) -> list[DataType]:
         """Determine which data types are present in the recording.
@@ -671,51 +682,7 @@ class RecordingDescription(BaseModel):
             List of DataType enums representing the data modalities
             present in this recording.
         """
-        data_types = []
-
-        # Joint data
-        if self.joint_positions.max_len > 0:
-            data_types.append(DataType.JOINT_POSITIONS)
-        if self.joint_velocities.max_len > 0:
-            data_types.append(DataType.JOINT_VELOCITIES)
-        if self.joint_torques.max_len > 0:
-            data_types.append(DataType.JOINT_TORQUES)
-        if self.joint_target_positions.max_len > 0:
-            data_types.append(DataType.JOINT_TARGET_POSITIONS)
-
-        # End-effector data
-        if self.end_effector_states.max_len > 0:
-            data_types.append(DataType.END_EFFECTORS)
-
-        # End-effector pose data
-        if self.end_effector_poses.max_len > 0:
-            data_types.append(DataType.END_EFFECTOR_POSES)
-
-        # Parallel gripper open amount data
-        if self.parallel_gripper_open_amounts.max_len > 0:
-            data_types.append(DataType.PARALLEL_GRIPPER_OPEN_AMOUNTS)
-
-        # Pose data
-        if self.poses.max_len > 0:
-            data_types.append(DataType.POSES)
-
-        # Visual data
-        if self.rgb_images.max_len > 0:
-            data_types.append(DataType.RGB_IMAGE)
-        if self.depth_images.max_len > 0:
-            data_types.append(DataType.DEPTH_IMAGE)
-        if self.point_clouds.max_len > 0:
-            data_types.append(DataType.POINT_CLOUD)
-
-        # Language data
-        if self.language.max_len > 0:
-            data_types.append(DataType.LANGUAGE)
-
-        # Custom data
-        if self.custom_data:
-            data_types.append(DataType.CUSTOM)
-
-        return data_types
+        return list(self.data.keys())
 
 
 class ModelInitDescription(BaseModel):
@@ -726,7 +693,7 @@ class ModelInitDescription(BaseModel):
     and training configuration.
     """
 
-    dataset_description: DatasetDescription
+    dataset_statistics: DatasetStatistics
     input_data_types: list[DataType]
     output_data_types: list[DataType]
     output_prediction_horizon: int = 1
@@ -744,8 +711,20 @@ class ModelPrediction(BaseModel):
     prediction_time: Optional[float] = None
 
 
-class SyncedDataset(BaseModel):
-    """Represents a dataset of robot demonstrations.
+class PredictRequest(BaseModel):
+    """Request model for server policy inference.
+
+    Attributes:
+        sync_point: The current observation.
+        robot_name: The name of the robot to infer the policy for.
+    """
+
+    sync_point: SynchronizedPoint
+    robot_name: Optional[str] = None
+
+
+class SynchronizedDataset(BaseModel):
+    """Represents a synchronized dataset of episodes.
 
     A Synchronized dataset groups related robot demonstrations together
     and maintains metadata about the collection as a whole.
@@ -778,16 +757,13 @@ class SyncedDataset(BaseModel):
     total_duration_seconds: float = 0.0
     is_shared: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
-    dataset_description: DatasetDescription = Field(default_factory=DatasetDescription)
+    dataset_statistics: DatasetStatistics = Field(default_factory=DatasetStatistics)
     all_data_types: dict[DataType, int] = Field(default_factory=dict)
     common_data_types: dict[DataType, int] = Field(default_factory=dict)
 
 
 class Dataset(BaseModel):
-    """Represents a dataset of robot demonstrations.
-
-    A dataset groups related robot demonstrations together and maintains metadata
-    about the collection as a whole.
+    """Represents a dataset of unsynchronized episodes.
 
     Attributes:
         id: Unique identifier for the dataset.
@@ -943,21 +919,6 @@ class RobotInstanceIdentifier(NamedTuple):
     robot_instance: int
 
 
-class TrackKind(str, Enum):
-    """Enumerates the supported track kinds for streaming."""
-
-    JOINTS = "JOINTS"
-    RGB = "RGB"
-    DEPTH = "DEPTH"
-    LANGUAGE = "LANGUAGE"
-    GRIPPER = "GRIPPER"
-    END_EFFECTOR_POSE = "END_EFFECTOR_POSE"
-    PARALLEL_GRIPPER_OPEN_AMOUNT = "PARALLEL_GRIPPER_OPEN_AMOUNT"
-    POINT_CLOUD = "POINT_CLOUD"
-    POSE = "POSE"
-    CUSTOM = "CUSTOM"
-
-
 class RobotStreamTrack(BaseModel):
     """Metadata for a robot's media stream track.
 
@@ -969,7 +930,7 @@ class RobotStreamTrack(BaseModel):
         robot_id: The unique identifier of the robot providing the stream.
         robot_instance: The specific instance number of the robot.
         stream_id: The identifier for the overall media stream session.
-        kind: The type of media track, typically 'audio' or 'video'.
+        data_type: The type of media track.
         label: A human-readable label for the track (e.g., 'front_camera').
         mid: The media ID used in SDP, essential for WebRTC negotiation.
         id: A unique identifier for this track metadata object.
@@ -979,7 +940,7 @@ class RobotStreamTrack(BaseModel):
     robot_id: str
     robot_instance: NonNegativeInt
     stream_id: str
-    kind: TrackKind
+    data_type: DataType
     label: str
     mid: str
     id: str = Field(default_factory=lambda: uuid4().hex)
