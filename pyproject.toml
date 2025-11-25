@@ -20,7 +20,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pydantic-to-typescript2>=1.0.0",
-    "pre-commit"
+    "pre-commit",
+    "grpcio-tools",
+    "mypy-protobuf",
 ]
 
 [tool.hatch.build.targets.wheel]

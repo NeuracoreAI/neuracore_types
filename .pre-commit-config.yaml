@@ -19,8 +19,9 @@ repos:
     rev: v0.0.272
     hooks:
       - id: ruff
-        # Ignoring unused imports within __init__.py files.
-        args: [--per-file-ignores, "*__init__.py:F401", --fix]
+        args:
+          - --per-file-ignores=neuracore_types/neuracore_types_pb2.py:E501
+          - --fix
 
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.3.0
