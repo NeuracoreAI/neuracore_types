@@ -4,7 +4,7 @@
     "module": "commonjs",
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./typescript",
+    "rootDir": "./neuracore_types",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -12,6 +12,6 @@
     "moduleResolution": "node",
     "resolveJsonModule": true
   },
-  "include": ["typescript/**/*"],
+  "include": ["neuracore_types/**/*"],
   "exclude": ["node_modules", "dist"]
 }
