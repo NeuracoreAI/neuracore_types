@@ -36,9 +36,13 @@ jobs:
 
     - name: Install Node dependencies
       run: npm install
-    
+
     - name: Validate that we can generate TypeScript types
       run: python scripts/generate_types.py
 
     - name: Validate protobuff python/typescript
       run: python scripts/generate_protos.py
+
+    - name: Build TypeScript
+      run: npm run build
+
