@@ -1111,4 +1111,4 @@ class RecordingDataStream(BaseModel):
     status: RecordingDataStreamStatus = RecordingDataStreamStatus.PENDING
     upload_progress: int
     created_at: float = Field(default_factory=lambda: datetime.now().timestamp())
-    uploaded_at: float | None
+    uploaded_at: Optional[float]
