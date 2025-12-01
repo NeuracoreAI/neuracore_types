@@ -228,8 +228,11 @@ jobs:
     - name: Install Python dependencies
       run: pip install -e ".[dev]"
     
-    - name: Install Node dependencies
+    - name: Update npm 
       run: npm install -g npm@latest
+
+    - name: Install Node dependencies
+      run: npm install
     
     - name: Generate TypeScript types
       run: python scripts/generate_types.py
