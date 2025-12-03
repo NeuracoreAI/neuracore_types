@@ -1039,25 +1039,12 @@ class BaseRecodingUpdatePayload(BaseModel):
     instance: NonNegativeInt
 
 
-class RecodingRequestedPayload(BaseRecodingUpdatePayload):
-    """Payload for recording request notifications.
-
-    Contains information about who requested the recording and what
-    data types should be captured.
-    """
+class RecordingStartPayload(BaseRecodingUpdatePayload):
+    """Payload for recording start notifications."""
 
     created_by: str
     dataset_ids: list[str] = Field(default_factory=list)
     data_types: set[DataType] = Field(default_factory=set)
-
-
-class RecordingStartPayload(RecodingRequestedPayload):
-    """Payload for recording start notifications.
-
-    Extends the request payload with the actual start timestamp
-    when recording begins.
-    """
-
     start_time: float
 
 
@@ -1065,7 +1052,6 @@ class RecordingNotificationType(str, Enum):
     """Types of recording lifecycle notifications."""
 
     INIT = "INIT"
-    REQUESTED = "REQUESTED"
     START = "START"
     STOP = "STOP"
     SAVED = "SAVED"
@@ -1083,8 +1069,7 @@ class RecordingNotification(BaseModel):
     type: RecordingNotificationType
     payload: Union[
         RecordingStartPayload,
-        RecodingRequestedPayload,
-        list[Union[RecordingStartPayload, RecodingRequestedPayload]],
+        list[RecordingStartPayload],
         BaseRecodingUpdatePayload,
     ]
     id: str = Field(default_factory=lambda: uuid4().hex)
