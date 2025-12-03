@@ -35,6 +35,7 @@
     "access": "public"
   },
   "dependencies": {
-    "json-schema-to-typescript": "^15.0.4"
+    "json-schema-to-typescript": "^15.0.4",
+    "google-protobuf": "^3.21.4"
   }
 }
