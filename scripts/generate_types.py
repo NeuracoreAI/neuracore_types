@@ -17,7 +17,7 @@ def generate_typescript_types():
     cmd = [
         "pydantic2ts",
         "--module",
-        "neuracore_types.neuracore_types",
+        "neuracore_types/__init__.py",
         "--output",
         str(output_file),
         "--json2ts-cmd",
@@ -39,7 +39,6 @@ def generate_typescript_types():
     index_file.write_text(
         """// Auto-generated index file
 export * from './neuracore_types';
-export * as proto from './neuracore_types_pb';
 """
     )
     print(f"✓ Created {index_file}")
