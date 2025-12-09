@@ -38,9 +38,6 @@ jobs:
     
     - name: Generate TypeScript types
       run: python scripts/generate_types.py
-
-    - name: Generate protos (Python and TypeScript)
-      run: python scripts/generate_protos.py
     
     - name: Build TypeScript
       run: npm run build
@@ -236,9 +233,6 @@ jobs:
     
     - name: Generate TypeScript types
       run: python scripts/generate_types.py
-
-    - name: Generate protos (Python and TypeScript)
-      run: python scripts/generate_protos.py
     
     - name: Publish to NPM
       run: npm publish

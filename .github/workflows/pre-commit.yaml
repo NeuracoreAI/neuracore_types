@@ -32,16 +32,17 @@ jobs:
     - name: Install Python dependencies
       run: |
         pip install --upgrade pip
-        pip install -e ".[dev]"
+        pip install -e ".[dev,ml]"
+  
+    - name: Run tests with pytest
+      run: |
+        pytest tests/unit
 
     - name: Install Node dependencies
       run: npm install
 
     - name: Validate that we can generate TypeScript types
       run: python scripts/generate_types.py
-
-    - name: Validate protobuff python/typescript
-      run: python scripts/generate_protos.py
 
     - name: Build TypeScript
       run: npm run build

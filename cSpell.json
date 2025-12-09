@@ -6,9 +6,6 @@
         "docker-compose.yml",
         "requirements*.txt",
         "*.sh",
-        "neuracore_types/neuracore_types_pb2.py",
-        "neuracore_types/neuracore_types_pb.d.ts",
-        "neuracore_types/neuracore_types_pb.js"
     ],
     "dictionaryDefinitions": [
         {
