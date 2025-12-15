@@ -244,25 +244,26 @@ class RecordingNotification(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
 
 
-class RecordingDataStreamStatus(str, Enum):
-    """Status for a recording data stream upload lifecycle."""
+class RecordingDataTraceStatus(str, Enum):
+    """Status for a recording data trace upload lifecycle."""
 
-    PENDING = "PENDING"
+    QUEUED = "QUEUED"
     UPLOAD_STARTED = "UPLOAD_STARTED"
     UPLOAD_COMPLETE = "UPLOAD_COMPLETE"
 
 
-class RecordingDataStream(BaseModel):
-    """Represents a single data stream belonging to a recording.
+class RecordingDataTrace(BaseModel):
+    """Represents a single data trace belonging to a recording.
 
-    This is used to track upload completion for each stream so that
-    a recording can be saved once all streams are uploaded.
+    This is used to track upload completion for each trace so that
+    a recording can be saved once all traces are uploaded.
     """
 
     id: str
     recording_id: str
     data_type: DataType
-    status: RecordingDataStreamStatus = RecordingDataStreamStatus.PENDING
-    upload_progress: int
+    status: RecordingDataTraceStatus = RecordingDataTraceStatus.QUEUED
     created_at: float = Field(default_factory=lambda: datetime.now().timestamp())
     uploaded_at: Optional[float]
+    uploaded_bytes: int = 0
+    total_bytes: int = 0

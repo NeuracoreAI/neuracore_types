@@ -124,8 +124,8 @@ class EpisodeStatistics(BaseModel):
 class RecordingStatus(str, Enum):
     """Recording status options."""
 
-    NORMAL = "normal"
-    FLAGGED = "flagged"
+    NORMAL = "NORMAL"
+    FLAGGED = "FLAGGED"
 
 
 class RecordingMetadata(BaseModel):
@@ -179,3 +179,28 @@ class Recording(BaseModel):
     total_bytes: int = 0
     is_shared: bool = False
     data_types: set[DataType] = Field(default_factory=set)
+
+
+class PendingRecordingStatus(str, Enum):
+    """Pending recording status.
+
+    STARTED: recording in progress.
+    UPLOADING: at least one trace has upload_progress between 0 and 99.
+    UPLOADED: all traces are completely uploaded.
+    """
+
+    STARTED = "STARTED"
+    UPLOADING = "UPLOADING"
+    UPLOADED = "UPLOADED"
+
+
+class PendingRecording(Recording):
+    """Represents a pending recording.
+
+    Attributes:
+        saved_dataset_id: ID of the dataset where the recording is saved
+    """
+
+    saved_dataset_id: str
+    status: PendingRecordingStatus = PendingRecordingStatus.STARTED
+    progress: int
