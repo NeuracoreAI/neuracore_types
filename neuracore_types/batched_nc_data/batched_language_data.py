@@ -4,11 +4,15 @@ import os
 from typing import Any, Literal, cast
 
 import torch
-from pydantic import field_serializer, field_validator
+from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.batched_nc_data.batched_nc_data import BatchedNCData
 from neuracore_types.nc_data.language_data import LanguageData
 from neuracore_types.nc_data.nc_data import NCData
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 LANGUAGE_MODEL_NAME = os.getenv("LANGUAGE_MODEL_NAME", "distilbert-base-uncased")
 
@@ -18,9 +22,13 @@ _tokenizer = None
 class BatchedLanguageData(BatchedNCData):
     """Batched natural language data for sequences of text inputs."""
 
-    type: Literal["BatchedLanguageData"] = "BatchedLanguageData"
+    type: Literal["BatchedLanguageData"] = Field(
+        default="BatchedLanguageData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     input_ids: torch.Tensor  # (B, T, L) int64
     attention_mask: torch.Tensor  # (B, T, L) float32
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     @field_validator("input_ids", mode="before")
     @classmethod

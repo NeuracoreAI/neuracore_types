@@ -4,19 +4,27 @@ import base64
 from typing import Any, Literal, Optional, Union
 
 import numpy as np
-from pydantic import ConfigDict, field_serializer, field_validator
+from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class PointCloudDataStats(NCDataStats):
     """Statistics for PointCloudData."""
 
-    type: Literal["PointCloudDataStats"] = "PointCloudDataStats"
+    type: Literal["PointCloudDataStats"] = Field(
+        default="PointCloudDataStats", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     points: DataItemStats
     rgb_points: DataItemStats
     extrinsics: DataItemStats
     intrinsics: DataItemStats
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class PointCloudData(NCData):
@@ -28,7 +36,9 @@ class PointCloudData(NCData):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    type: Literal["PointCloudData"] = "PointCloudData"
+    type: Literal["PointCloudData"] = Field(
+        default="PointCloudData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     points: Optional[np.ndarray] = None  # (N, 3) float16
     rgb_points: Optional[np.ndarray] = None  # (N, 3) uint8
     extrinsics: Optional[np.ndarray] = None  # (4, 4) float16

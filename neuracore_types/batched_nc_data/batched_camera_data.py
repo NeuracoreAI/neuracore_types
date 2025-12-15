@@ -4,10 +4,14 @@ from typing import Any, Literal, cast
 
 import numpy as np
 import torch
-from pydantic import field_serializer, field_validator
+from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.batched_nc_data.batched_nc_data import BatchedNCData
 from neuracore_types.nc_data.nc_data import NCData
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 RGB_URI_PREFIX = "data:image/png;base64,"
 
@@ -15,10 +19,14 @@ RGB_URI_PREFIX = "data:image/png;base64,"
 class BatchedRGBData(BatchedNCData):
     """Batched RGB camera data."""
 
-    type: Literal["BatchedRGBData"] = "BatchedRGBData"
+    type: Literal["BatchedRGBData"] = Field(
+        default="BatchedRGBData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     frame: torch.Tensor  # (B, T, 3, H, W) uint8
     extrinsics: torch.Tensor  # (B, T, 4, 4) float16
     intrinsics: torch.Tensor  # (B, T, 3, 3) float16
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     @field_validator("frame", mode="before")
     @classmethod
@@ -114,10 +122,14 @@ class BatchedRGBData(BatchedNCData):
 class BatchedDepthData(BatchedNCData):
     """Batched depth camera data."""
 
-    type: Literal["BatchedDepthData"] = "BatchedDepthData"
+    type: Literal["BatchedDepthData"] = Field(
+        default="BatchedDepthData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     frame: torch.Tensor  # (B, T, 1, H, W) uint8
     extrinsics: torch.Tensor  # (B, T, 4, 4) float16
     intrinsics: torch.Tensor  # (B, T, 3, 3) float16
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     @field_validator("frame", mode="before")
     @classmethod

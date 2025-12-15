@@ -3,11 +3,15 @@
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from neuracore_types.episode.episode import RobotDataSpec
 from neuracore_types.nc_data import DataType, NCDataStatsUnion
 from neuracore_types.synchronization.synchronization import SynchronizationDetails
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class GPUType(str, Enum):
@@ -33,7 +37,11 @@ class MetricsData(BaseModel):
     """
 
     data: dict[int, float]
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+
+    model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
 
 
 class Metrics(BaseModel):
@@ -43,7 +51,11 @@ class Metrics(BaseModel):
         metrics: A dictionary mapping metric names to their values/metaData
     """
 
-    metrics: dict[str, MetricsData] = Field(default_factory=dict)
+    metrics: dict[str, MetricsData] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+
+    model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
 
 
 class ModelInitDescription(BaseModel):
@@ -70,7 +82,11 @@ class ModelInitDescription(BaseModel):
     # Dataset statistics for all data types, where the len of the list corresponds
     # to the max number of data items for that data type (across all robots)
     dataset_statistics: dict[DataType, list[NCDataStatsUnion]]
-    output_prediction_horizon: int = 1
+    output_prediction_horizon: int = Field(
+        default=1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+
+    model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
 
 
 class TrainingJobStatus(str, Enum):
@@ -126,15 +142,27 @@ class TrainingJob(BaseModel):
     launch_time: float
     start_time: float | None = None
     end_time: float | None = None
-    epoch: int = -1
-    step: int = -1
-    algorithm_config: dict[str, Any] = Field(default_factory=lambda: {})
-    gpu_type: GPUType = GPUType.NVIDIA_TESLA_T4
-    num_gpus: int = 1
+    epoch: int = Field(default=-1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    step: int = Field(default=-1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    algorithm_config: dict[str, Any] = Field(
+        default_factory=lambda: {}, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    gpu_type: GPUType = Field(
+        default=GPUType.NVIDIA_TESLA_T4, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    num_gpus: int = Field(default=1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     resumed_at: float | None = None
     previous_training_time: float | None = None
     error: str | None = None
-    resume_points: list[float] = Field(default_factory=lambda: [])
-    input_robot_data_spec: RobotDataSpec = Field(default_factory=lambda: {})
-    output_robot_data_spec: RobotDataSpec = Field(default_factory=lambda: {})
+    resume_points: list[float] = Field(
+        default_factory=lambda: [], json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    input_robot_data_spec: RobotDataSpec = Field(
+        default_factory=lambda: {}, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    output_robot_data_spec: RobotDataSpec = Field(
+        default_factory=lambda: {}, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     synchronization_details: SynchronizationDetails
+
+    model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)

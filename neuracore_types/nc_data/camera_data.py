@@ -6,10 +6,14 @@ from typing import Literal, Optional, Union
 
 import numpy as np
 from PIL import Image
-from pydantic import ConfigDict, field_serializer, field_validator
+from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
 from neuracore_types.utils.depth_utils import depth_to_rgb, rgb_to_depth
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 RGB_URI_PREFIX = "data:image/png;base64,"
 
@@ -17,11 +21,15 @@ RGB_URI_PREFIX = "data:image/png;base64,"
 class CameraDataStats(NCDataStats):
     """Statistics for CameraData."""
 
-    type: Literal["CameraDataStats"] = "CameraDataStats"
+    type: Literal["CameraDataStats"] = Field(
+        default="CameraDataStats", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
 
     frame: DataItemStats
     extrinsics: DataItemStats
     intrinsics: DataItemStats
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class CameraData(NCData):
@@ -32,9 +40,14 @@ class CameraData(NCData):
     is populated during dataset iteration for efficiency.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=fix_required_with_defaults
+    )
 
-    frame_idx: int = 0  # Needed so we can index video after sync
+    frame_idx: int = Field(
+        default=0,  # Needed so we can index video after sync
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
     extrinsics: Optional[np.ndarray] = None
     intrinsics: Optional[np.ndarray] = None
     frame: Optional[Union[np.ndarray, str]] = (
@@ -185,7 +198,11 @@ class RGBCameraData(CameraData):
     Specialization of CameraData for RGB images.
     """
 
-    type: Literal["RGBCameraData"] = "RGBCameraData"
+    type: Literal["RGBCameraData"] = Field(
+        default="RGBCameraData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     @classmethod
     def sample(cls) -> "CameraData":
@@ -207,7 +224,11 @@ class DepthCameraData(CameraData):
     Specialization of CameraData for depth images.
     """
 
-    type: Literal["DepthCameraData"] = "DepthCameraData"
+    type: Literal["DepthCameraData"] = Field(
+        default="DepthCameraData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     @staticmethod
     def _encode_image(arr: np.ndarray) -> str:

@@ -3,16 +3,24 @@
 from typing import Literal, Optional, Union
 
 import numpy as np
-from pydantic import ConfigDict, field_serializer, field_validator
+from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class Custom1DDataStats(NCDataStats):
     """Statistics for Custom1DData."""
 
-    type: Literal["Custom1DDataStats"] = "Custom1DDataStats"
+    type: Literal["Custom1DDataStats"] = Field(
+        default="Custom1DDataStats", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     data: DataItemStats
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class Custom1DData(NCData):
@@ -22,9 +30,13 @@ class Custom1DData(NCData):
     numerical information that is one-dimensional.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=fix_required_with_defaults
+    )
 
-    type: Literal["Custom1DData"] = "Custom1DData"
+    type: Literal["Custom1DData"] = Field(
+        default="Custom1DData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     data: np.ndarray  # 1D array of float32
 
     @classmethod

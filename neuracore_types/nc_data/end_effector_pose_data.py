@@ -3,16 +3,24 @@
 from typing import Literal, Union
 
 import numpy as np
-from pydantic import ConfigDict, field_serializer, field_validator
+from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class EndEffectorPoseDataStats(NCDataStats):
     """Statistics for EndEffectorPoseData."""
 
-    type: Literal["EndEffectorPoseDataStats"] = "EndEffectorPoseDataStats"
+    type: Literal["EndEffectorPoseDataStats"] = Field(
+        default="EndEffectorPoseDataStats", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     pose: DataItemStats
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class EndEffectorPoseData(NCData):
@@ -22,9 +30,13 @@ class EndEffectorPoseData(NCData):
     position and unit quaternion orientation [x, y, z, qx, qy, qz, qw].
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=fix_required_with_defaults
+    )
 
-    type: Literal["EndEffectorPoseData"] = "EndEffectorPoseData"
+    type: Literal["EndEffectorPoseData"] = Field(
+        default="EndEffectorPoseData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     pose: np.ndarray
 
     @field_validator("pose")

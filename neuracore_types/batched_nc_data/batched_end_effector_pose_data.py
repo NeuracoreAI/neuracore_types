@@ -3,17 +3,26 @@
 from typing import Any, Literal, cast
 
 import torch
-from pydantic import field_serializer, field_validator
+from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.batched_nc_data.batched_nc_data import BatchedNCData
 from neuracore_types.nc_data.nc_data import NCData
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class BatchedEndEffectorPoseData(BatchedNCData):
     """Batched end-effector pose data."""
 
-    type: Literal["BatchedEndEffectorPoseData"] = "BatchedEndEffectorPoseData"
+    type: Literal["BatchedEndEffectorPoseData"] = Field(
+        default="BatchedEndEffectorPoseData",
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
     pose: torch.Tensor  # (B, T, 7) float32
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     @field_validator("pose", mode="before")
     @classmethod

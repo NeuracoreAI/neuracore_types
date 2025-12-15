@@ -2,14 +2,24 @@
 
 from typing import Literal
 
+from pydantic import ConfigDict, Field
+
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class LanguageDataStats(NCDataStats):
     """Statistics for LanguageData."""
 
-    type: Literal["LanguageDataStats"] = "LanguageDataStats"
+    type: Literal["LanguageDataStats"] = Field(
+        default="LanguageDataStats", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     text: DataItemStats
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class LanguageData(NCData):
@@ -19,8 +29,12 @@ class LanguageData(NCData):
     or other linguistic data associated with robot demonstrations.
     """
 
-    type: Literal["LanguageData"] = "LanguageData"
+    type: Literal["LanguageData"] = Field(
+        default="LanguageData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     text: str
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     @classmethod
     def sample(cls) -> "LanguageData":

@@ -5,9 +5,13 @@ from enum import Enum
 from typing import NamedTuple, Optional, Union
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, NonNegativeInt
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
 
 from neuracore_types.nc_data import DataType
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class MessageType(str, Enum):
@@ -52,7 +56,12 @@ class HandshakeMessage(BaseModel):
     data: str
     connection_id: str
     type: MessageType
-    id: str = Field(default_factory=lambda: uuid4().hex)
+    id: str = Field(
+        default_factory=lambda: uuid4().hex,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class VideoFormat(str, Enum):
@@ -82,8 +91,16 @@ class OpenConnectionRequest(BaseModel):
     robot_id: str
     robot_instance: NonNegativeInt
     video_format: VideoFormat
-    id: str = Field(default_factory=lambda: uuid4().hex)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    id: str = Field(
+        default_factory=lambda: uuid4().hex,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class OpenConnectionDetails(BaseModel):
@@ -151,8 +168,16 @@ class RobotStreamTrack(BaseModel):
     data_type: DataType
     label: str
     mid: str
-    id: str = Field(default_factory=lambda: uuid4().hex)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    id: str = Field(
+        default_factory=lambda: uuid4().hex,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class AvailableRobotInstance(BaseModel):
@@ -212,9 +237,15 @@ class RecordingStartPayload(BaseRecodingUpdatePayload):
     """Payload for recording start notifications."""
 
     created_by: str
-    dataset_ids: list[str] = Field(default_factory=list)
-    data_types: set[DataType] = Field(default_factory=set)
+    dataset_ids: list[str] = Field(
+        default_factory=list, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    data_types: set[DataType] = Field(
+        default_factory=set, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     start_time: float
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class RecordingNotificationType(str, Enum):
@@ -241,7 +272,12 @@ class RecordingNotification(BaseModel):
         list[RecordingStartPayload],
         BaseRecodingUpdatePayload,
     ]
-    id: str = Field(default_factory=lambda: uuid4().hex)
+    id: str = Field(
+        default_factory=lambda: uuid4().hex,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class RecordingDataTraceStatus(str, Enum):
@@ -262,8 +298,22 @@ class RecordingDataTrace(BaseModel):
     id: str
     recording_id: str
     data_type: DataType
-    status: RecordingDataTraceStatus = RecordingDataTraceStatus.QUEUED
-    created_at: float = Field(default_factory=lambda: datetime.now().timestamp())
+    status: RecordingDataTraceStatus = Field(
+        default=RecordingDataTraceStatus.QUEUED,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    created_at: float = Field(
+        default_factory=lambda: datetime.now().timestamp(),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
     uploaded_at: Optional[float]
-    uploaded_bytes: int = 0
-    total_bytes: int = 0
+    uploaded_bytes: int = Field(
+        default=0,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    total_bytes: int = Field(
+        default=0,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)

@@ -6,10 +6,14 @@ from enum import Enum
 from typing import Optional, Union
 
 from names_generator import generate_name
-from pydantic import BaseModel, Field, NonNegativeInt
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
 
 from neuracore_types.nc_data import DataType, NCDataUnion
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 DataSpec = dict[DataType, list[str]]
 RobotDataSpec = dict[str, DataSpec]
@@ -26,9 +30,16 @@ class SynchronizedPoint(BaseModel):
     and ensuring consistent data relationships across different sensors.
     """
 
-    timestamp: float = Field(default_factory=lambda: time.time())
+    timestamp: float = Field(
+        default_factory=lambda: time.time(),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
     robot_id: Optional[str] = None
-    data: dict[DataType, dict[str, NCDataUnion]] = Field(default_factory=dict)
+    data: dict[DataType, dict[str, NCDataUnion]] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     def order(self, order_spec: dict[DataType, list[str]]) -> "SynchronizedPoint":
         """Return a new SynchronizedPoint with all dictionary data ordered."""
@@ -105,8 +116,13 @@ class EpisodeStatistics(BaseModel):
     """
 
     # Episode metadata
-    episode_length: int = 0
-    data: dict[DataType, dict[str, DataItemStats]] = Field(default_factory=dict)
+    episode_length: int = Field(default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+
+    data: dict[DataType, dict[str, DataItemStats]] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     def get_data_types(self) -> list[DataType]:
         """Determine which data types are present in the recording.
@@ -139,16 +155,22 @@ class RecordingMetadata(BaseModel):
 
     name: str = Field(
         default_factory=lambda: generate_name(style="capital"),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
         max_length=NAME_MAX_LENGTH,
         strip_whitespace=True,
         min_length=1,
     )
     notes: str = Field(
         default="",
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
         max_length=NOTES_MAX_LENGTH,
         strip_whitespace=True,
     )
-    status: RecordingStatus = RecordingStatus.NORMAL
+    status: RecordingStatus = Field(
+        default=RecordingStatus.NORMAL, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class Recording(BaseModel):
@@ -170,15 +192,26 @@ class Recording(BaseModel):
 
     id: str
     robot_id: str
-    instance: NonNegativeInt = 0
+    instance: NonNegativeInt = Field(
+        default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     org_id: str
-    created_by: str = ""
-    start_time: float = Field(default_factory=lambda: datetime.now().timestamp())
+    created_by: str = Field(default="", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    start_time: float = Field(
+        default_factory=lambda: datetime.now().timestamp(),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
     end_time: float | None = None
-    metadata: RecordingMetadata = Field(default_factory=RecordingMetadata)
-    total_bytes: int = 0
-    is_shared: bool = False
-    data_types: set[DataType] = Field(default_factory=set)
+    metadata: RecordingMetadata = Field(
+        default_factory=RecordingMetadata, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    total_bytes: int = Field(default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    is_shared: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    data_types: set[DataType] = Field(
+        default_factory=set, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class PendingRecordingStatus(str, Enum):
@@ -202,5 +235,10 @@ class PendingRecording(Recording):
     """
 
     saved_dataset_id: str
-    status: PendingRecordingStatus = PendingRecordingStatus.STARTED
+    status: PendingRecordingStatus = Field(
+        default=PendingRecordingStatus.STARTED,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
     progress: int
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
