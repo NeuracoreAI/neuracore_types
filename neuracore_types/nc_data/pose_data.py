@@ -3,16 +3,24 @@
 from typing import Literal, Union
 
 import numpy as np
-from pydantic import ConfigDict, field_serializer, field_validator
+from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class PoseDataStats(NCDataStats):
     """Statistics for PoseData."""
 
-    type: Literal["PoseDataStats"] = "PoseDataStats"
+    type: Literal["PoseDataStats"] = Field(
+        default="PoseDataStats", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     pose: DataItemStats
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class PoseData(NCData):
@@ -23,9 +31,13 @@ class PoseData(NCData):
     mapping pose names to [x, y, z, rx, ry, rz] values.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=fix_required_with_defaults
+    )
 
-    type: Literal["PoseData"] = "PoseData"
+    type: Literal["PoseData"] = Field(
+        default="PoseData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     pose: np.ndarray
 
     @field_validator("pose")

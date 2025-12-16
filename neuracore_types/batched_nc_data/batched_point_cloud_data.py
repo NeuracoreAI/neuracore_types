@@ -3,20 +3,28 @@
 from typing import Any, Literal, Optional, Union, cast
 
 import torch
-from pydantic import field_serializer, field_validator
+from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.batched_nc_data.batched_nc_data import BatchedNCData
 from neuracore_types.nc_data.nc_data import NCData
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class BatchedPointCloudData(BatchedNCData):
     """Batched 3D point cloud data with optional RGB colouring and camera parameters."""
 
-    type: Literal["BatchedPointCloudData"] = "BatchedPointCloudData"
+    type: Literal["BatchedPointCloudData"] = Field(
+        default="BatchedPointCloudData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     points: torch.Tensor  # (B, T, N, 3) float32
     rgb_points: Optional[torch.Tensor] = None  # (B, T, N, 3) uint8
     extrinsics: Optional[torch.Tensor] = None  # (B, T, 4, 4) float32
     intrinsics: Optional[torch.Tensor] = None  # (B, T, 3, 3) float32
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     @field_validator("points", mode="before")
     @classmethod

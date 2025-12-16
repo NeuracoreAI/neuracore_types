@@ -6,6 +6,11 @@ from typing import Any, Optional, Union
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
+
 
 class NCDataStats(BaseModel):
     """Base class for statistics of Neuracore data types."""
@@ -20,7 +25,12 @@ class NCData(BaseModel):
     timestamp generation for temporal synchronization and data ordering.
     """
 
-    timestamp: float = Field(default_factory=lambda: time.time())
+    timestamp: float = Field(
+        default_factory=lambda: time.time(),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     def calculate_statistics(self) -> NCDataStats:
         """Calculate the statistics for this data type."""
@@ -42,13 +52,30 @@ class DataItemStats(BaseModel):
     and model configuration purposes.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra=fix_required_with_defaults
+    )
 
-    mean: np.ndarray = Field(default_factory=lambda: np.array([]))
-    std: np.ndarray = Field(default_factory=lambda: np.array([]))
-    count: np.ndarray = Field(default_factory=lambda: np.array([]))
-    min: np.ndarray = Field(default_factory=lambda: np.array([]))
-    max: np.ndarray = Field(default_factory=lambda: np.array([]))
+    mean: np.ndarray = Field(
+        default_factory=lambda: np.array([]),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    std: np.ndarray = Field(
+        default_factory=lambda: np.array([]),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    count: np.ndarray = Field(
+        default_factory=lambda: np.array([]),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    min: np.ndarray = Field(
+        default_factory=lambda: np.array([]),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    max: np.ndarray = Field(
+        default_factory=lambda: np.array([]),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
 
     def concatenate(self, other: "DataItemStats") -> "DataItemStats":
         """Concatenate two DataItemStats objects along the data dimension."""

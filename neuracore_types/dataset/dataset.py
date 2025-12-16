@@ -2,9 +2,13 @@
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from neuracore_types.nc_data import DataType, NCDataStatsUnion
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class SynchronizedDataset(BaseModel):
@@ -72,8 +76,9 @@ class SynchronizedDatasetStatistics(BaseModel):
     synchronized_dataset_id: str
     robot_data_spec: dict[str, dict[DataType, list[str]]]
     dataset_statistics: dict[DataType, list[NCDataStatsUnion]] = Field(
-        default_factory=dict
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class Dataset(BaseModel):
@@ -107,13 +112,29 @@ class Dataset(BaseModel):
     created_at: float
     modified_at: float
     description: str | None = None
-    tags: list[str] = Field(default_factory=list)
-    num_demonstrations: int = 0
-    total_duration_seconds: float = 0.0
-    size_bytes: int = 0
-    is_shared: bool = False
-    metadata: dict[str, Any] = Field(default_factory=dict)
-    synced_dataset_ids: dict[str, Any] = Field(default_factory=dict)
-    all_data_types: dict[DataType, int] = Field(default_factory=dict)
-    common_data_types: dict[DataType, int] = Field(default_factory=dict)
-    deleted: bool = False
+    tags: list[str] = Field(
+        default_factory=list, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    num_demonstrations: int = Field(
+        default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    total_duration_seconds: float = Field(
+        default=0.0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    size_bytes: int = Field(default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    is_shared: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    synced_dataset_ids: dict[str, Any] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    all_data_types: dict[DataType, int] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    common_data_types: dict[DataType, int] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    deleted: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)

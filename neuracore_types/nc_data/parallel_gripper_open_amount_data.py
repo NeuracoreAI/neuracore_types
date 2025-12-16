@@ -3,17 +3,25 @@
 from typing import Literal
 
 import numpy as np
+from pydantic import ConfigDict, Field
 
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class ParallelGripperOpenAmountDataStats(NCDataStats):
     """Statistics for ParallelGripperOpenAmountData."""
 
-    type: Literal["ParallelGripperOpenAmountDataStats"] = (
-        "ParallelGripperOpenAmountDataStats"
+    type: Literal["ParallelGripperOpenAmountDataStats"] = Field(
+        default="ParallelGripperOpenAmountDataStats",
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
     open_amount: DataItemStats
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class ParallelGripperOpenAmountData(NCData):
@@ -22,8 +30,13 @@ class ParallelGripperOpenAmountData(NCData):
     Contains the state of parallel gripper opening amounts.
     """
 
-    type: Literal["ParallelGripperOpenAmountData"] = "ParallelGripperOpenAmountData"
+    type: Literal["ParallelGripperOpenAmountData"] = Field(
+        default="ParallelGripperOpenAmountData",
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
     open_amount: float
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     @classmethod
     def sample(cls) -> "ParallelGripperOpenAmountData":

@@ -1,8 +1,12 @@
 """Request models for dataset and recording synchronization operations."""
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from neuracore_types.episode.episode import RobotDataSpec
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class SynchronizationDetails(BaseModel):
@@ -17,10 +21,14 @@ class SynchronizationDetails(BaseModel):
 
     frequency: int
     robot_data_spec: RobotDataSpec | None
-    max_delay_s: float = 0.1
-    allow_duplicates: bool = True
+    max_delay_s: float = Field(
+        default=0.1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    allow_duplicates: bool = Field(
+        default=True, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
 
     def __hash__(self) -> int:
         """Compute a hash value for the SynchronizationDetails instance.

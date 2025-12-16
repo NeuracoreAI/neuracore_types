@@ -3,22 +3,35 @@
 from typing import Literal
 
 import numpy as np
+from pydantic import ConfigDict, Field
 
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.utils.pydantic_to_ts import (
+    REQUIRED_WITH_DEFAULT_FLAG,
+    fix_required_with_defaults,
+)
 
 
 class JointDataStats(NCDataStats):
     """Statistics for JointData."""
 
-    type: Literal["JointDataStats"] = "JointDataStats"
+    type: Literal["JointDataStats"] = Field(
+        default="JointDataStats", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     value: DataItemStats
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class JointData(NCData):
     """Robot joint state data including positions, velocities, or torques."""
 
-    type: Literal["JointData"] = "JointData"
+    type: Literal["JointData"] = Field(
+        default="JointData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     value: float
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     def calculate_statistics(self) -> JointDataStats:
         """Calculate the statistics for this data type.
