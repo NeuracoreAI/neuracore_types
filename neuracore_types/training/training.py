@@ -41,7 +41,7 @@ class MetricsData(BaseModel):
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
 
-    model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class Metrics(BaseModel):
@@ -55,7 +55,7 @@ class Metrics(BaseModel):
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
 
-    model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class ModelInitDescription(BaseModel):
@@ -86,7 +86,7 @@ class ModelInitDescription(BaseModel):
         default=1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
 
-    model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
 class TrainingJobStatus(str, Enum):
@@ -165,4 +165,4 @@ class TrainingJob(BaseModel):
     )
     synchronization_details: SynchronizationDetails
 
-    model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
