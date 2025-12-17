@@ -1,7 +1,5 @@
 """Camera data including images and camera parameters."""
 
-import base64
-from io import BytesIO
 from typing import Literal, Optional, Union
 
 import numpy as np
@@ -50,8 +48,10 @@ class CameraData(NCData):
     )
     extrinsics: Optional[np.ndarray] = None
     intrinsics: Optional[np.ndarray] = None
-    frame: Optional[Union[np.ndarray, str]] = (
-        None  # Only filled in when using dataset iter
+    frame: Optional[Union[np.ndarray, str]] = Field(
+        default=None,
+        exclude=True,  # Exclude from JSON serialization to avoid base64 overhead
+        description="Only filled in when using dataset iter. Frames are manually added to JSON when needed for remote streaming."
     )
 
     def calculate_statistics(self) -> CameraDataStats:
@@ -101,33 +101,6 @@ class CameraData(NCData):
             intrinsics=intrinsics_stats,
         )
 
-    @staticmethod
-    def _encode_image(arr: np.ndarray) -> str:
-        pil_image = Image.fromarray(arr)
-        buffer = BytesIO()
-        pil_image.save(buffer, format="PNG")
-        return RGB_URI_PREFIX + base64.b64encode(buffer.getvalue()).decode("utf-8")
-
-    @staticmethod
-    def _decode_image(data: str) -> np.ndarray:
-        img_bytes = base64.b64decode(data.removeprefix(RGB_URI_PREFIX))
-        buffer = BytesIO(img_bytes)
-        pil_image = Image.open(buffer)
-        return np.array(pil_image)
-
-    @field_validator("frame", mode="before")
-    @classmethod
-    def decode_frame(cls, v: Union[str, np.ndarray]) -> Optional[np.ndarray]:
-        """Decode base64 string to NumPy array if needed.
-
-        Args:
-            v: Base64 encoded string or NumPy array
-
-        Returns:
-            Decoded NumPy array or None
-        """
-        return cls._decode_image(v) if isinstance(v, str) else v
-
     @field_validator("extrinsics", mode="before")
     @classmethod
     def decode_extrinsics(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
@@ -153,19 +126,6 @@ class CameraData(NCData):
             Decoded NumPy array or None
         """
         return np.array(v, dtype=np.float16) if isinstance(v, list) else v
-
-    # --- Serializers (encode on dump) ---
-    @field_serializer("frame", when_used="json")
-    def serialize_frame(self, v: Optional[np.ndarray]) -> Optional[str]:
-        """Encode NumPy array to base64 string if needed.
-
-        Args:
-            v: NumPy array to encode
-
-        Returns:
-            Base64 encoded string or None
-        """
-        return self._encode_image(v) if v is not None else None
 
     @field_serializer("extrinsics", when_used="json")
     def serialize_extrinsics(self, v: Optional[np.ndarray]) -> Optional[list]:
@@ -229,23 +189,6 @@ class DepthCameraData(CameraData):
     )
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
-
-    @staticmethod
-    def _encode_image(arr: np.ndarray) -> str:
-        arr = depth_to_rgb(arr)
-        pil_image = Image.fromarray(arr)
-        buffer = BytesIO()
-        pil_image.save(buffer, format="PNG")
-        return RGB_URI_PREFIX + base64.b64encode(buffer.getvalue()).decode("utf-8")
-
-    @staticmethod
-    def _decode_image(data: str) -> np.ndarray:
-        img_bytes = base64.b64decode(data.removeprefix(RGB_URI_PREFIX))
-        buffer = BytesIO(img_bytes)
-        pil_image = Image.open(buffer)
-        depth = rgb_to_depth(np.array(pil_image))
-        assert depth.ndim == 2
-        return depth
 
     @classmethod
     def sample(cls) -> "CameraData":
