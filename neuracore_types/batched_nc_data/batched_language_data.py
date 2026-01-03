@@ -96,6 +96,34 @@ class BatchedLanguageData(BatchedNCData):
         )
 
     @classmethod
+    def from_nc_data_list(cls, nc_data_list: list[NCData]) -> "BatchedLanguageData":
+        """Create BatchedLanguageData from list of LanguageData.
+
+        Args:
+            nc_data_list: List of LanguageData instances to convert
+
+        Returns:
+            BatchedLanguageData with shape (1, T, L) where T = len(nc_data_list)
+        """
+        input_ids_list = []
+        attention_mask_list = []
+
+        for nc in nc_data_list:
+            language_data: LanguageData = cast(LanguageData, nc)
+            tokens = cls._tokenize(language_data.text)
+            input_ids_list.append(tokens["input_ids"])  # (1, L)
+            attention_mask_list.append(tokens["attention_mask"])  # (1, L)
+
+        # Stack along time dimension: (T, L) then add batch dim -> (1, T, L)
+        input_ids_tensor = torch.cat(input_ids_list, dim=0).unsqueeze(0)
+        attention_mask_tensor = torch.cat(attention_mask_list, dim=0).unsqueeze(0)
+
+        return cls(
+            input_ids=input_ids_tensor,
+            attention_mask=attention_mask_tensor,
+        )
+
+    @classmethod
     def sample(cls, batch_size: int = 1, time_steps: int = 1) -> "BatchedLanguageData":
         """Sample an example instance of BatchedLanguageData.
 

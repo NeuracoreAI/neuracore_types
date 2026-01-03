@@ -111,6 +111,56 @@ class TestBatchedJointData:
         assert torch.equal(loaded.value, batched.value)
         assert loaded.value.shape == batched.value.shape
 
+    def test_from_nc_data_list_single_item(self):
+        """Test from_nc_data_list with single joint value."""
+        joint_data = JointData(value=1.5)
+        batched = BatchedJointData.from_nc_data_list([joint_data])
+
+        assert isinstance(batched, BatchedJointData)
+        assert batched.value.shape == (1, 1, 1)
+        assert batched.value[0, 0, 0] == 1.5
+
+    def test_from_nc_data_list_multiple_items(self):
+        """Test from_nc_data_list with multiple joint values."""
+        values = [0.5, 1.0, 1.5, 2.0, 2.5]
+        joint_data_list = [JointData(value=v) for v in values]
+        batched = BatchedJointData.from_nc_data_list(joint_data_list)
+
+        assert batched.value.shape == (1, 5, 1)
+        for i, expected_val in enumerate(values):
+            assert torch.isclose(
+                batched.value[0, i, 0], torch.tensor(expected_val), rtol=1e-5
+            )
+
+    def test_from_nc_data_list_large_batch(self):
+        """Test from_nc_data_list with large number of joint values."""
+        num_joints = 100
+        joint_data_list = [JointData(value=float(i)) for i in range(num_joints)]
+        batched = BatchedJointData.from_nc_data_list(joint_data_list)
+
+        assert batched.value.shape == (1, num_joints, 1)
+        assert batched.value[0, 0, 0] == 0.0
+        assert batched.value[0, 99, 0] == 99.0
+
+    def test_from_nc_data_list_preserves_order(self):
+        """Test that from_nc_data_list preserves order of joint values."""
+        values = [3.14, -1.5, 0.0, 2.71, -5.0]
+        joint_data_list = [JointData(value=v) for v in values]
+        batched = BatchedJointData.from_nc_data_list(joint_data_list)
+
+        for i, expected_val in enumerate(values):
+            assert torch.isclose(
+                batched.value[0, i, 0], torch.tensor(expected_val), rtol=1e-5
+            )
+
+    def test_from_nc_data_list_negative_values(self):
+        """Test from_nc_data_list with negative joint values."""
+        joint_data_list = [JointData(value=-1.0), JointData(value=-2.0)]
+        batched = BatchedJointData.from_nc_data_list(joint_data_list)
+
+        assert batched.value[0, 0, 0] == -1.0
+        assert batched.value[0, 1, 0] == -2.0
+
 
 class TestJointDataStatistics:
     """Tests for JointData statistics."""

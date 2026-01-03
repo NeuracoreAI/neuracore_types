@@ -60,6 +60,31 @@ class BatchedParallelGripperOpenAmountData(BatchedNCData):
         return cls(open_amount=open_amount)
 
     @classmethod
+    def from_nc_data_list(
+        cls, nc_data_list: list[NCData]
+    ) -> "BatchedParallelGripperOpenAmountData":
+        """Create BatchedParallelGripperOpenAmountData from list of data.
+
+        Args:
+            nc_data_list: List of ParallelGripperOpenAmountData instances to convert
+
+        Returns:
+            BatchedParallelGripperOpenAmountData with shape (1, T, 1)
+        """
+        from neuracore_types.nc_data.parallel_gripper_open_amount_data import (
+            ParallelGripperOpenAmountData,
+        )
+
+        open_amounts = [
+            cast(ParallelGripperOpenAmountData, nc).open_amount for nc in nc_data_list
+        ]
+        # Shape: (1, T, 1)
+        open_amount_tensor = (
+            torch.tensor(open_amounts, dtype=torch.float32).unsqueeze(0).unsqueeze(-1)
+        )
+        return cls(open_amount=open_amount_tensor)
+
+    @classmethod
     def sample(
         cls, batch_size: int = 1, time_steps: int = 1
     ) -> "BatchedParallelGripperOpenAmountData":

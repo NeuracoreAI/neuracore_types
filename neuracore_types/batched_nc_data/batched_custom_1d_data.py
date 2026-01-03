@@ -55,6 +55,23 @@ class BatchedCustom1DData(BatchedNCData):
         return cls(data=data)
 
     @classmethod
+    def from_nc_data_list(cls, nc_data_list: list[NCData]) -> "BatchedCustom1DData":
+        """Create BatchedCustom1DData from list of Custom1DData.
+
+        Args:
+            nc_data_list: List of Custom1DData instances to convert
+
+        Returns:
+            BatchedCustom1DData with shape (1, T, N) where T = len(nc_data_list)
+        """
+        from neuracore_types.nc_data.custom_1d_data import Custom1DData
+
+        data_list = [cast(Custom1DData, nc).data for nc in nc_data_list]
+        # Shape: (1, T, N)
+        data_tensor = torch.tensor(data_list, dtype=torch.float32).unsqueeze(0)
+        return cls(data=data_tensor)
+
+    @classmethod
     def sample(cls, batch_size: int = 1, time_steps: int = 1) -> "BatchedCustom1DData":
         """Sample an example instance of BatchedCustom1DData.
 

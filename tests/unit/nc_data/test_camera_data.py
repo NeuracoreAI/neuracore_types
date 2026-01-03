@@ -176,6 +176,95 @@ class TestBatchedRGBData:
         assert torch.equal(loaded.frame, batched.frame)
         assert loaded.frame.shape == batched.frame.shape
 
+    def test_from_nc_data_list_single_item(self):
+        """Test from_nc_data_list with single RGB image."""
+        frame = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        rgb_data = RGBCameraData(
+            frame=frame,
+            intrinsics=np.ones((3, 3), dtype=np.float32),
+            extrinsics=np.ones((4, 4), dtype=np.float32),
+        )
+        batched = BatchedRGBData.from_nc_data_list([rgb_data])
+
+        assert isinstance(batched, BatchedRGBData)
+        assert batched.frame.shape == (1, 1, 3, 100, 100)
+        assert batched.intrinsics.shape == (1, 1, 3, 3)
+        assert batched.extrinsics.shape == (1, 1, 4, 4)
+
+    def test_from_nc_data_list_multiple_items(self):
+        """Test from_nc_data_list with multiple RGB images."""
+        frames = [
+            np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8) for _ in range(5)
+        ]
+        rgb_data_list = [
+            RGBCameraData(
+                frame=frame,
+                intrinsics=np.ones((3, 3), dtype=np.float32) * (i + 1),
+                extrinsics=np.ones((4, 4), dtype=np.float32) * (i + 1),
+            )
+            for i, frame in enumerate(frames)
+        ]
+        batched = BatchedRGBData.from_nc_data_list(rgb_data_list)
+
+        assert batched.frame.shape == (1, 5, 3, 100, 100)
+        assert batched.intrinsics.shape == (1, 5, 3, 3)
+        assert batched.extrinsics.shape == (1, 5, 4, 4)
+        # Check that intrinsics were stacked correctly
+        assert torch.allclose(batched.intrinsics[0, 0], torch.ones(3, 3) * 1.0)
+        assert torch.allclose(batched.intrinsics[0, 4], torch.ones(3, 3) * 5.0)
+
+    def test_from_nc_data_list_large_batch(self):
+        """Test from_nc_data_list with large number of images."""
+        num_images = 100
+        rgb_data_list = [RGBCameraData.sample() for _ in range(num_images)]
+        batched = BatchedRGBData.from_nc_data_list(rgb_data_list)
+
+        assert batched.frame.shape[0] == 1  # Batch dimension
+        assert batched.frame.shape[1] == num_images  # Time dimension
+        assert batched.frame.shape[2] == 3  # Channels
+
+    def test_from_nc_data_list_preserves_image_content(self):
+        """Test that from_nc_data_list preserves exact image content."""
+        # Create images with distinct patterns
+        frame1 = np.zeros((50, 50, 3), dtype=np.uint8)
+        frame1[:, :, 0] = 255  # Red channel
+        frame2 = np.zeros((50, 50, 3), dtype=np.uint8)
+        frame2[:, :, 1] = 255  # Green channel
+
+        rgb_data_list = [
+            RGBCameraData(
+                frame=frame1,
+                intrinsics=np.eye(3, dtype=np.float32),
+                extrinsics=np.eye(4, dtype=np.float32),
+            ),
+            RGBCameraData(
+                frame=frame2,
+                intrinsics=np.eye(3, dtype=np.float32),
+                extrinsics=np.eye(4, dtype=np.float32),
+            ),
+        ]
+        batched = BatchedRGBData.from_nc_data_list(rgb_data_list)
+
+        # Check red channel of first image
+        assert torch.all(batched.frame[0, 0, 0] == 255)
+        assert torch.all(batched.frame[0, 0, 1] == 0)
+        # Check green channel of second image
+        assert torch.all(batched.frame[0, 1, 0] == 0)
+        assert torch.all(batched.frame[0, 1, 1] == 255)
+
+    def test_from_nc_data_list_handles_none_extrinsics(self):
+        """Test from_nc_data_list with None extrinsics/intrinsics."""
+        rgb_data = RGBCameraData(
+            frame=np.zeros((50, 50, 3), dtype=np.uint8),
+            intrinsics=None,
+            extrinsics=None,
+        )
+        batched = BatchedRGBData.from_nc_data_list([rgb_data])
+
+        # Should create zero tensors for None values
+        assert batched.intrinsics.shape == (1, 1, 3, 3)
+        assert batched.extrinsics.shape == (1, 1, 4, 4)
+
 
 class TestBatchedDepthData:
     """Tests for BatchedDepthData functionality."""
@@ -216,3 +305,57 @@ class TestBatchedDepthData:
 
         assert torch.equal(loaded.frame, batched.frame)
         assert loaded.frame.shape == batched.frame.shape
+
+    def test_from_nc_data_list_single_item(self):
+        """Test from_nc_data_list with single depth image."""
+        frame = np.random.randn(100, 100).astype(np.float32)
+        depth_data = DepthCameraData(
+            frame=frame,
+            intrinsics=np.ones((3, 3), dtype=np.float32),
+            extrinsics=np.ones((4, 4), dtype=np.float32),
+        )
+        batched = BatchedDepthData.from_nc_data_list([depth_data])
+
+        assert isinstance(batched, BatchedDepthData)
+        assert batched.frame.shape == (1, 1, 1, 100, 100)
+        assert batched.intrinsics.shape == (1, 1, 3, 3)
+        assert batched.extrinsics.shape == (1, 1, 4, 4)
+
+    def test_from_nc_data_list_multiple_items(self):
+        """Test from_nc_data_list with multiple depth images."""
+        frames = [np.random.randn(100, 100).astype(np.float32) for _ in range(10)]
+        depth_data_list = [
+            DepthCameraData(
+                frame=frame,
+                intrinsics=np.ones((3, 3), dtype=np.float32),
+                extrinsics=np.ones((4, 4), dtype=np.float32),
+            )
+            for frame in frames
+        ]
+        batched = BatchedDepthData.from_nc_data_list(depth_data_list)
+
+        assert batched.frame.shape == (1, 10, 1, 100, 100)
+        assert batched.intrinsics.shape == (1, 10, 3, 3)
+        assert batched.extrinsics.shape == (1, 10, 4, 4)
+
+    def test_from_nc_data_list_preserves_depth_values(self):
+        """Test that from_nc_data_list preserves exact depth values."""
+        frame1 = np.ones((50, 50), dtype=np.float32) * 1.5
+        frame2 = np.ones((50, 50), dtype=np.float32) * 2.5
+
+        depth_data_list = [
+            DepthCameraData(
+                frame=frame1,
+                intrinsics=np.eye(3, dtype=np.float32),
+                extrinsics=np.eye(4, dtype=np.float32),
+            ),
+            DepthCameraData(
+                frame=frame2,
+                intrinsics=np.eye(3, dtype=np.float32),
+                extrinsics=np.eye(4, dtype=np.float32),
+            ),
+        ]
+        batched = BatchedDepthData.from_nc_data_list(depth_data_list)
+
+        assert torch.allclose(batched.frame[0, 0, 0], torch.ones(50, 50) * 1.5)
+        assert torch.allclose(batched.frame[0, 1, 0], torch.ones(50, 50) * 2.5)

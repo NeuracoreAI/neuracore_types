@@ -30,6 +30,23 @@ class BatchedNCData(BaseModel):
         )
 
     @classmethod
+    def from_nc_data_list(cls, nc_data_list: list[NCData]) -> "BatchedNCData":
+        """Create BatchedNCData from list of NCData, stacking along time dimension.
+
+        This method is more efficient than calling from_nc_data() multiple times
+        and concatenating, as it creates a single tensor directly.
+
+        Args:
+            nc_data_list: List of NCData instances to convert
+
+        Returns:
+            BatchedNCData with shape (1, T, ...) where T = len(nc_data_list)
+        """
+        raise NotImplementedError(
+            "from_nc_data_list method must be implemented in subclasses."
+        )
+
+    @classmethod
     def sample(cls, batch_size: int = 1, time_steps: int = 1) -> "BatchedNCData":
         """Sample an example instance of BatchedNCData."""
         raise NotImplementedError("sample method must be implemented in subclasses.")
