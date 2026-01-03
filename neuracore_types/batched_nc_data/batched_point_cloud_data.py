@@ -124,6 +124,73 @@ class BatchedPointCloudData(BatchedNCData):
         )
 
     @classmethod
+    def from_nc_data_list(cls, nc_data_list: list[NCData]) -> "BatchedPointCloudData":
+        """Create BatchedPointCloudData from list of PointCloudData.
+
+        Args:
+            nc_data_list: List of PointCloudData instances to convert
+
+        Returns:
+            BatchedPointCloudData with shape (1, T, 3, N) where T = len(nc_data_list)
+        """
+        import numpy as np
+
+        from neuracore_types.nc_data.point_cloud_data import PointCloudData
+
+        points_list = []
+        rgb_points_list = []
+        extrinsics_list = []
+        intrinsics_list = []
+        has_rgb = False
+        has_extrinsics = False
+        has_intrinsics = False
+
+        for nc in nc_data_list:
+            pc_data: PointCloudData = cast(PointCloudData, nc)
+            # (N, 3) -> (3, N)
+            points_list.append(np.array(pc_data.points).T)
+
+            if pc_data.rgb_points is not None:
+                has_rgb = True
+                rgb_points_list.append(np.array(pc_data.rgb_points).T)
+            if pc_data.extrinsics is not None:
+                has_extrinsics = True
+                extrinsics_list.append(pc_data.extrinsics)
+            if pc_data.intrinsics is not None:
+                has_intrinsics = True
+                intrinsics_list.append(pc_data.intrinsics)
+
+        # Shape: (1, T, 3, N)
+        points_tensor = torch.tensor(
+            np.stack(points_list), dtype=torch.float32
+        ).unsqueeze(0)
+
+        rgb_points_tensor = None
+        if has_rgb and len(rgb_points_list) == len(nc_data_list):
+            rgb_points_tensor = torch.tensor(
+                np.stack(rgb_points_list), dtype=torch.uint8
+            ).unsqueeze(0)
+
+        extrinsics_tensor = None
+        if has_extrinsics and len(extrinsics_list) == len(nc_data_list):
+            extrinsics_tensor = torch.tensor(
+                np.stack(extrinsics_list), dtype=torch.float32
+            ).unsqueeze(0)
+
+        intrinsics_tensor = None
+        if has_intrinsics and len(intrinsics_list) == len(nc_data_list):
+            intrinsics_tensor = torch.tensor(
+                np.stack(intrinsics_list), dtype=torch.float32
+            ).unsqueeze(0)
+
+        return cls(
+            points=points_tensor,
+            rgb_points=rgb_points_tensor,
+            extrinsics=extrinsics_tensor,
+            intrinsics=intrinsics_tensor,
+        )
+
+    @classmethod
     def sample(
         cls, batch_size: int = 1, time_steps: int = 1
     ) -> "BatchedPointCloudData":

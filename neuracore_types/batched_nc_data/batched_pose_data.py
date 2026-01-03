@@ -53,6 +53,23 @@ class BatchedPoseData(BatchedNCData):
         return cls(pose=pose)
 
     @classmethod
+    def from_nc_data_list(cls, nc_data_list: list[NCData]) -> "BatchedPoseData":
+        """Create BatchedPoseData from list of PoseData.
+
+        Args:
+            nc_data_list: List of PoseData instances to convert
+
+        Returns:
+            BatchedPoseData with shape (1, T, 7) where T = len(nc_data_list)
+        """
+        from neuracore_types.nc_data.pose_data import PoseData
+
+        poses = [cast(PoseData, nc).pose for nc in nc_data_list]
+        # Shape: (1, T, 7)
+        pose_tensor = torch.tensor(poses, dtype=torch.float32).unsqueeze(0)
+        return cls(pose=pose_tensor)
+
+    @classmethod
     def sample(cls, batch_size: int = 1, time_steps: int = 1) -> "BatchedPoseData":
         """Sample an example instance of BatchedPoseData.
 

@@ -56,6 +56,25 @@ class BatchedEndEffectorPoseData(BatchedNCData):
         return cls(pose=pose)
 
     @classmethod
+    def from_nc_data_list(
+        cls, nc_data_list: list[NCData]
+    ) -> "BatchedEndEffectorPoseData":
+        """Create BatchedEndEffectorPoseData from list of EndEffectorPoseData.
+
+        Args:
+            nc_data_list: List of EndEffectorPoseData instances to convert
+
+        Returns:
+            BatchedEndEffectorPoseData with shape (1, T, 7) where T = len(nc_data_list)
+        """
+        from neuracore_types.nc_data.end_effector_pose_data import EndEffectorPoseData
+
+        poses = [cast(EndEffectorPoseData, nc).pose for nc in nc_data_list]
+        # Shape: (1, T, 7)
+        pose_tensor = torch.tensor(poses, dtype=torch.float32).unsqueeze(0)
+        return cls(pose=pose_tensor)
+
+    @classmethod
     def sample(
         cls, batch_size: int = 1, time_steps: int = 1
     ) -> "BatchedEndEffectorPoseData":

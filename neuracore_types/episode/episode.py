@@ -42,7 +42,11 @@ class SynchronizedPoint(BaseModel):
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     def order(self, order_spec: dict[DataType, list[str]]) -> "SynchronizedPoint":
-        """Return a new SynchronizedPoint with all dictionary data ordered."""
+        """Return a new SynchronizedPoint with all dictionary data ordered.
+
+        Uses model_construct() to skip validation for better performance,
+        since we're just reordering existing validated data.
+        """
         if not set(self.data.keys()).issubset(set(order_spec.keys())):
             raise ValueError(
                 "SynchronizedPoint contains DataTypes not present in order_spec.\n"
@@ -58,7 +62,8 @@ class SynchronizedPoint(BaseModel):
                         f"SynchronizedPoint missing keys for DataType {dt}: "
                         f"{missing_keys}"
                     )
-        return SynchronizedPoint(
+        # Use model_construct to skip validation - data is already validated
+        return SynchronizedPoint.model_construct(
             timestamp=self.timestamp,
             robot_id=self.robot_id,
             data={

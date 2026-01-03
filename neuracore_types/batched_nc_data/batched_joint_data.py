@@ -55,6 +55,25 @@ class BatchedJointData(BatchedNCData):
         return cls(value=value)
 
     @classmethod
+    def from_nc_data_list(cls, nc_data_list: list[NCData]) -> "BatchedJointData":
+        """Create BatchedJointData from list of JointData.
+
+        Args:
+            nc_data_list: List of JointData instances to convert
+
+        Returns:
+            BatchedJointData with shape (1, T, 1) where T = len(nc_data_list)
+        """
+        from neuracore_types.nc_data.joint_data import JointData
+
+        values = [cast(JointData, nc).value for nc in nc_data_list]
+        # Shape: (1, T, 1)
+        value_tensor = (
+            torch.tensor(values, dtype=torch.float32).unsqueeze(0).unsqueeze(-1)
+        )
+        return cls(value=value_tensor)
+
+    @classmethod
     def sample(cls, batch_size: int = 1, time_steps: int = 1) -> "BatchedJointData":
         """Sample an example instance of BatchedJointData.
 
