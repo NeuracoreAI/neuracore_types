@@ -17,6 +17,8 @@ class SynchronizationDetails(BaseModel):
         robot_data_spec: Specification of robot data to include in the synchronization.
         max_delay_s: Maximum allowable delay (in seconds) for synchronization.
         allow_duplicates: Whether to allow duplicate data points in the synchronization.
+        trim_start_end: Whether to trim the start and end of the episode
+            when synchronizing.
     """
 
     frequency: int
@@ -25,6 +27,9 @@ class SynchronizationDetails(BaseModel):
         default=0.1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     allow_duplicates: bool = Field(
+        default=True, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    trim_start_end: bool = Field(
         default=True, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
 
@@ -60,4 +65,5 @@ class SynchronizationDetails(BaseModel):
             robot_data_spec_hashable,
             self.max_delay_s,
             self.allow_duplicates,
+            self.trim_start_end,
         ))

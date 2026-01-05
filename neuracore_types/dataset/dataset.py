@@ -33,6 +33,8 @@ class SynchronizedDataset(BaseModel):
         frequency: Frequency at which dataset was processed.
         max_delay_s: Maximum allowed delay for synchronization.
         allow_duplicates: Whether duplicate data points are allowed.
+        trim_start_end: Whether to trim the start and end of the episode
+            when synchronizing.
     """
 
     id: str
@@ -50,6 +52,7 @@ class SynchronizedDataset(BaseModel):
     frequency: float
     max_delay_s: float
     allow_duplicates: bool
+    trim_start_end: bool = True
 
 
 class SynchronizationProgress(BaseModel):
