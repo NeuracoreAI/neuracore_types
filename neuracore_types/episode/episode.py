@@ -54,12 +54,12 @@ class SynchronizedPoint(BaseModel):
                 f"Keys in order_spec: {set(order_spec.keys())}\n"
             )
         # Check that all specified keys are present
-        for dt, keys in order_spec.items():
-            if dt in self.data:
-                missing_keys = set(keys) - set(self.data[dt].keys())
+        for data_type, keys in order_spec.items():
+            if data_type in self.data:
+                missing_keys = set(keys) - set(self.data[data_type].keys())
                 if missing_keys:
                     raise ValueError(
-                        f"SynchronizedPoint missing keys for DataType {dt}: "
+                        f"SynchronizedPoint missing keys for DataType {data_type}: "
                         f"{missing_keys}"
                     )
         # Use model_construct to skip validation - data is already validated
@@ -67,8 +67,8 @@ class SynchronizedPoint(BaseModel):
             timestamp=self.timestamp,
             robot_id=self.robot_id,
             data={
-                dt: {name: data_dict[name] for name in order_spec[dt]}
-                for dt, data_dict in self.data.items()
+                data_type: {name: data_dict[name] for name in order_spec[data_type]}
+                for data_type, data_dict in self.data.items()
             },
         )
 
