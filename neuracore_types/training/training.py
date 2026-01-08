@@ -1,10 +1,10 @@
 """Request and response models for training jobs."""
 
-from ordered_set import OrderedSet
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, field_serializer
+from ordered_set import OrderedSet
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.episode.episode import RobotDataSpec
 from neuracore_types.nc_data import DataType, NCDataStatsUnion
