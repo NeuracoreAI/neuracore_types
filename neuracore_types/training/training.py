@@ -1,9 +1,10 @@
 """Request and response models for training jobs."""
 
+from ordered_set import OrderedSet
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, field_serializer
 
 from neuracore_types.episode.episode import RobotDataSpec
 from neuracore_types.nc_data import DataType, NCDataStatsUnion
@@ -77,8 +78,8 @@ class ModelInitDescription(BaseModel):
         )
     """
 
-    input_data_types: set[DataType]
-    output_data_types: set[DataType]
+    input_data_types: OrderedSet[DataType]
+    output_data_types: OrderedSet[DataType]
     # Dataset statistics for all data types, where the len of the list corresponds
     # to the max number of data items for that data type (across all robots)
     dataset_statistics: dict[DataType, list[NCDataStatsUnion]]
@@ -86,7 +87,23 @@ class ModelInitDescription(BaseModel):
         default=1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
 
-    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+    @field_validator("input_data_types", "output_data_types", mode="before")
+    @classmethod
+    def convert_to_ordered_set(cls, v: Any) -> OrderedSet[DataType]:
+        """Convert list, set, or other iterable to OrderedSet."""
+        if isinstance(v, OrderedSet):
+            return v
+        return OrderedSet(v)
+
+    @field_serializer("input_data_types", "output_data_types")
+    def serialize_ordered_set(self, value: OrderedSet[DataType]) -> list[DataType]:
+        """Serialize OrderedSet to list for JSON compatibility."""
+        return list(value)
+
+    model_config = ConfigDict(
+        json_schema_extra=fix_required_with_defaults,
+        arbitrary_types_allowed=True,
+    )
 
 
 class TrainingJobStatus(str, Enum):
