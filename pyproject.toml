@@ -18,7 +18,8 @@ dependencies = [
     "pillow",
     "names_generator",
     "pydantic-to-typescript2>=1.0.0",
-    "grpcio-tools"
+    "grpcio-tools",
+    "ordered_set"
 ]
 
 [project.optional-dependencies]
