@@ -87,6 +87,11 @@ class ModelInitDescription(BaseModel):
         default=1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
 
+    model_config = ConfigDict(
+        json_schema_extra=fix_required_with_defaults,
+        arbitrary_types_allowed=True,
+    )
+    
     @field_validator("input_data_types", "output_data_types", mode="before")
     @classmethod
     def convert_to_ordered_set(cls, v: Any) -> OrderedSet[DataType]:
@@ -100,10 +105,6 @@ class ModelInitDescription(BaseModel):
         """Serialize OrderedSet to list for JSON compatibility."""
         return list(value)
 
-    model_config = ConfigDict(
-        json_schema_extra=fix_required_with_defaults,
-        arbitrary_types_allowed=True,
-    )
 
 
 class TrainingJobStatus(str, Enum):
