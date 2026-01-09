@@ -10,6 +10,8 @@ from neuracore_types import (
     BatchedParallelGripperOpenAmountData,
     ParallelGripperOpenAmountData,
 )
+from neuracore_types.batched_nc_data import DATA_TYPE_TO_BATCHED_NC_DATA_CLASS
+from neuracore_types.nc_data import DATA_TYPE_TO_NC_DATA_CLASS, DataType
 
 
 class TestParallelGripperOpenAmountData:
@@ -145,3 +147,54 @@ class TestParallelGripperStatistics:
         assert len(concatenated.mean) == 2
         assert np.isclose(concatenated.mean[0], 0.3)
         assert np.isclose(concatenated.mean[1], 0.7)
+
+
+class TestParallelGripperTargetOpenAmountDataType:
+    """Tests for PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS DataType mapping."""
+
+    def test_target_data_type_exists(self):
+        """Test that PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS DataType exists."""
+        assert hasattr(DataType, "PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS")
+        assert (
+            DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS.value
+            == "PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS"
+        )
+
+    def test_target_data_type_mapped_to_nc_data_class(self):
+        """Test that target DataType is mapped to ParallelGripperOpenAmountData."""
+        assert (
+            DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS in DATA_TYPE_TO_NC_DATA_CLASS
+        )
+        assert (
+            DATA_TYPE_TO_NC_DATA_CLASS[DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS]
+            == ParallelGripperOpenAmountData
+        )
+
+    def test_target_data_type_mapped_to_batched_nc_data_class(self):
+        """Test target DataType is mapped to BatchedParallelGripperOpenAmountData."""
+        assert (
+            DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS
+            in DATA_TYPE_TO_BATCHED_NC_DATA_CLASS
+        )
+        assert (
+            DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[
+                DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS
+            ]
+            == BatchedParallelGripperOpenAmountData
+        )
+
+    def test_target_uses_same_data_class_as_state(self):
+        """Test that target and state use the same underlying data classes."""
+        # Similar to how JOINT_TARGET_POSITIONS uses JointData
+        assert (
+            DATA_TYPE_TO_NC_DATA_CLASS[DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS]
+            == DATA_TYPE_TO_NC_DATA_CLASS[DataType.PARALLEL_GRIPPER_OPEN_AMOUNTS]
+        )
+        assert (
+            DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[
+                DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS
+            ]
+            == DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[
+                DataType.PARALLEL_GRIPPER_OPEN_AMOUNTS
+            ]
+        )
