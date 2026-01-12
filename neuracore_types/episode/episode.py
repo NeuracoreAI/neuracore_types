@@ -237,6 +237,10 @@ class PendingRecording(Recording):
 
     Attributes:
         saved_dataset_id: ID of the dataset where the recording is saved
+        expected_trace_count: Number of traces expected (set by finalize API)
+        completed_trace_count: Number of traces fully uploaded
+        is_finalized: Whether the finalize API has been called
+        save_triggered: Whether save process has been initiated (prevents duplicates)
     """
 
     saved_dataset_id: str
@@ -245,5 +249,17 @@ class PendingRecording(Recording):
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
     progress: int
+    expected_trace_count: int = Field(
+        default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    completed_trace_count: int = Field(
+        default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    is_finalized: bool = Field(
+        default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    save_triggered: bool = Field(
+        default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
