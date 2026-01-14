@@ -317,3 +317,25 @@ class RecordingDataTrace(BaseModel):
     )
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+
+class RegisterTracesRequest(BaseModel):
+    """Request to register traces for a recording from the data daemon.
+
+    This is called when the data daemon stops recording. It provides
+    all trace IDs that belong to the recording. Uploads can happen
+    before or after this API call.
+    """
+
+    recording_id: str
+    start_time: float
+    end_time: float
+    robot_id: Optional[str] = None
+    robot_name: Optional[str] = None
+    instance: NonNegativeInt
+    dataset_id: Optional[str] = None
+    dataset_name: Optional[str] = None
+    is_shared: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    traces: dict[str, int]  # trace_id -> total_bytes
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)

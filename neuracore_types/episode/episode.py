@@ -237,6 +237,12 @@ class PendingRecording(Recording):
 
     Attributes:
         saved_dataset_id: ID of the dataset where the recording is saved
+        status: Current status of the pending recording
+        progress: Upload progress percentage (0-100)
+        expected_trace_count: Number of traces expected (set by register_traces API)
+        total_bytes: Total bytes expected across all traces (for progress bar)
+        traces_registered: Whether the register_traces API has been called
+        save_triggered: Whether save process has been initiated (prevents duplicates)
     """
 
     saved_dataset_id: str
@@ -245,5 +251,15 @@ class PendingRecording(Recording):
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
     progress: int
+    expected_trace_count: int = Field(
+        default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    total_bytes: int = Field(default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    traces_registered: bool = Field(
+        default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    save_triggered: bool = Field(
+        default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
