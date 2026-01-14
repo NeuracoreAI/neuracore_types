@@ -94,11 +94,14 @@ class ModelInitDescription(BaseModel):
 
     @field_validator("input_data_types", "output_data_types", mode="before")
     @classmethod
-    def convert_to_ordered_set(cls, v: Any) -> OrderedSet[DataType]:
-        """Convert list, set, or other iterable to OrderedSet."""
-        if isinstance(v, OrderedSet):
-            return v
-        return OrderedSet(v)
+    def convert_to_ordered_set(cls, value: Any) -> OrderedSet[DataType]:
+        """Convert any iterable to OrderedSet.
+
+        Also makes sure all values are DataType enums.
+        """
+        return OrderedSet(
+            DataType(item) if isinstance(item, str) else item for item in value
+        )
 
     @field_serializer("input_data_types", "output_data_types")
     def serialize_ordered_set(self, value: OrderedSet[DataType]) -> list[DataType]:
