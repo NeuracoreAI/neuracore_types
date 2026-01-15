@@ -196,7 +196,7 @@ class Recording(BaseModel):
     """
 
     id: str
-    robot_id: str
+    robot_id: Optional[str] = None
     instance: NonNegativeInt = Field(
         default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
@@ -245,7 +245,7 @@ class PendingRecording(Recording):
         save_triggered: Whether save process has been initiated (prevents duplicates)
     """
 
-    saved_dataset_id: str
+    saved_dataset_id: Optional[str] = None
     status: PendingRecordingStatus = Field(
         default=PendingRecordingStatus.STARTED,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
