@@ -112,12 +112,6 @@ jobs:
             core.setOutput('should_release', 'false');
             core.setOutput('bump_type', 'none');
             core.setOutput('pr_data', '[]');
-
-            await core.summary
-              .addHeading('Release Analysis', 2)
-              .addRaw('No PRs found since the last release.')
-              .write();
-
             return;
           }
 
@@ -157,28 +151,6 @@ jobs:
           core.setOutput('should_release', shouldRelease.toString());
           core.setOutput('bump_type', highestBump);
           core.setOutput('pr_data', JSON.stringify(prData));
-
-          // Add summary
-          const counts = {
-            major: prData.filter(p => p.bump_type === 'major').length,
-            minor: prData.filter(p => p.bump_type === 'minor').length,
-            patch: prData.filter(p => p.bump_type === 'patch').length,
-            none: prData.filter(p => p.bump_type === 'none').length
-          };
-
-          await core.summary
-            .addHeading('Release Analysis', 2)
-            .addRaw(`**Version bump:** ${highestBump}\n`)
-            .addRaw(`**Should release:** ${shouldRelease}\n`)
-            .addRaw(`**Total PRs:** ${prData.length}\n\n`)
-            .addHeading('PR Breakdown', 3)
-            .addList([
-              `Major: ${counts.major}`,
-              `Minor: ${counts.minor}`,
-              `Patch: ${counts.patch}`,
-              `None: ${counts.none}`
-            ])
-            .write();
 
   generate-changelog:
     needs: analyze-changes
