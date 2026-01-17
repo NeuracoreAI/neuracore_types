@@ -1,0 +1,599 @@
+name: Release
+run-name: ${{ inputs.dry_run && 'Release (Dry Run)' || 'Release' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run mode (only show what would happen, no commits/pushes/publishes)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  analyze-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.analyze.outputs.should_release }}
+      bump_type: ${{ steps.analyze.outputs.bump_type }}
+      pr_data: ${{ steps.analyze.outputs.pr_data }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get latest release tag
+      id: get_tag
+      run: |
+        LATEST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
+        if [ -z "$LATEST_TAG" ]; then
+          echo "No previous release tag found"
+          echo "tag=" >> $GITHUB_OUTPUT
+        else
+          echo "Latest tag: $LATEST_TAG"
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Get PRs merged since last release
+      id: get_prs
+      if: steps.get_tag.outputs.tag != ''
+      uses: actions/github-script@v7
+      env:
+        TAG: ${{ steps.get_tag.outputs.tag }}
+      with:
+        script: |
+          const tag = process.env.TAG;
+
+          if (!tag) {
+            console.log('No tag found');
+            core.setOutput('pr_numbers', '[]');
+            return;
+          }
+
+          console.log(`Finding PRs merged since tag: ${tag}`);
+
+          // Get the tag's commit date using repos.getCommit (handles both lightweight and annotated tags)
+          const baseCommit = await github.rest.repos.getCommit({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: tag
+          });
+
+          const tagDate = baseCommit.data.commit.committer.date;
+          console.log(`Tag date: ${tagDate}`);
+
+          // Search for merged PRs after tag date using GitHub Search API
+          const query = `repo:${context.repo.owner}/${context.repo.repo} is:pr is:merged base:main merged:>${tagDate}`;
+          console.log(`Search query: ${query}`);
+
+          let allPRs = [];
+          let page = 1;
+          const perPage = 100;
+
+          while (true) {
+            const searchResult = await github.rest.search.issuesAndPullRequests({
+              q: query,
+              sort: 'created',
+              order: 'asc',
+              per_page: perPage,
+              page: page
+            });
+
+            allPRs = allPRs.concat(searchResult.data.items);
+
+            if (searchResult.data.items.length < perPage) {
+              break;
+            }
+            page++;
+          }
+
+          const prNumbers = allPRs.map(pr => pr.number);
+          console.log(`Found ${prNumbers.length} PRs: ${prNumbers.join(', ')}`);
+
+          core.setOutput('pr_numbers', JSON.stringify(prNumbers));
+
+    - name: Fetch PR data and determine version bump
+      id: analyze
+      uses: actions/github-script@v7
+      env:
+        PR_NUMBERS: ${{ steps.get_prs.outputs.pr_numbers || '[]' }}
+      with:
+        script: |
+          const prNumbers = JSON.parse(process.env.PR_NUMBERS);
+
+          if (prNumbers.length === 0) {
+            console.log('No PRs found since last release');
+            core.setOutput('should_release', 'false');
+            core.setOutput('bump_type', 'none');
+            core.setOutput('pr_data', '[]');
+
+            await core.summary
+              .addHeading('Release Analysis', 2)
+              .addRaw('No PRs found since the last release.')
+              .write();
+
+            return;
+          }
+
+          const prData = [];
+          const bumpPriority = { major: 3, minor: 2, patch: 1, none: 0 };
+          let highestBump = 'none';
+
+          for (const prNumber of prNumbers) {
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            const versionLabel = pr.labels.find(l => l.name.startsWith('version:'));
+            const bumpType = versionLabel ? versionLabel.name.split(':')[1] : 'none';
+
+            if (bumpPriority[bumpType] > bumpPriority[highestBump]) {
+              highestBump = bumpType;
+            }
+
+            prData.push({
+              number: pr.number,
+              title: pr.title,
+              author: pr.user.login,
+              url: pr.html_url,
+              bump_type: bumpType
+            });
+          }
+
+          const shouldRelease = highestBump !== 'none';
+
+          console.log(`Version bump: ${highestBump}`);
+          console.log(`Should release: ${shouldRelease}`);
+          console.log(`Total PRs analyzed: ${prData.length}`);
+
+          core.setOutput('should_release', shouldRelease.toString());
+          core.setOutput('bump_type', highestBump);
+          core.setOutput('pr_data', JSON.stringify(prData));
+
+          // Add summary
+          const counts = {
+            major: prData.filter(p => p.bump_type === 'major').length,
+            minor: prData.filter(p => p.bump_type === 'minor').length,
+            patch: prData.filter(p => p.bump_type === 'patch').length,
+            none: prData.filter(p => p.bump_type === 'none').length
+          };
+
+          await core.summary
+            .addHeading('Release Analysis', 2)
+            .addRaw(`**Version bump:** ${highestBump}\n`)
+            .addRaw(`**Should release:** ${shouldRelease}\n`)
+            .addRaw(`**Total PRs:** ${prData.length}\n\n`)
+            .addHeading('PR Breakdown', 3)
+            .addList([
+              `Major: ${counts.major}`,
+              `Minor: ${counts.minor}`,
+              `Patch: ${counts.patch}`,
+              `None: ${counts.none}`
+            ])
+            .write();
+
+  generate-changelog:
+    needs: analyze-changes
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.calc_version.outputs.new_version }}
+      changelog_content: ${{ steps.generate.outputs.changelog_content }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Read current version
+      id: read_version
+      run: |
+        CURRENT_VERSION=$(grep -m 1 'version = ' pyproject.toml | cut -d'"' -f2)
+        echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $CURRENT_VERSION"
+
+    - name: Calculate new version
+      id: calc_version
+      env:
+        CURRENT_VERSION: ${{ steps.read_version.outputs.current_version }}
+        BUMP_TYPE: ${{ needs.analyze-changes.outputs.bump_type }}
+      run: |
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+        case $BUMP_TYPE in
+          major)
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            ;;
+          minor)
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            ;;
+          patch)
+            PATCH=$((PATCH + 1))
+            ;;
+          none)
+            echo "No version bump (type: none)"
+            # Keep current version
+            ;;
+          *)
+            echo "ERROR: Invalid bump type: $BUMP_TYPE"
+            exit 1
+            ;;
+        esac
+
+        NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "New version will be: $NEW_VERSION"
+
+    - name: Read pending changelog
+      id: read_pending
+      run: |
+        if [ -f changelogs/pending-changelog.md ]; then
+          CONTENT=$(cat changelogs/pending-changelog.md | grep -v '^\[' | grep -v '<!--' | grep -v '^#' | grep -v '^$' | sed '/^-->/d' || echo "")
+          echo "pending_content<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          echo "No pending changelog found"
+          echo "pending_content=" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Generate changelog
+      id: generate
+      uses: actions/github-script@v7
+      env:
+        PENDING_CONTENT: ${{ steps.read_pending.outputs.pending_content }}
+        PR_DATA: ${{ needs.analyze-changes.outputs.pr_data }}
+        NEW_VERSION: ${{ steps.calc_version.outputs.new_version }}
+        CURRENT_VERSION: ${{ steps.read_version.outputs.current_version }}
+        BUMP_TYPE: ${{ needs.analyze-changes.outputs.bump_type }}
+      with:
+        script: |
+          const fs = require('fs');
+          const prData = JSON.parse(process.env.PR_DATA || '[]');
+          const pendingContent = process.env.PENDING_CONTENT || '';
+          const newVersion = process.env.NEW_VERSION;
+          const currentVersion = process.env.CURRENT_VERSION;
+          const bumpType = process.env.BUMP_TYPE;
+
+          const version = bumpType === 'none' ? currentVersion : newVersion;
+          const date = new Date().toISOString().split('T')[0];
+
+          // Group PRs by bump type
+          const majorChanges = prData.filter(pr => pr.bump_type === 'major');
+          const minorChanges = prData.filter(pr => pr.bump_type === 'minor');
+          const patchChanges = prData.filter(pr => pr.bump_type === 'patch');
+          const miscChanges = prData.filter(pr => pr.bump_type === 'none');
+
+          // Build changelog
+          let changelog = `# Release v${version} - ${date}\n\n`;
+
+          // Add pending changelog content if exists
+          if (pendingContent.trim()) {
+            changelog += `## Summary\n\n${pendingContent.trim()}\n\n---\n\n`;
+          }
+
+          // Add PR sections
+          if (majorChanges.length > 0) {
+            changelog += `## Major Changes\n\n`;
+            majorChanges.forEach(pr => {
+              changelog += `- **${pr.title}** ([#${pr.number}](${pr.url})) by @${pr.author}\n`;
+            });
+            changelog += '\n';
+          }
+
+          if (minorChanges.length > 0) {
+            changelog += `## Minor Changes\n\n`;
+            minorChanges.forEach(pr => {
+              changelog += `- **${pr.title}** ([#${pr.number}](${pr.url})) by @${pr.author}\n`;
+            });
+            changelog += '\n';
+          }
+
+          if (patchChanges.length > 0) {
+            changelog += `## Patch Changes\n\n`;
+            patchChanges.forEach(pr => {
+              changelog += `- **${pr.title}** ([#${pr.number}](${pr.url})) by @${pr.author}\n`;
+            });
+            changelog += '\n';
+          }
+
+          if (miscChanges.length > 0) {
+            changelog += `## Misc and Chore Changes\n\n`;
+            miscChanges.forEach(pr => {
+              changelog += `- **${pr.title}** ([#${pr.number}](${pr.url})) by @${pr.author}\n`;
+            });
+            changelog += '\n';
+          }
+
+          // Add installation instructions
+          changelog += `---\n\n`;
+          changelog += `**Installation:**\n\n`;
+          changelog += `\`\`\`bash\n`;
+          changelog += `pip install neuracore-types==${version}\n`;
+          changelog += `npm install @neuracore/types@${version}\n`;
+          changelog += `\`\`\`\n`;
+
+          // Always write changelog file (version-bump will commit it)
+          fs.writeFileSync(`changelogs/${version}-changelog.md`, changelog);
+          console.log(`Changelog written to changelogs/${version}-changelog.md`);
+
+          core.setOutput('changelog_content', changelog);
+
+  version-bump:
+    needs: [analyze-changes, generate-changelog]
+    if: needs.analyze-changes.outputs.should_release == 'true' && inputs.dry_run == false
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Generate GitHub App Token
+      id: generate-token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ vars.NC_VERSION_BUMPER_APP_ID }}
+        private-key: ${{ secrets.NC_VERSION_BUMPER_PRIVATE_KEY }}
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ steps.generate-token.outputs.token }}
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install bump2version
+      run: pip install bump2version
+
+    - name: Configure git
+      run: |
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
+
+    - name: Bump version
+      env:
+        BUMP_TYPE: ${{ needs.analyze-changes.outputs.bump_type }}
+      run: |
+        echo "Bumping $BUMP_TYPE version"
+        bump2version $BUMP_TYPE --allow-dirty
+
+    - name: Reset pending changelog
+      run: |
+        cat > changelogs/pending-changelog.md << 'EOF'
+        # Pending Release Notes
+
+        <!--
+        This file contains a human-written summary for the next release.
+        Append your changes below. This content will be included at the top of the release changelog.
+
+        Example: "This release adds support for multi-GPU training and improves streaming performance by 40%."
+        -->
+
+        ## Summary
+
+        <!-- Append your summary here -->
+        EOF
+
+    - name: Commit changelog and pending reset
+      run: |
+        git add changelogs/
+        git commit --amend --no-edit
+        git push origin main --tags
+
+  publish-python:
+    needs: version-bump
+    if: inputs.dry_run == false
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+
+    - name: Pull latest changes
+      run: git pull --tags
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install build tools
+      run: |
+        pip install --upgrade pip
+        pip install build twine
+
+    - name: Build Python package
+      run: python -m build
+
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+      run: twine upload --skip-existing dist/*
+
+  publish-npm:
+    needs: version-bump
+    if: inputs.dry_run == false
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+
+    - name: Pull latest changes
+      run: git pull --tags
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Install Python dependencies
+      run: pip install -e ".[dev]"
+
+    - name: Install Node dependencies
+      run: npm install
+
+    - name: Generate TypeScript types
+      run: python scripts/generate_types.py
+
+    - name: Build TypeScript
+      run: npm run build
+
+    - name: Publish to NPM
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: npm publish
+
+  create-release:
+    needs: [version-bump, generate-changelog, publish-python, publish-npm]
+    if: inputs.dry_run == false
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+
+    - name: Pull latest changes
+      run: git pull --tags
+
+    - name: Create GitHub Release
+      uses: actions/github-script@v7
+      env:
+        CHANGELOG_BODY: ${{ needs.generate-changelog.outputs.changelog_content }}
+        VERSION: ${{ needs.generate-changelog.outputs.new_version }}
+      with:
+        script: |
+          const version = process.env.VERSION;
+          const changelog = process.env.CHANGELOG_BODY;
+
+          await github.rest.repos.createRelease({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            tag_name: `v${version}`,
+            name: `Release v${version}`,
+            body: changelog,
+            draft: false,
+            prerelease: false
+          });
+
+          console.log(`Created release v${version}`);
+
+  final-summary:
+    needs: [analyze-changes, generate-changelog, version-bump, publish-python, publish-npm, create-release]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Generate final summary
+      uses: actions/github-script@v7
+      env:
+        SHOULD_RELEASE: ${{ needs.analyze-changes.outputs.should_release }}
+        BUMP_TYPE: ${{ needs.analyze-changes.outputs.bump_type }}
+        PR_DATA: ${{ needs.analyze-changes.outputs.pr_data }}
+        NEW_VERSION: ${{ needs.generate-changelog.outputs.new_version }}
+        CHANGELOG_CONTENT: ${{ needs.generate-changelog.outputs.changelog_content }}
+        DRY_RUN: ${{ inputs.dry_run }}
+      with:
+        script: |
+          const shouldRelease = process.env.SHOULD_RELEASE === 'true';
+          const bumpType = process.env.BUMP_TYPE;
+          const isDryRun = process.env.DRY_RUN === 'true';
+          const newVersion = process.env.NEW_VERSION;
+          const changelogContent = process.env.CHANGELOG_CONTENT || '';
+          const prData = JSON.parse(process.env.PR_DATA || '[]');
+
+          let summary = '';
+
+          // Check if trying to do a real release with only version:none
+          if (!isDryRun && !shouldRelease) {
+            summary += '# ❌ Release Failed\n\n';
+            summary += '**Cannot create a release** - all PRs since the last release have `version:none` label.\n\n';
+            summary += 'If you want to see what a release would look like, run this workflow in dry run mode.\n';
+            await core.summary.addRaw(summary).write();
+            core.setFailed('Cannot create release - all PRs have version:none label');
+            return;
+          }
+
+          // Build summary header
+          if (isDryRun) {
+            summary += '# 🔍 Release Dry Run Summary\n\n';
+            summary += '**This was a dry run** - no changes were made.\n\n';
+          } else {
+            summary += '# ✅ Release Complete\n\n';
+          }
+
+          // Version info
+          summary += '## Version Information\n\n';
+          summary += `- **Bump type:** ${bumpType}\n`;
+          summary += `- **New version:** ${newVersion}\n`;
+          summary += `- **Total PRs:** ${prData.length}\n\n`;
+
+          // PR breakdown
+          const counts = {
+            major: prData.filter(p => p.bump_type === 'major').length,
+            minor: prData.filter(p => p.bump_type === 'minor').length,
+            patch: prData.filter(p => p.bump_type === 'patch').length,
+            none: prData.filter(p => p.bump_type === 'none').length
+          };
+
+          summary += '### PR Breakdown\n\n';
+          summary += `- Major: ${counts.major}\n`;
+          summary += `- Minor: ${counts.minor}\n`;
+          summary += `- Patch: ${counts.patch}\n`;
+          summary += `- None: ${counts.none}\n\n`;
+
+          // What happened or would happen
+          if (isDryRun) {
+            summary += '## What Would Happen\n\n';
+            summary += '1. Version would be bumped in `pyproject.toml`, `package.json`, and `__init__.py`\n';
+            summary += '2. Changelog would be committed to `changelogs/' + newVersion + '-changelog.md`\n';
+            summary += '3. Pending changelog would be reset\n';
+            summary += '4. Changes would be committed and pushed with tag `v' + newVersion + '`\n';
+            summary += '5. Python package would be published to PyPI\n';
+            summary += '6. TypeScript types would be generated and npm package published\n';
+            summary += '7. GitHub release would be created\n\n';
+          } else {
+            summary += '## What Happened\n\n';
+            summary += '1. ✅ Version bumped to ' + newVersion + '\n';
+            summary += '2. ✅ Changelog committed to `changelogs/' + newVersion + '-changelog.md`\n';
+            summary += '3. ✅ Pending changelog reset\n';
+            summary += '4. ✅ Changes committed and pushed with tag `v' + newVersion + '`\n';
+            summary += '5. ✅ Published to PyPI: https://pypi.org/project/neuracore-types/' + newVersion + '/\n';
+            summary += '6. ✅ Published to NPM: https://www.npmjs.com/package/@neuracore/types/v/' + newVersion + '\n';
+            summary += '7. ✅ GitHub release created\n\n';
+          }
+
+          // Generated changelog
+          summary += '---\n\n';
+          summary += '## Generated Changelog\n\n';
+          summary += changelogContent;
+
+          await core.summary.addRaw(summary).write();
