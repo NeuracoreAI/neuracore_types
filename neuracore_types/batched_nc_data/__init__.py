@@ -45,6 +45,7 @@ DATA_TYPE_TO_BATCHED_NC_DATA_CLASS: dict[DataType, type[BatchedNCData]] = {
     DataType.JOINT_VELOCITIES: BatchedJointData,
     DataType.JOINT_TORQUES: BatchedJointData,
     DataType.JOINT_TARGET_POSITIONS: BatchedJointData,
+    DataType.VISUAL_JOINT_POSITIONS: BatchedJointData,
     DataType.END_EFFECTOR_POSES: BatchedEndEffectorPoseData,
     DataType.PARALLEL_GRIPPER_OPEN_AMOUNTS: BatchedParallelGripperOpenAmountData,
     DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS: BatchedParallelGripperOpenAmountData,
