@@ -1,11 +1,29 @@
 """Pose data types for 6DOF poses."""
 
+import copy
 from typing import Literal, Union
 
 import numpy as np
-from pydantic import ConfigDict, Field, field_serializer, field_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
-from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.importer.config import AngleConfig, PoseConfig, RotationConfig
+from neuracore_types.importer.transform import (
+    DataTransform,
+    DataTransformSequence,
+    Pose,
+)
+from neuracore_types.nc_data.nc_data import (
+    DataItemStats,
+    NCData,
+    NCDataImportConfig,
+    NCDataStats,
+)
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -21,6 +39,106 @@ class PoseDataStats(NCDataStats):
     pose: DataItemStats
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+
+class PoseDataImportConfig(NCDataImportConfig):
+    """Import configuration for PoseData."""
+
+    @model_validator(mode="after")
+    def validate_orientation_required(self) -> "PoseDataImportConfig":
+        """Validate orientation is provided when format is position_orientation."""
+        if self.format.pose_type == PoseConfig.POSITION_ORIENTATION:
+            if self.format.orientation is None:
+                raise ValueError(
+                    "orientation must be provided when format is 'position_orientation'"
+                )
+            if self.format.orientation.type == RotationConfig.QUATERNION:
+                if not self.format.orientation.quaternion_order:
+                    raise ValueError(
+                        "quaternion_order must be provided when type is 'quaternion'"
+                    )
+            if self.format.orientation.type == RotationConfig.EULER:
+                if not self.format.orientation.euler_order:
+                    raise ValueError(
+                        "euler_order must be provided when type is 'euler'"
+                    )
+        return self
+
+    @model_validator(mode="after")
+    def validate_index_range(self) -> "PoseDataImportConfig":
+        """Validate that index range length matches the format."""
+        if self.format.pose_type == PoseConfig.MATRIX:
+            return self
+
+        for item in self.mapping:
+            if item.index_range is None:
+                raise ValueError("index_range is required for pose data points")
+            index_length = item.index_range.end - item.index_range.start
+
+            if self.format.pose_type == PoseConfig.MATRIX:
+                if index_length != 16:
+                    raise ValueError(
+                        "Index range length must be 16 for matrix format, "
+                        f"got {index_length}"
+                    )
+            elif self.format.pose_type == PoseConfig.POSITION_ORIENTATION:
+                if self.format.orientation is None:
+                    raise ValueError(
+                        "orientation is required when pose_type is "
+                        "'position_orientation'"
+                    )
+                if self.format.orientation.type == RotationConfig.QUATERNION:
+                    expected_length = 7  # 3 position + 4 quaternion
+                elif self.format.orientation.type in [
+                    RotationConfig.EULER,
+                    RotationConfig.AXIS_ANGLE,
+                ]:  # euler or axis_angle
+                    expected_length = 6  # 3 position + 3 euler or axis_angle
+                elif self.format.orientation.type == RotationConfig.MATRIX:
+                    expected_length = 9  # 3 position + 3x3 matrix
+                else:
+                    raise ValueError(
+                        f"Unsupported orientation type: {self.format.orientation.type}"
+                    )
+                if index_length != expected_length:
+                    raise ValueError(
+                        f"Index range length must be {expected_length} for "
+                        f"orientation type {self.format.orientation.type}, "
+                        f"got {index_length}"
+                    )
+
+        return self
+
+    def _populate_transforms(self) -> None:
+        """Populate transforms based on flags if not already set."""
+        transform_list: list[DataTransform] = []
+        # Add Pose transform based on format and orientation settings
+        for item in self.mapping:
+            item_transforms = copy.deepcopy(transform_list)
+            if self.format.pose_type == PoseConfig.MATRIX:
+                item_transforms.append(Pose(pose_type=PoseConfig.MATRIX))
+            elif self.format.pose_type == PoseConfig.POSITION_ORIENTATION:
+                if self.format.orientation is None:
+                    raise ValueError(
+                        "orientation is required when pose_type is "
+                        "'position_orientation'"
+                    )
+                # Determine sequence
+                seq: str = "xyzw"
+                if self.format.orientation.type == RotationConfig.QUATERNION:
+                    seq = self.format.orientation.quaternion_order.value
+                elif self.format.orientation.type == RotationConfig.EULER:
+                    seq = self.format.orientation.euler_order.value
+
+                item_transforms.append(
+                    Pose(
+                        pose_type=PoseConfig.POSITION_ORIENTATION,
+                        rotation_type=RotationConfig(self.format.orientation.type),
+                        angle_type=AngleConfig(self.format.orientation.angle_units),
+                        seq=seq,
+                    )
+                )
+            item.transforms = DataTransformSequence(transforms=item_transforms)
 
 
 class PoseData(NCData):

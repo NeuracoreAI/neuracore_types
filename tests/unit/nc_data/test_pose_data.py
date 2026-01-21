@@ -5,6 +5,18 @@ import pytest
 import torch
 
 from neuracore_types import BatchedPoseData, PoseData
+from neuracore_types.importer.config import (
+    AngleConfig,
+    EulerOrderConfig,
+    IndexRangeConfig,
+    OrientationConfig,
+    PoseConfig,
+    QuaternionOrderConfig,
+    RotationConfig,
+)
+from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.importer.transform import Pose
+from neuracore_types.nc_data.pose_data import PoseDataImportConfig
 
 
 class TestPoseData:
@@ -168,3 +180,120 @@ class TestPoseDataStatistics:
 
         concatenated = stats1.pose.concatenate(stats2.pose)
         assert len(concatenated.mean) == 14  # 7 + 7
+
+
+class TestPoseDataImportConfig:
+    """Tests for PoseDataImportConfig class."""
+
+    def test_pose_data_import_config_matrix(self):
+        """Test PoseDataImportConfig with matrix format."""
+        index_range = IndexRangeConfig(start=0, end=16)
+        data_point = PoseDataImportConfig(
+            source="pose",
+            mapping=[MappingItem(name="end_effector_pose", index_range=index_range)],
+            format=DataFormat(pose_type=PoseConfig.MATRIX),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, Pose) for t in transforms)
+
+    def test_pose_data_import_config_position_orientation_quaternion(self):
+        """Test PoseDataImportConfig with position_orientation and quaternion."""
+        index_range = IndexRangeConfig(start=0, end=7)
+        orientation = OrientationConfig(
+            type=RotationConfig.QUATERNION,
+            quaternion_order=QuaternionOrderConfig.WXYZ,
+            angle_units=AngleConfig.RADIANS,
+        )
+        data_point = PoseDataImportConfig(
+            source="pose",
+            mapping=[MappingItem(name="end_effector_pose", index_range=index_range)],
+            format=DataFormat(
+                pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
+            ),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, Pose) for t in transforms)
+
+    def test_pose_data_import_config_position_orientation_euler(self):
+        """Test PoseDataImportConfig with position_orientation and euler."""
+        index_range = IndexRangeConfig(start=0, end=6)
+        orientation = OrientationConfig(
+            type=RotationConfig.EULER,
+            euler_order=EulerOrderConfig.ZYX,
+            angle_units=AngleConfig.DEGREES,
+        )
+        data_point = PoseDataImportConfig(
+            source="pose",
+            mapping=[MappingItem(name="end_effector_pose", index_range=index_range)],
+            format=DataFormat(
+                pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
+            ),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, Pose) for t in transforms)
+
+    def test_pose_data_import_config_requires_orientation(self):
+        """Test validation that 'orientation' is required for position_orientation."""
+        index_range = IndexRangeConfig(start=0, end=7)
+        with pytest.raises(
+            ValueError,
+            match="orientation must be provided when format is 'position_orientation'",
+        ):
+            PoseDataImportConfig(
+                source="pose",
+                mapping=[
+                    MappingItem(name="end_effector_pose", index_range=index_range)
+                ],
+                format=DataFormat(
+                    pose_type=PoseConfig.POSITION_ORIENTATION, orientation=None
+                ),
+            )
+
+    def test_pose_data_import_config_requires_index_range(self):
+        """Test PoseDataImportConfig validation requires index_range."""
+        orientation = OrientationConfig(type=RotationConfig.QUATERNION)
+        with pytest.raises(
+            ValueError, match="index_range is required for pose data points"
+        ):
+            PoseDataImportConfig(
+                source="pose",
+                mapping=[MappingItem(name="end_effector_pose")],
+                format=DataFormat(
+                    pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
+                ),
+            )
+
+    def test_pose_data_import_config_quaternion_index_range_length(self):
+        """Test PoseDataImportConfig validation for quaternion index_range length."""
+        index_range = IndexRangeConfig(start=0, end=6)  # Should be 7
+        orientation = OrientationConfig(type=RotationConfig.QUATERNION)
+        with pytest.raises(
+            ValueError,
+            match="Index range length must be 7 for orientation type QUATERNION",
+        ):
+            PoseDataImportConfig(
+                source="pose",
+                mapping=[
+                    MappingItem(name="end_effector_pose", index_range=index_range)
+                ],
+                format=DataFormat(
+                    pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
+                ),
+            )
+
+    def test_pose_data_import_config_euler_index_range_length(self):
+        """Test PoseDataImportConfig validation for euler index_range length."""
+        index_range = IndexRangeConfig(start=0, end=5)  # Should be 6
+        orientation = OrientationConfig(type=RotationConfig.EULER)
+        with pytest.raises(
+            ValueError, match="Index range length must be 6 for orientation type EULER"
+        ):
+            PoseDataImportConfig(
+                source="pose",
+                mapping=[
+                    MappingItem(name="end_effector_pose", index_range=index_range)
+                ],
+                format=DataFormat(
+                    pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
+                ),
+            )

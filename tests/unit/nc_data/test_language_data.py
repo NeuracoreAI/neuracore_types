@@ -4,6 +4,10 @@ import pytest
 import torch
 
 from neuracore_types import BatchedLanguageData, LanguageData
+from neuracore_types.importer.config import LanguageConfig
+from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.importer.transform import LanguageFromBytes
+from neuracore_types.nc_data.language_data import LanguageDataImportConfig
 
 
 class TestLanguageData:
@@ -76,3 +80,27 @@ class TestBatchedLanguageData:
 
         assert torch.equal(loaded.input_ids, batched.input_ids)
         assert loaded.input_ids.shape == batched.input_ids.shape
+
+
+class TestLanguageDataImportConfig:
+    """Tests for LanguageDataImportConfig class."""
+
+    def test_language_data_import_config_string(self):
+        """Test LanguageDataImportConfig with string type."""
+        data_point = LanguageDataImportConfig(
+            source="language",
+            mapping=[MappingItem(name="instruction")],
+            format=DataFormat(language_type=LanguageConfig.STRING),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert len(transforms) == 0
+
+    def test_language_data_import_config_bytes(self):
+        """Test LanguageDataImportConfig with bytes type."""
+        data_point = LanguageDataImportConfig(
+            source="language",
+            mapping=[MappingItem(name="instruction")],
+            format=DataFormat(language_type=LanguageConfig.BYTES),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert isinstance(transforms[0], LanguageFromBytes)

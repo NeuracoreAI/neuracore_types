@@ -4,6 +4,20 @@ import pytest
 import torch
 
 from neuracore_types import BatchedJointData, JointData
+from neuracore_types.importer.config import AngleConfig, TorqueUnitsConfig
+from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.importer.transform import (
+    DegreesToRadians,
+    FlipSign,
+    NumpyToScalar,
+    Offset,
+    Scale,
+)
+from neuracore_types.nc_data.joint_data import (
+    JointPositionsDataImportConfig,
+    JointTorquesDataImportConfig,
+    JointVelocitiesDataImportConfig,
+)
 
 
 class TestJointData:
@@ -197,3 +211,133 @@ class TestJointDataStatistics:
         assert stats.value.mean[0] == -3.5
         assert stats.value.min[0] == -3.5
         assert stats.value.max[0] == -3.5
+
+
+class TestJointPositionsDataImportConfig:
+    """Tests for JointPositionsDataImportConfig class."""
+
+    def test_joint_positions_auto_index(self):
+        """Test JointPositionsDataImportConfig auto-assigns indexes."""
+        data_point = JointPositionsDataImportConfig(
+            source="joints",
+            mapping=[
+                MappingItem(name="joint_0"),
+                MappingItem(name="joint_1"),
+                MappingItem(name="joint_2"),
+            ],
+        )
+        assert data_point.mapping[0].index == 0
+        assert data_point.mapping[1].index == 1
+        assert data_point.mapping[2].index == 2
+
+    def test_joint_positions_all_indexes_provided(self):
+        """Test JointPositionsDataImportConfig with all indexes provided."""
+        data_point = JointPositionsDataImportConfig(
+            source="joints",
+            mapping=[
+                MappingItem(name="joint_0", index=5),
+                MappingItem(name="joint_1", index=6),
+            ],
+        )
+        assert data_point.mapping[0].index == 5
+        assert data_point.mapping[1].index == 6
+
+    def test_joint_positions_mixed_indexes_invalid(self):
+        """Test JointPositionsDataImportConfig validation with mixed indexes."""
+        with pytest.raises(
+            ValueError,
+            match="All or none of the mapping items in",
+        ):
+            JointPositionsDataImportConfig(
+                source="joints",
+                mapping=[
+                    MappingItem(name="joint_0", index=0),
+                    MappingItem(name="joint_1"),  # Missing index
+                ],
+            )
+
+    def test_joint_positions_transforms_radians(self):
+        """Test JointPositionsDataImportConfig transforms for radians."""
+        data_point = JointPositionsDataImportConfig(
+            source="joints",
+            mapping=[MappingItem(name="joint_0")],
+            format=DataFormat(angle_units=AngleConfig.RADIANS),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert not any(isinstance(t, DegreesToRadians) for t in transforms)
+        assert isinstance(transforms[-1], NumpyToScalar)
+
+    def test_joint_positions_transforms_degrees(self):
+        """Test JointPositionsDataImportConfig transforms for degrees."""
+        data_point = JointPositionsDataImportConfig(
+            source="joints",
+            mapping=[MappingItem(name="joint_0")],
+            format=DataFormat(angle_units=AngleConfig.DEGREES),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, DegreesToRadians) for t in transforms)
+
+    def test_joint_positions_transforms_inverted(self):
+        """Test JointPositionsDataImportConfig transforms with inverted flag."""
+        data_point = JointPositionsDataImportConfig(
+            source="joints",
+            mapping=[MappingItem(name="joint_0", inverted=True)],
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, FlipSign) for t in transforms)
+
+    def test_joint_positions_transforms_offset(self):
+        """Test JointPositionsDataImportConfig transforms with offset."""
+        data_point = JointPositionsDataImportConfig(
+            source="joints",
+            mapping=[MappingItem(name="joint_0", offset=1.5)],
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, Offset) for t in transforms)
+
+
+class TestJointVelocitiesDataImportConfig:
+    """Tests for JointVelocitiesDataImportConfig class."""
+
+    def test_joint_velocities_auto_index(self):
+        """Test JointVelocitiesDataImportConfig auto-assigns indexes."""
+        data_point = JointVelocitiesDataImportConfig(
+            source="joints",
+            mapping=[MappingItem(name="joint_0"), MappingItem(name="joint_1")],
+        )
+        assert data_point.mapping[0].index == 0
+        assert data_point.mapping[1].index == 1
+
+    def test_joint_velocities_transforms_degrees(self):
+        """Test JointVelocitiesDataImportConfig transforms for degrees."""
+        data_point = JointVelocitiesDataImportConfig(
+            source="joints",
+            mapping=[MappingItem(name="joint_0")],
+            format=DataFormat(angle_units=AngleConfig.DEGREES),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, DegreesToRadians) for t in transforms)
+
+
+class TestJointTorquesDataImportConfig:
+    """Tests for JointTorquesDataImportConfig class."""
+
+    def test_joint_torques_transforms_nm(self):
+        """Test JointTorquesDataImportConfig transforms for Nm."""
+        data_point = JointTorquesDataImportConfig(
+            source="joints",
+            mapping=[MappingItem(name="joint_0")],
+            format=DataFormat(torque_units=TorqueUnitsConfig.NM),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert not any(isinstance(t, Scale) for t in transforms)
+
+    def test_joint_torques_transforms_ncm(self):
+        """Test JointTorquesDataImportConfig transforms for Ncm."""
+        data_point = JointTorquesDataImportConfig(
+            source="joints",
+            mapping=[MappingItem(name="joint_0")],
+            format=DataFormat(torque_units=TorqueUnitsConfig.NCM),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, Scale) for t in transforms)

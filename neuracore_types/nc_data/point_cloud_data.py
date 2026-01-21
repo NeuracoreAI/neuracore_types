@@ -6,7 +6,18 @@ from typing import Any, Literal, Optional, Union
 import numpy as np
 from pydantic import ConfigDict, Field, field_serializer, field_validator
 
-from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.importer.config import DistanceUnitsConfig
+from neuracore_types.importer.transform import (
+    DataTransform,
+    DataTransformSequence,
+    Scale,
+)
+from neuracore_types.nc_data.nc_data import (
+    DataItemStats,
+    NCData,
+    NCDataImportConfig,
+    NCDataStats,
+)
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -25,6 +36,21 @@ class PointCloudDataStats(NCDataStats):
     intrinsics: DataItemStats
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+
+class PointCloudDataImportConfig(NCDataImportConfig):
+    """Import configuration for PointCloudData."""
+
+    def _populate_transforms(self) -> None:
+        """Populate transforms based on configuration."""
+        transform_list: list[DataTransform] = []
+
+        # Add Scale transform to convert mm to m
+        if self.format.distance_units == DistanceUnitsConfig.MM:
+            transform_list.append(Scale(factor=0.001))
+
+        for item in self.mapping:
+            item.transforms = DataTransformSequence(transforms=transform_list)
 
 
 class PointCloudData(NCData):
@@ -50,7 +76,7 @@ class PointCloudData(NCData):
         """Validate that points have correct shape."""
         if v is not None and len(v) == 0:
             raise ValueError("Points array cannot be empty.")
-        if v is not None and v.ndim != 2 or (v is not None and v.shape[1] != 3):
+        if v is not None and (v.ndim != 2 or v.shape[1] != 3):
             raise ValueError(
                 "Points must have shape (N, 3), "
                 f"got {v.shape if v is not None else None}"

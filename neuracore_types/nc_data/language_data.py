@@ -4,7 +4,18 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field
 
-from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.importer.config import LanguageConfig
+from neuracore_types.importer.transform import (
+    DataTransform,
+    DataTransformSequence,
+    LanguageFromBytes,
+)
+from neuracore_types.nc_data.nc_data import (
+    DataItemStats,
+    NCData,
+    NCDataImportConfig,
+    NCDataStats,
+)
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -20,6 +31,19 @@ class LanguageDataStats(NCDataStats):
     text: DataItemStats
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+
+class LanguageDataImportConfig(NCDataImportConfig):
+    """Import configuration for LanguageData."""
+
+    def _populate_transforms(self) -> None:
+        """Populate transforms based on configuration."""
+        transform_list: list[DataTransform] = []
+        # Add LanguageFromBytes transform if configured for bytes
+        if self.format.language_type == LanguageConfig.BYTES:
+            transform_list.append(LanguageFromBytes())
+        for item in self.mapping:
+            item.transforms = DataTransformSequence(transforms=transform_list)
 
 
 class LanguageData(NCData):

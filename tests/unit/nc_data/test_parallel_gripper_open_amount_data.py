@@ -11,7 +11,13 @@ from neuracore_types import (
     ParallelGripperOpenAmountData,
 )
 from neuracore_types.batched_nc_data import DATA_TYPE_TO_BATCHED_NC_DATA_CLASS
+from neuracore_types.importer.config import NormalizeConfig
+from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.importer.transform import Clip, Normalize
 from neuracore_types.nc_data import DATA_TYPE_TO_NC_DATA_CLASS, DataType
+from neuracore_types.nc_data.parallel_gripper_open_amount_data import (
+    ParallelGripperOpenAmountDataImportConfig,
+)
 
 
 class TestParallelGripperOpenAmountData:
@@ -198,3 +204,29 @@ class TestParallelGripperTargetOpenAmountDataType:
                 DataType.PARALLEL_GRIPPER_OPEN_AMOUNTS
             ]
         )
+
+
+class TestParallelGripperOpenAmountDataImportConfig:
+    """Tests for ParallelGripperOpenAmountDataImportConfig class."""
+
+    def test_parallel_gripper_transforms_no_normalize(self):
+        """Test ParallelGripperOpenAmountDataImportConfig transforms w/o normalize."""
+        data_point = ParallelGripperOpenAmountDataImportConfig(
+            source="gripper",
+            mapping=[MappingItem(name="gripper_open")],
+            format=DataFormat(normalize=None),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert not any(isinstance(t, Normalize) for t in transforms)
+        assert any(isinstance(t, Clip) for t in transforms)
+
+    def test_parallel_gripper_transforms_with_normalize(self):
+        """Test ParallelGripperOpenAmountDataImportConfig transforms with normalize."""
+        normalize = NormalizeConfig(min=0.0, max=100.0)
+        data_point = ParallelGripperOpenAmountDataImportConfig(
+            source="gripper",
+            mapping=[MappingItem(name="gripper_open")],
+            format=DataFormat(normalize=normalize),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, Normalize) for t in transforms)
