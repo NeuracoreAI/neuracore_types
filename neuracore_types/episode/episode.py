@@ -243,6 +243,8 @@ class PendingRecording(Recording):
         total_bytes: Total bytes expected across all traces (for progress bar)
         traces_registered: Whether the register_traces API has been called
         save_triggered: Whether save process has been initiated (prevents duplicates)
+        updated_at: Timestamp of last activity (trace upload, status update, etc.)
+        activity_timeout: Seconds of inactivity before recording expires (default 5 min)
     """
 
     saved_dataset_id: Optional[str] = None
@@ -260,6 +262,13 @@ class PendingRecording(Recording):
     )
     save_triggered: bool = Field(
         default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    updated_at: float = Field(
+        default_factory=lambda: datetime.now().timestamp(),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    activity_timeout: int = Field(
+        default=300, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
