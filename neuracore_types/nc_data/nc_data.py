@@ -6,6 +6,7 @@ from typing import Any, Optional, Union
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
+from neuracore_types.importer.data_config import DataFormat, MappingItem
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -16,6 +17,34 @@ class NCDataStats(BaseModel):
     """Base class for statistics of Neuracore data types."""
 
     pass
+
+
+class NCDataImportConfig(BaseModel):
+    """Configuration for importing data to Neuracore."""
+
+    source: str = Field(
+        default="",
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    mapping: list[MappingItem] = Field(
+        default_factory=list,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    format: DataFormat = Field(
+        default_factory=DataFormat,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+
+    def __init__(self, **data: Any) -> None:
+        """Initialize the NCDataImportConfig."""
+        super().__init__(**data)
+        self._populate_transforms()
+
+    def _populate_transforms(self) -> None:
+        """Populate transforms based on configuration."""
+        raise NotImplementedError(
+            "Subclasses must implement _populate_transforms() method."
+        )
 
 
 class NCData(BaseModel):

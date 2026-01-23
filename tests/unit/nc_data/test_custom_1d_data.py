@@ -6,6 +6,9 @@ import numpy as np
 import torch
 
 from neuracore_types import BatchedCustom1DData, Custom1DData
+from neuracore_types.importer.data_config import MappingItem
+from neuracore_types.importer.transform import FlipSign, Offset
+from neuracore_types.nc_data.custom_1d_data import Custom1DDataImportConfig
 
 
 class TestCustom1DData:
@@ -173,3 +176,34 @@ class TestCustom1DDataSerialization:
 
         # Should be exactly equal (not just close)
         assert np.array_equal(loaded.data, arr)
+
+
+class TestCustom1DDataImportConfig:
+    """Tests for Custom1DDataImportConfig class."""
+
+    def test_custom_1d_data_import_config_basic(self):
+        """Test Custom1DDataImportConfig basic functionality."""
+        data_point = Custom1DDataImportConfig(
+            source="custom",
+            mapping=[MappingItem(name="custom_value")],
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert len(transforms) == 0
+
+    def test_custom_1d_data_import_config_inverted(self):
+        """Test Custom1DDataImportConfig with inverted flag."""
+        data_point = Custom1DDataImportConfig(
+            source="custom",
+            mapping=[MappingItem(name="custom_value", inverted=True)],
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, FlipSign) for t in transforms)
+
+    def test_custom_1d_data_import_config_offset(self):
+        """Test Custom1DDataImportConfig with offset."""
+        data_point = Custom1DDataImportConfig(
+            source="custom",
+            mapping=[MappingItem(name="custom_value", offset=2.5)],
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, Offset) for t in transforms)

@@ -8,6 +8,10 @@ import pytest
 import torch
 
 from neuracore_types import BatchedPointCloudData, PointCloudData
+from neuracore_types.importer.config import DistanceUnitsConfig
+from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.importer.transform import Scale
+from neuracore_types.nc_data.point_cloud_data import PointCloudDataImportConfig
 
 
 class TestPointCloudData:
@@ -190,3 +194,27 @@ class TestPointCloudDataStatistics:
 
         concatenated = stats1.points.concatenate(stats2.points)
         assert len(concatenated.mean) == 6  # 3 + 3
+
+
+class TestPointCloudDataImportConfig:
+    """Tests for PointCloudDataImportConfig class."""
+
+    def test_point_cloud_data_import_config_meters(self):
+        """Test PointCloudDataImportConfig with meters."""
+        data_point = PointCloudDataImportConfig(
+            source="point_cloud",
+            mapping=[MappingItem(name="points")],
+            format=DataFormat(distance_units=DistanceUnitsConfig.M),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert not any(isinstance(t, Scale) for t in transforms)
+
+    def test_point_cloud_data_import_config_millimeters(self):
+        """Test PointCloudDataImportConfig with millimeters."""
+        data_point = PointCloudDataImportConfig(
+            source="point_cloud",
+            mapping=[MappingItem(name="points")],
+            format=DataFormat(distance_units=DistanceUnitsConfig.MM),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, Scale) for t in transforms)

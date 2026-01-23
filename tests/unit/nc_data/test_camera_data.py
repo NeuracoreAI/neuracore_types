@@ -9,6 +9,25 @@ from neuracore_types import (
     DepthCameraData,
     RGBCameraData,
 )
+from neuracore_types.importer.config import (
+    DistanceUnitsConfig,
+    ImageChannelOrderConfig,
+    ImageConventionConfig,
+)
+from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.importer.transform import (
+    CastToNumpyDtype,
+    Clip,
+    ImageChannelOrder,
+    ImageFormat,
+    NanToNum,
+    Scale,
+    Unnormalize,
+)
+from neuracore_types.nc_data.camera_data import (
+    DepthCameraDataImportConfig,
+    RGBCameraDataImportConfig,
+)
 
 
 class TestRGBCameraData:
@@ -359,3 +378,86 @@ class TestBatchedDepthData:
 
         assert torch.allclose(batched.frame[0, 0, 0], torch.ones(50, 50) * 1.5)
         assert torch.allclose(batched.frame[0, 1, 0], torch.ones(50, 50) * 2.5)
+
+
+class TestRGBCameraDataImportConfig:
+    """Tests for RGBCameraDataImportConfig class."""
+
+    def test_rgb_camera_data_import_config_defaults(self):
+        """Test RGBCameraDataImportConfig with default format."""
+        data_point = RGBCameraDataImportConfig(source="camera")
+        assert data_point.source == "camera"
+        assert len(data_point.mapping) == 0
+
+    def test_rgb_camera_data_import_config_transforms_channels_last_rgb(self):
+        """Test RGBCameraDataImportConfig transforms for channels_last RGB."""
+        data_point = RGBCameraDataImportConfig(
+            source="camera",
+            mapping=[MappingItem(name="image")],
+            format=DataFormat(
+                image_convention=ImageConventionConfig.CHANNELS_LAST,
+                order_of_channels=ImageChannelOrderConfig.RGB,
+                normalized_pixel_values=False,
+            ),
+        )
+        assert len(data_point.mapping) == 1
+        transforms = data_point.mapping[0].transforms.transforms
+        assert isinstance(transforms[0], Clip)
+        assert isinstance(transforms[1], CastToNumpyDtype)
+
+    def test_rgb_camera_data_import_config_transforms_channels_first(self):
+        """Test RGBCameraDataImportConfig transforms for channels_first."""
+        data_point = RGBCameraDataImportConfig(
+            source="camera",
+            mapping=[MappingItem(name="image")],
+            format=DataFormat(image_convention=ImageConventionConfig.CHANNELS_FIRST),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        # ImageFormat is added after Clip, CastToNumpyDtype
+        assert isinstance(transforms[2], ImageFormat)
+
+    def test_rgb_camera_data_import_config_transforms_bgr(self):
+        """Test RGBCameraDataImportConfig transforms for BGR order."""
+        data_point = RGBCameraDataImportConfig(
+            source="camera",
+            mapping=[MappingItem(name="image")],
+            format=DataFormat(order_of_channels=ImageChannelOrderConfig.BGR),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert isinstance(transforms[-1], ImageChannelOrder)
+
+    def test_rgb_camera_data_import_config_transforms_normalized(self):
+        """Test RGBCameraDataImportConfig transforms for normalized pixel values."""
+        data_point = RGBCameraDataImportConfig(
+            source="camera",
+            mapping=[MappingItem(name="image")],
+            format=DataFormat(normalized_pixel_values=True),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert isinstance(transforms[0], Unnormalize)
+        assert isinstance(transforms[1], Clip)
+
+
+class TestDepthCameraDataImportConfig:
+    """Tests for DepthCameraDataImportConfig class."""
+
+    def test_depth_camera_data_import_config_meters(self):
+        """Test DepthCameraDataImportConfig with meters."""
+        data_point = DepthCameraDataImportConfig(
+            source="depth",
+            mapping=[MappingItem(name="depth_image")],
+            format=DataFormat(distance_units=DistanceUnitsConfig.M),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert isinstance(transforms[0], NanToNum)
+        assert not any(isinstance(t, Scale) for t in transforms)
+
+    def test_depth_camera_data_import_config_millimeters(self):
+        """Test DepthCameraDataImportConfig with millimeters."""
+        data_point = DepthCameraDataImportConfig(
+            source="depth",
+            mapping=[MappingItem(name="depth_image")],
+            format=DataFormat(distance_units=DistanceUnitsConfig.MM),
+        )
+        transforms = data_point.mapping[0].transforms.transforms
+        assert any(isinstance(t, Scale) for t in transforms)

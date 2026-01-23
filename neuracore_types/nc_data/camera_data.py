@@ -8,7 +8,28 @@ import numpy as np
 from PIL import Image
 from pydantic import ConfigDict, Field, field_serializer, field_validator
 
-from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.importer.config import (
+    DistanceUnitsConfig,
+    ImageChannelOrderConfig,
+    ImageConventionConfig,
+)
+from neuracore_types.importer.transform import (
+    CastToNumpyDtype,
+    Clip,
+    DataTransform,
+    DataTransformSequence,
+    ImageChannelOrder,
+    ImageFormat,
+    NanToNum,
+    Scale,
+    Unnormalize,
+)
+from neuracore_types.nc_data.nc_data import (
+    DataItemStats,
+    NCData,
+    NCDataImportConfig,
+    NCDataStats,
+)
 from neuracore_types.utils.depth_utils import depth_to_rgb, rgb_to_depth
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
@@ -30,6 +51,55 @@ class CameraDataStats(NCDataStats):
     intrinsics: DataItemStats
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+
+class RGBCameraDataImportConfig(NCDataImportConfig):
+    """Import configuration for RGBCameraData."""
+
+    def _populate_transforms(self) -> None:
+        """Populate transforms based on configuration."""
+        transform_list: list[DataTransform] = []
+
+        # Add Normalize transform if needed
+        if self.format.normalized_pixel_values:
+            transform_list.append(Unnormalize(min=0.0, max=255.0))
+            transform_list.append(Clip(min=0.0, max=255.0))
+            transform_list.append(CastToNumpyDtype(dtype=np.uint8))
+        else:
+            transform_list.append(Clip(min=0.0, max=255.0))
+            transform_list.append(CastToNumpyDtype(dtype=np.uint8))
+
+        # Add ImageFormat transform if needed (converts to CHW)
+        if self.format.image_convention == ImageConventionConfig.CHANNELS_FIRST:
+            # Convert from CHW to HWC
+            transform_list.append(
+                ImageFormat(format=ImageConventionConfig.CHANNELS_FIRST)
+            )
+
+        # Add ImageChannelOrder transform if needed (converts to RGB)
+        if self.format.order_of_channels == ImageChannelOrderConfig.BGR:
+            transform_list.append(ImageChannelOrder(order=ImageChannelOrderConfig.BGR))
+
+        for item in self.mapping:
+            item.transforms = DataTransformSequence(transforms=transform_list)
+
+
+class DepthCameraDataImportConfig(NCDataImportConfig):
+    """Import configuration for DepthCameraData."""
+
+    def _populate_transforms(self) -> None:
+        """Populate transforms based on configuration."""
+        transform_list: list[DataTransform] = []
+
+        # Add NanToNum transform to convert NaN to 0
+        transform_list.append(NanToNum())
+
+        # Add Scale transform to convert mm to m
+        if self.format.distance_units == DistanceUnitsConfig.MM:
+            transform_list.append(Scale(factor=0.001))
+
+        for item in self.mapping:
+            item.transforms = DataTransformSequence(transforms=transform_list)
 
 
 class CameraData(NCData):

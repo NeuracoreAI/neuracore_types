@@ -19,3 +19,14 @@ pytest
 distilbert
 huggingface
 newaxis
+xyzw
+wxyz
+rotvec
+RLDS
+LEROBOT
+TFDS
+urdf
+mjcf
+URDF
+MJCF
+scipy

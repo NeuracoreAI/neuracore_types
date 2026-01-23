@@ -1,11 +1,23 @@
 """Custom 1D numerical data for specialized applications."""
 
+import copy
 from typing import Literal, Optional, Union
 
 import numpy as np
 from pydantic import ConfigDict, Field, field_serializer, field_validator
 
-from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.importer.transform import (
+    DataTransform,
+    DataTransformSequence,
+    FlipSign,
+    Offset,
+)
+from neuracore_types.nc_data.nc_data import (
+    DataItemStats,
+    NCData,
+    NCDataImportConfig,
+    NCDataStats,
+)
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -21,6 +33,21 @@ class Custom1DDataStats(NCDataStats):
     data: DataItemStats
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+
+class Custom1DDataImportConfig(NCDataImportConfig):
+    """Import configuration for Custom1DData."""
+
+    def _populate_transforms(self) -> None:
+        """Populate transforms based on configuration."""
+        transform_list: list[DataTransform] = []
+        for item in self.mapping:
+            item_transforms: list[DataTransform] = copy.deepcopy(transform_list)
+            if item.inverted:
+                item_transforms.append(FlipSign())
+            if item.offset != 0.0:
+                item_transforms.append(Offset(value=item.offset))
+            item.transforms = DataTransformSequence(transforms=item_transforms)
 
 
 class Custom1DData(NCData):
