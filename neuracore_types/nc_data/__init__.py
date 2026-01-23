@@ -42,7 +42,11 @@ from neuracore_types.nc_data.language_data import (
     LanguageDataImportConfig,
     LanguageDataStats,
 )
-from neuracore_types.nc_data.nc_data import NCData, NCDataStats  # noqa: F401
+from neuracore_types.nc_data.nc_data import (  # noqa: F401
+    NCData,
+    NCDataImportConfig,
+    NCDataStats,
+)
 from neuracore_types.nc_data.parallel_gripper_open_amount_data import (
     ParallelGripperOpenAmountData,
     ParallelGripperOpenAmountDataImportConfig,
@@ -145,6 +149,24 @@ DATA_TYPE_TO_NC_DATA_CLASS: dict[DataType, type[NCData]] = {
     DataType.CUSTOM_1D: Custom1DData,
 }
 
+DATA_TYPE_TO_NC_DATA_IMPORT_CONFIG_CLASS: dict[DataType, type[NCDataImportConfig]] = {
+    DataType.JOINT_POSITIONS: JointPositionsDataImportConfig,
+    DataType.JOINT_VELOCITIES: JointVelocitiesDataImportConfig,
+    DataType.JOINT_TORQUES: JointTorquesDataImportConfig,
+    DataType.JOINT_TARGET_POSITIONS: JointPositionsDataImportConfig,
+    DataType.END_EFFECTOR_POSES: PoseDataImportConfig,
+    DataType.PARALLEL_GRIPPER_OPEN_AMOUNTS: (ParallelGripperOpenAmountDataImportConfig),
+    DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS: (
+        ParallelGripperOpenAmountDataImportConfig
+    ),
+    DataType.RGB_IMAGES: RGBCameraDataImportConfig,
+    DataType.DEPTH_IMAGES: DepthCameraDataImportConfig,
+    DataType.POINT_CLOUDS: PointCloudDataImportConfig,
+    DataType.POSES: PoseDataImportConfig,
+    DataType.LANGUAGE: LanguageDataImportConfig,
+    DataType.CUSTOM_1D: Custom1DDataImportConfig,
+}
+
 
 class DatasetImportConfig(BaseModel):
     """Main dataset configuration model.
@@ -181,5 +203,11 @@ class DatasetImportConfig(BaseModel):
                     raise ValueError(f"Unsupported config format: {suffix}")
         except Exception as exc:
             raise RuntimeError(f"Failed to load config file: {exc}") from exc
+
+        # Populate import config for each data type
+        data["data_import_config"] = {
+            key: DATA_TYPE_TO_NC_DATA_IMPORT_CONFIG_CLASS[DataType(key)](**value)
+            for key, value in data["data_import_config"].items()
+        }
 
         return cls(**data)
