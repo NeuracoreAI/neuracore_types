@@ -22,6 +22,9 @@ from neuracore_types.batched_nc_data.batched_point_cloud_data import (
     BatchedPointCloudData,
 )
 from neuracore_types.batched_nc_data.batched_pose_data import BatchedPoseData
+from neuracore_types.batched_nc_data.batched_suction_gripper_active_data import (
+    BatchedSuctionGripperActiveData,
+)
 from neuracore_types.nc_data import DataType
 
 BatchedNCDataUnion = Annotated[
@@ -32,6 +35,7 @@ BatchedNCDataUnion = Annotated[
         BatchedPoseData,
         BatchedEndEffectorPoseData,
         BatchedParallelGripperOpenAmountData,
+        BatchedSuctionGripperActiveData,
         BatchedPointCloudData,
         BatchedLanguageData,
         BatchedCustom1DData,
@@ -48,6 +52,8 @@ DATA_TYPE_TO_BATCHED_NC_DATA_CLASS: dict[DataType, type[BatchedNCData]] = {
     DataType.END_EFFECTOR_POSES: BatchedEndEffectorPoseData,
     DataType.PARALLEL_GRIPPER_OPEN_AMOUNTS: BatchedParallelGripperOpenAmountData,
     DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS: BatchedParallelGripperOpenAmountData,
+    DataType.SUCTION_GRIPPER_ACTIVES: BatchedSuctionGripperActiveData,
+    DataType.SUCTION_GRIPPER_TARGET_ACTIVES: BatchedSuctionGripperActiveData,
     DataType.RGB_IMAGES: BatchedRGBData,
     DataType.DEPTH_IMAGES: BatchedDepthData,
     DataType.POINT_CLOUDS: BatchedPointCloudData,

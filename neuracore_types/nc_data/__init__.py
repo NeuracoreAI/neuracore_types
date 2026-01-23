@@ -62,6 +62,10 @@ from neuracore_types.nc_data.pose_data import (
     PoseDataImportConfig,
     PoseDataStats,
 )
+from neuracore_types.nc_data.suction_gripper_active_data import (
+    SuctionGripperActiveData,
+    SuctionGripperActiveDataStats,
+)
 
 NCDataUnion = Annotated[
     Union[
@@ -71,6 +75,7 @@ NCDataUnion = Annotated[
         PoseData,
         EndEffectorPoseData,
         ParallelGripperOpenAmountData,
+        SuctionGripperActiveData,
         PointCloudData,
         LanguageData,
         Custom1DData,
@@ -85,6 +90,7 @@ NCDataStatsUnion = Annotated[
         PoseDataStats,
         EndEffectorPoseDataStats,
         ParallelGripperOpenAmountDataStats,
+        SuctionGripperActiveDataStats,
         PointCloudDataStats,
         LanguageDataStats,
         Custom1DDataStats,
@@ -121,6 +127,8 @@ class DataType(str, Enum):
     END_EFFECTOR_POSES = "END_EFFECTOR_POSES"
     PARALLEL_GRIPPER_OPEN_AMOUNTS = "PARALLEL_GRIPPER_OPEN_AMOUNTS"
     PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS = "PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS"
+    SUCTION_GRIPPER_ACTIVES = "SUCTION_GRIPPER_ACTIVES"
+    SUCTION_GRIPPER_TARGET_ACTIVES = "SUCTION_GRIPPER_TARGET_ACTIVES"
 
     # Vision
     RGB_IMAGES = "RGB_IMAGES"
@@ -141,6 +149,8 @@ DATA_TYPE_TO_NC_DATA_CLASS: dict[DataType, type[NCData]] = {
     DataType.END_EFFECTOR_POSES: EndEffectorPoseData,
     DataType.PARALLEL_GRIPPER_OPEN_AMOUNTS: ParallelGripperOpenAmountData,
     DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS: ParallelGripperOpenAmountData,
+    DataType.SUCTION_GRIPPER_ACTIVES: SuctionGripperActiveData,
+    DataType.SUCTION_GRIPPER_TARGET_ACTIVES: SuctionGripperActiveData,
     DataType.RGB_IMAGES: RGBCameraData,
     DataType.DEPTH_IMAGES: DepthCameraData,
     DataType.POINT_CLOUDS: PointCloudData,
