@@ -23,6 +23,12 @@ from neuracore_types.importer.config import (
     TorqueUnitsConfig,
 )
 from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.importer.transform import (
+    CastToNumpyDtype,
+    Clip,
+    ImageFormat,
+    NumpyToScalar,
+)
 from neuracore_types.nc_data import DatasetImportConfig, DataType
 from neuracore_types.nc_data.camera_data import RGBCameraDataImportConfig
 from neuracore_types.nc_data.joint_data import JointPositionsDataImportConfig
@@ -223,20 +229,36 @@ class TestDatasetConfig:
         assert config.data_import_config == {}
 
     def test_dataset_config_from_file_yaml(self, tmp_path):
-        """Test DatasetConfig.from_file with YAML file."""
+        """Test DatasetConfig.from_file with YAML file"""
         config_path = tmp_path / "config.yaml"
         config_data = {
             "input_dataset_name": "input_dataset",
             "output_dataset": {"name": "output_dataset"},
             "robot": {"name": "test_robot"},
             "data_import_config": {
-                DataType.RGB_IMAGES.value: {
-                    "type": "RGBCameraDataImportConfig",
+                "RGB_IMAGES": {
                     "source": "camera0",
+                    "format": {
+                        "image_convention": "CHANNELS_FIRST",
+                        "order_of_channels": "RGB",
+                        "normalized_pixel_values": False,
+                    },
+                    "mapping": [{
+                        "name": "image",
+                        "source_name": "camera0",
+                    }],
                 },
-                DataType.JOINT_POSITIONS.value: {
-                    "type": "JointPositionsDataImportConfig",
+                "JOINT_POSITIONS": {
                     "source": "joint_sensor0",
+                    "format": {
+                        "angle_units": "RADIANS",
+                    },
+                    "mapping": [{
+                        "name": "joint_0",
+                        "index": 0,
+                        "offset": 0.0,
+                        "inverted": False,
+                    }],
                 },
             },
         }
@@ -255,6 +277,25 @@ class TestDatasetConfig:
             config.data_import_config[DataType.JOINT_POSITIONS].source
             == "joint_sensor0"
         )
+        # Check transforms
+        rgb_transforms = (
+            config.data_import_config[DataType.RGB_IMAGES]
+            .mapping[0]
+            .transforms.transforms
+        )
+        joint_transforms = (
+            config.data_import_config[DataType.JOINT_POSITIONS]
+            .mapping[0]
+            .transforms.transforms
+        )
+
+        assert len(rgb_transforms) == 3
+        assert len(joint_transforms) == 1
+
+        assert isinstance(rgb_transforms[0], Clip)
+        assert isinstance(rgb_transforms[1], CastToNumpyDtype)
+        assert isinstance(rgb_transforms[2], ImageFormat)
+        assert isinstance(joint_transforms[0], NumpyToScalar)
 
     def test_dataset_config_from_file_json(self, tmp_path):
         """Test DatasetConfig.from_file with JSON file."""
@@ -264,13 +305,29 @@ class TestDatasetConfig:
             "output_dataset": {"name": "output_dataset"},
             "robot": {"name": "test_robot"},
             "data_import_config": {
-                DataType.RGB_IMAGES.value: {
-                    "type": "RGBCameraDataImportConfig",
+                "RGB_IMAGES": {
                     "source": "camera0",
+                    "format": {
+                        "image_convention": "CHANNELS_FIRST",
+                        "order_of_channels": "RGB",
+                        "normalized_pixel_values": False,
+                    },
+                    "mapping": [{
+                        "name": "image",
+                        "source_name": "camera0",
+                    }],
                 },
-                DataType.JOINT_POSITIONS.value: {
-                    "type": "JointPositionsDataImportConfig",
+                "JOINT_POSITIONS": {
                     "source": "joint_sensor0",
+                    "format": {
+                        "angle_units": "RADIANS",
+                    },
+                    "mapping": [{
+                        "name": "joint_0",
+                        "index": 0,
+                        "offset": 0.0,
+                        "inverted": False,
+                    }],
                 },
             },
         }
@@ -289,6 +346,25 @@ class TestDatasetConfig:
             config.data_import_config[DataType.JOINT_POSITIONS].source
             == "joint_sensor0"
         )
+        # Check transforms
+        rgb_transforms = (
+            config.data_import_config[DataType.RGB_IMAGES]
+            .mapping[0]
+            .transforms.transforms
+        )
+        joint_transforms = (
+            config.data_import_config[DataType.JOINT_POSITIONS]
+            .mapping[0]
+            .transforms.transforms
+        )
+
+        assert len(rgb_transforms) == 3
+        assert len(joint_transforms) == 1
+
+        assert isinstance(rgb_transforms[0], Clip)
+        assert isinstance(rgb_transforms[1], CastToNumpyDtype)
+        assert isinstance(rgb_transforms[2], ImageFormat)
+        assert isinstance(joint_transforms[0], NumpyToScalar)
 
     def test_dataset_config_from_file_not_found(self, tmp_path):
         """Test DatasetConfig.from_file with non-existent file."""
