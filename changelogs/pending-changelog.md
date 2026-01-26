@@ -8,5 +8,5 @@ Example: "This release adds support for multi-GPU training and improves streamin
 -->
 
 ## Summary
-- New configuration models and transform utilities for importing data into Neuracore
+
 <!-- Append your summary here -->
