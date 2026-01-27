@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
 
 from neuracore_types.nc_data import DataType, NCDataUnion
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData
+from neuracore_types.upload.upload import RecordingUploadMethod
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -241,8 +242,7 @@ class PendingRecording(Recording):
         progress: Upload progress percentage (0-100)
         expected_trace_count: Number of traces expected (set by register_traces API)
         total_bytes: Total bytes expected across all traces (for progress bar)
-        traces_registered: Whether the register_traces API has been called
-        save_triggered: Whether save process has been initiated (prevents duplicates)
+        upload_method: Method used to upload recording data (streaming or daemon)
     """
 
     saved_dataset_id: Optional[str] = None
@@ -255,11 +255,9 @@ class PendingRecording(Recording):
         default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     total_bytes: int = Field(default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
-    traces_registered: bool = Field(
-        default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
-    )
-    save_triggered: bool = Field(
-        default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    upload_method: RecordingUploadMethod = Field(
+        default=RecordingUploadMethod.STREAMING,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)

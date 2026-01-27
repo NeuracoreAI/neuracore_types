@@ -14,6 +14,16 @@ from neuracore_types.utils.pydantic_to_ts import (
 )
 
 
+class RecordingUploadMethod(str, Enum):
+    """Method used to upload recording data.
+
+    Indicates how the recording data is being uploaded to the backend.
+    """
+
+    STREAMING = "streaming"
+    DATA_DAEMON = "data_daemon"
+
+
 class MessageType(str, Enum):
     """Enumerates the types of signaling messages for WebRTC handshakes.
 
@@ -319,23 +329,10 @@ class RecordingDataTrace(BaseModel):
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
-class RegisterTracesRequest(BaseModel):
-    """Request to register traces for a recording from the data daemon.
+class TracesMetadataRequest(BaseModel):
+    """Request to register trace metadata for a recording.
 
-    This is called when the data daemon stops recording. It provides
-    all trace IDs that belong to the recording. Uploads can happen
-    before or after this API call.
+    Maps trace IDs to their expected sizes in bytes.
     """
 
-    recording_id: str
-    start_time: float
-    end_time: float
-    robot_id: Optional[str] = None
-    robot_name: Optional[str] = None
-    instance: NonNegativeInt
-    dataset_id: Optional[str] = None
-    dataset_name: Optional[str] = None
-    is_shared: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
-    traces: dict[str, int]  # trace_id -> total_bytes
-
-    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+    traces: dict[str, int] = {}  # trace_id -> total_bytes
