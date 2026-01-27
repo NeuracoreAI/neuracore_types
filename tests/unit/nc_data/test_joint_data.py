@@ -4,6 +4,7 @@ import pytest
 import torch
 
 from neuracore_types import BatchedJointData, JointData
+from neuracore_types.batched_nc_data import DATA_TYPE_TO_BATCHED_NC_DATA_CLASS
 from neuracore_types.importer.config import AngleConfig, TorqueUnitsConfig
 from neuracore_types.importer.data_config import DataFormat, MappingItem
 from neuracore_types.importer.transform import (
@@ -13,6 +14,7 @@ from neuracore_types.importer.transform import (
     Offset,
     Scale,
 )
+from neuracore_types.nc_data import DATA_TYPE_TO_NC_DATA_CLASS, DataType
 from neuracore_types.nc_data.joint_data import (
     JointPositionsDataImportConfig,
     JointTorquesDataImportConfig,
@@ -341,3 +343,70 @@ class TestJointTorquesDataImportConfig:
         )
         transforms = data_point.mapping[0].transforms.transforms
         assert any(isinstance(t, Scale) for t in transforms)
+
+
+class TestVisualJointPositionsDataType:
+    """Tests for VISUAL_JOINT_POSITIONS DataType mapping."""
+
+    def test_visual_joint_positions_data_type_exists(self):
+        """Test that VISUAL_JOINT_POSITIONS DataType exists."""
+        assert hasattr(DataType, "VISUAL_JOINT_POSITIONS")
+        assert DataType.VISUAL_JOINT_POSITIONS.value == "VISUAL_JOINT_POSITIONS"
+
+    def test_visual_joint_positions_data_type_mapped_to_nc_data_class(self):
+        """Test VISUAL_JOINT_POSITIONS mapped to JointData."""
+        assert DataType.VISUAL_JOINT_POSITIONS in DATA_TYPE_TO_NC_DATA_CLASS
+        assert DATA_TYPE_TO_NC_DATA_CLASS[DataType.VISUAL_JOINT_POSITIONS] == JointData
+
+    def test_visual_joint_positions_data_type_mapped_to_batched_nc_data_class(self):
+        """Test VISUAL_JOINT_POSITIONS mapped to BatchedJointData."""
+        assert DataType.VISUAL_JOINT_POSITIONS in DATA_TYPE_TO_BATCHED_NC_DATA_CLASS
+        assert (
+            DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[DataType.VISUAL_JOINT_POSITIONS]
+            == BatchedJointData
+        )
+
+    def test_visual_joint_positions_uses_same_data_class_as_state(self):
+        """Test that visual joint positions and state
+        use the same underlying data classes."""
+        assert (
+            DATA_TYPE_TO_NC_DATA_CLASS[DataType.VISUAL_JOINT_POSITIONS]
+            == DATA_TYPE_TO_NC_DATA_CLASS[DataType.JOINT_POSITIONS]
+        )
+        assert (
+            DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[DataType.VISUAL_JOINT_POSITIONS]
+            == DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[DataType.JOINT_POSITIONS]
+        )
+
+
+class TestJointTargetPositionsDataType:
+    """Tests for JOINT_TARGET_POSITIONS DataType mapping."""
+
+    def test_target_positions_data_type_exists(self):
+        """Test that JOINT_TARGET_POSITIONS DataType exists."""
+        assert hasattr(DataType, "JOINT_TARGET_POSITIONS")
+        assert DataType.JOINT_TARGET_POSITIONS.value == "JOINT_TARGET_POSITIONS"
+
+    def test_target_positions_data_type_mapped_to_nc_data_class(self):
+        """Test that JOINT_TARGET_POSITIONS is mapped to JointData."""
+        assert DataType.JOINT_TARGET_POSITIONS in DATA_TYPE_TO_NC_DATA_CLASS
+        assert DATA_TYPE_TO_NC_DATA_CLASS[DataType.JOINT_TARGET_POSITIONS] == JointData
+
+    def test_target_positions_data_type_mapped_to_batched_nc_data_class(self):
+        """Test that JOINT_TARGET_POSITIONS is mapped to BatchedJointData."""
+        assert DataType.JOINT_TARGET_POSITIONS in DATA_TYPE_TO_BATCHED_NC_DATA_CLASS
+        assert (
+            DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[DataType.JOINT_TARGET_POSITIONS]
+            == BatchedJointData
+        )
+
+    def test_target_uses_same_data_class_as_state(self):
+        """Test that target and state use the same underlying data classes."""
+        assert (
+            DATA_TYPE_TO_NC_DATA_CLASS[DataType.JOINT_TARGET_POSITIONS]
+            == DATA_TYPE_TO_NC_DATA_CLASS[DataType.JOINT_POSITIONS]
+        )
+        assert (
+            DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[DataType.JOINT_TARGET_POSITIONS]
+            == DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[DataType.JOINT_POSITIONS]
+        )
