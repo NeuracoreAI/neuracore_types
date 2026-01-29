@@ -1,6 +1,6 @@
 {
   "name": "@neuracore/types",
-  "version": "6.0.1",
+  "version": "6.1.0",
   "description": "Shared TypeScript type definitions for Neuracore robotics platform",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
