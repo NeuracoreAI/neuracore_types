@@ -35,6 +35,13 @@ class RobotConfig(BaseModel):
     overwrite_existing: bool = False
 
 
+class VisualJointTypeConfig(str, Enum):
+    """Types of visual joint positions."""
+
+    GRIPPER = "GRIPPER"
+    CUSTOM = "CUSTOM"
+
+
 class RotationConfig(str, Enum):
     """Types of rotations."""
 
