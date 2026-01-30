@@ -5,20 +5,27 @@ import torch
 
 from neuracore_types import BatchedJointData, JointData
 from neuracore_types.batched_nc_data import DATA_TYPE_TO_BATCHED_NC_DATA_CLASS
-from neuracore_types.importer.config import AngleConfig, TorqueUnitsConfig
+from neuracore_types.importer.config import (
+    AngleConfig,
+    TorqueUnitsConfig,
+    VisualJointTypeConfig,
+)
 from neuracore_types.importer.data_config import DataFormat, MappingItem
 from neuracore_types.importer.transform import (
+    Clip,
     DegreesToRadians,
     FlipSign,
     NumpyToScalar,
     Offset,
     Scale,
+    Unnormalize,
 )
 from neuracore_types.nc_data import DATA_TYPE_TO_NC_DATA_CLASS, DataType
 from neuracore_types.nc_data.joint_data import (
     JointPositionsDataImportConfig,
     JointTorquesDataImportConfig,
     JointVelocitiesDataImportConfig,
+    VisualJointPositionsDataImportConfig,
 )
 
 
@@ -410,3 +417,158 @@ class TestJointTargetPositionsDataType:
             DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[DataType.JOINT_TARGET_POSITIONS]
             == DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[DataType.JOINT_POSITIONS]
         )
+
+
+class TestVisualJointPositionsDataImportConfig:
+    """Tests for VisualJointPositionsDataImportConfig class."""
+
+    def test_gripper_type_all_indexes_provided(self):
+        """Test VisualJointPositionsDataImportConfig with GRIPPER type."""
+        config = VisualJointPositionsDataImportConfig(
+            source="gripper",
+            format=DataFormat(visual_joint_type=VisualJointTypeConfig.GRIPPER),
+            mapping=[
+                MappingItem(name="gripper_joint_0", index=0),
+                MappingItem(name="gripper_joint_1", index=1),
+            ],
+        )
+        assert config.mapping[0].index == 0
+        assert config.mapping[1].index == 1
+
+    def test_gripper_type_missing_indexes_invalid(self):
+        """Test validation with GRIPPER type missing indexes."""
+        with pytest.raises(
+            ValueError,
+            match="All indexes must be provided for gripper visual joint positions",
+        ):
+            VisualJointPositionsDataImportConfig(
+                source="gripper",
+                format=DataFormat(visual_joint_type=VisualJointTypeConfig.GRIPPER),
+                mapping=[
+                    MappingItem(name="gripper_joint_0", index=0),
+                    MappingItem(name="gripper_joint_1"),  # Missing index
+                ],
+            )
+
+    def test_custom_type_auto_index(self):
+        """Test CUSTOM type auto-assigns indexes."""
+        config = VisualJointPositionsDataImportConfig(
+            source="joints",
+            format=DataFormat(visual_joint_type=VisualJointTypeConfig.CUSTOM),
+            mapping=[
+                MappingItem(name="joint_0"),
+                MappingItem(name="joint_1"),
+                MappingItem(name="joint_2"),
+            ],
+        )
+        assert config.mapping[0].index == 0
+        assert config.mapping[1].index == 1
+        assert config.mapping[2].index == 2
+
+    def test_custom_type_all_indexes_provided(self):
+        """Test CUSTOM type with all indexes provided."""
+        config = VisualJointPositionsDataImportConfig(
+            source="joints",
+            format=DataFormat(visual_joint_type=VisualJointTypeConfig.CUSTOM),
+            mapping=[
+                MappingItem(name="joint_0", index=5),
+                MappingItem(name="joint_1", index=6),
+            ],
+        )
+        assert config.mapping[0].index == 5
+        assert config.mapping[1].index == 6
+
+    def test_custom_type_mixed_indexes_invalid(self):
+        """Test validation with CUSTOM type and mixed indexes."""
+        with pytest.raises(
+            ValueError,
+            match="All or none of the mapping items in",
+        ):
+            VisualJointPositionsDataImportConfig(
+                source="joints",
+                format=DataFormat(visual_joint_type=VisualJointTypeConfig.CUSTOM),
+                mapping=[
+                    MappingItem(name="joint_0", index=0),
+                    MappingItem(name="joint_1"),  # Missing index
+                ],
+            )
+
+    def test_gripper_type_transforms(self):
+        """Test VisualJointPositionsDataImportConfig transforms for GRIPPER type."""
+        config = VisualJointPositionsDataImportConfig(
+            source="gripper",
+            format=DataFormat(visual_joint_type=VisualJointTypeConfig.GRIPPER),
+            mapping=[MappingItem(name="gripper_joint_0", index=0)],
+        )
+        transforms = config.mapping[0].transforms.transforms
+        # Should have Clip, Unnormalize, and NumpyToScalar
+        assert any(isinstance(t, Clip) for t in transforms)
+        assert any(isinstance(t, Unnormalize) for t in transforms)
+        assert isinstance(transforms[-1], NumpyToScalar)
+
+    def test_gripper_type_transforms_with_inverted(self):
+        """Test GRIPPER type transforms with inverted flag."""
+        config = VisualJointPositionsDataImportConfig(
+            source="gripper",
+            format=DataFormat(visual_joint_type=VisualJointTypeConfig.GRIPPER),
+            mapping=[MappingItem(name="gripper_joint_0", index=0, inverted=True)],
+        )
+        transforms = config.mapping[0].transforms.transforms
+        assert any(isinstance(t, Clip) for t in transforms)
+        assert any(isinstance(t, Unnormalize) for t in transforms)
+        assert any(isinstance(t, FlipSign) for t in transforms)
+        assert isinstance(transforms[-1], NumpyToScalar)
+
+    def test_gripper_type_transforms_with_offset(self):
+        """Test GRIPPER type transforms with offset."""
+        config = VisualJointPositionsDataImportConfig(
+            source="gripper",
+            format=DataFormat(visual_joint_type=VisualJointTypeConfig.GRIPPER),
+            mapping=[MappingItem(name="gripper_joint_0", index=0, offset=1.5)],
+        )
+        transforms = config.mapping[0].transforms.transforms
+        assert any(isinstance(t, Clip) for t in transforms)
+        assert any(isinstance(t, Unnormalize) for t in transforms)
+        assert any(isinstance(t, Offset) for t in transforms)
+        assert isinstance(transforms[-1], NumpyToScalar)
+
+    def test_custom_type_transforms_degrees_inverted_offset(self):
+        """Test CUSTOM type transforms with degrees, inverted, and offset."""
+        config = VisualJointPositionsDataImportConfig(
+            source="joints",
+            format=DataFormat(
+                visual_joint_type=VisualJointTypeConfig.CUSTOM,
+                angle_units=AngleConfig.DEGREES,
+            ),
+            mapping=[
+                MappingItem(
+                    name="joint_0",
+                    inverted=True,
+                    offset=2.0,
+                )
+            ],
+        )
+        transforms = config.mapping[0].transforms.transforms
+        assert any(isinstance(t, DegreesToRadians) for t in transforms)
+        assert any(isinstance(t, FlipSign) for t in transforms)
+        assert any(isinstance(t, Offset) for t in transforms)
+        assert isinstance(transforms[-1], NumpyToScalar)
+
+    def test_gripper_type_multiple_joints(self):
+        """Test GRIPPER type with multiple joints."""
+        config = VisualJointPositionsDataImportConfig(
+            source="gripper",
+            format=DataFormat(visual_joint_type=VisualJointTypeConfig.GRIPPER),
+            mapping=[
+                MappingItem(name="gripper_joint_0", index=0),
+                MappingItem(name="gripper_joint_1", index=1),
+                MappingItem(name="gripper_joint_2", index=2),
+            ],
+        )
+        assert len(config.mapping) == 3
+        for i, item in enumerate(config.mapping):
+            assert item.index == i
+            transforms = item.transforms.transforms
+            assert any(isinstance(t, Clip) for t in transforms)
+            assert any(isinstance(t, Unnormalize) for t in transforms)
+            assert isinstance(transforms[-1], NumpyToScalar)

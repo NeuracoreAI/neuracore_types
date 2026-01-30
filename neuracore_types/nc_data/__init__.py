@@ -36,6 +36,7 @@ from neuracore_types.nc_data.joint_data import (
     JointPositionsDataImportConfig,
     JointTorquesDataImportConfig,
     JointVelocitiesDataImportConfig,
+    VisualJointPositionsDataImportConfig,
 )
 from neuracore_types.nc_data.language_data import (
     LanguageData,
@@ -99,6 +100,7 @@ NCDataImportConfigUnion = Union[
     JointPositionsDataImportConfig,
     JointVelocitiesDataImportConfig,
     JointTorquesDataImportConfig,
+    VisualJointPositionsDataImportConfig,
     PoseDataImportConfig,
     ParallelGripperOpenAmountDataImportConfig,
     LanguageDataImportConfig,
@@ -156,6 +158,7 @@ DATA_TYPE_TO_NC_DATA_IMPORT_CONFIG_CLASS: dict[DataType, type[NCDataImportConfig
     DataType.JOINT_VELOCITIES: JointVelocitiesDataImportConfig,
     DataType.JOINT_TORQUES: JointTorquesDataImportConfig,
     DataType.JOINT_TARGET_POSITIONS: JointPositionsDataImportConfig,
+    DataType.VISUAL_JOINT_POSITIONS: VisualJointPositionsDataImportConfig,
     DataType.END_EFFECTOR_POSES: PoseDataImportConfig,
     DataType.PARALLEL_GRIPPER_OPEN_AMOUNTS: (ParallelGripperOpenAmountDataImportConfig),
     DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS: (

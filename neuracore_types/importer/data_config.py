@@ -18,6 +18,7 @@ from neuracore_types.importer.config import (
     OrientationConfig,
     PoseConfig,
     TorqueUnitsConfig,
+    VisualJointTypeConfig,
 )
 from neuracore_types.importer.transform import DataTransformSequence
 
@@ -71,3 +72,6 @@ class DataFormat(BaseModel):
 
     # Normalize format fields
     normalize: NormalizeConfig | None = None
+
+    # Visual joint type fields
+    visual_joint_type: VisualJointTypeConfig = VisualJointTypeConfig.CUSTOM
