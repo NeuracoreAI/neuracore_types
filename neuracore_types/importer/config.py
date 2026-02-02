@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, model_validator
 class DatasetTypeConfig(str, Enum):
     """Enumeration of supported dataset types."""
 
+    MCAP = "MCAP"
     RLDS = "RLDS"
     LEROBOT = "LEROBOT"
     TFDS = "TFDS"
