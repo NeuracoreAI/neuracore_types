@@ -6,9 +6,14 @@ from typing import Literal
 import numpy as np
 from pydantic import ConfigDict, Field, model_validator
 
-from neuracore_types.importer.config import AngleConfig, TorqueUnitsConfig
+from neuracore_types.importer.config import (
+    AngleConfig,
+    TorqueUnitsConfig,
+    VisualJointTypeConfig,
+)
 from neuracore_types.importer.data_config import MappingItem
 from neuracore_types.importer.transform import (
+    Clip,
     DataTransform,
     DataTransformSequence,
     DegreesToRadians,
@@ -16,6 +21,7 @@ from neuracore_types.importer.transform import (
     NumpyToScalar,
     Offset,
     Scale,
+    Unnormalize,
 )
 from neuracore_types.nc_data.nc_data import (
     DataItemStats,
@@ -125,6 +131,52 @@ class JointTorquesDataImportConfig(NCDataImportConfig):
 
         if self.format.torque_units == TorqueUnitsConfig.NCM:
             transform_list.append(Scale(factor=0.01))
+
+        for item in self.mapping:
+            item_transforms = _apply_common_joint_item_transforms(item, transform_list)
+            item.transforms = DataTransformSequence(transforms=item_transforms)
+
+
+class VisualJointPositionsDataImportConfig(NCDataImportConfig):
+    """Import configuration for VisualJointPositionsData."""
+
+    @model_validator(mode="after")
+    def validate_index_provided(self) -> "JointTorquesDataImportConfig":
+        """Validate that either all or no indexes are provided."""
+        if self.format.visual_joint_type == VisualJointTypeConfig.GRIPPER:
+            indexes = [item.index for item in self.mapping]
+            if any(idx is None for idx in indexes):
+                raise ValueError(
+                    "All indexes must be provided for gripper visual joint positions"
+                )
+        elif self.format.visual_joint_type == VisualJointTypeConfig.CUSTOM:
+            _validate_index_provided(self.mapping, self.__class__.__name__)
+        else:
+            raise ValueError(
+                f"Invalid visual joint type: {self.format.visual_joint_type}"
+            )
+
+        return self
+
+    def _populate_transforms(self) -> None:
+        """Populate transforms based on configuration."""
+        transform_list: list[DataTransform] = []
+
+        if self.format.visual_joint_type == VisualJointTypeConfig.GRIPPER:
+            # Use gripper open amount to calculate the visual joint positions
+            # from joint limits
+            transform_list.append(Clip(min=0.0, max=1.0))
+            # Joint limits to be filled in during data import from URDF
+            transform_list.append(Unnormalize(min=0.0, max=1.0))
+
+        elif self.format.visual_joint_type == VisualJointTypeConfig.CUSTOM:
+            # Add DegreesToRadians transform if needed
+            if self.format.angle_units == AngleConfig.DEGREES:
+                transform_list.append(DegreesToRadians())
+        else:
+            raise ValueError(
+                f"Invalid visual joint type: {self.format.visual_joint_type}"
+            )
 
         for item in self.mapping:
             item_transforms = _apply_common_joint_item_transforms(item, transform_list)
