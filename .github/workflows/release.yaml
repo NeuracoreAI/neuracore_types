@@ -422,8 +422,9 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '24'
         registry-url: 'https://registry.npmjs.org'
+        scope: '@neuracore'
 
     - name: Install Python dependencies
       run: pip install -e ".[dev]"
@@ -438,7 +439,7 @@ jobs:
       run: npm run build
 
     - name: Publish to NPM
-      run: npm publish --provenance
+      run: npm publish
 
   create-release:
     needs: [version-bump, generate-changelog, publish-python, publish-npm]
