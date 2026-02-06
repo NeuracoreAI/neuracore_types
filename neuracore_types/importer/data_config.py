@@ -74,6 +74,9 @@ class DataFormat(BaseModel):
     # Normalize format fields
     normalize: NormalizeConfig | None = None
 
+    # Gripper amount format fields
+    invert_gripper_amount: bool = False
+
     # Visual joint type fields
     visual_joint_type: VisualJointTypeConfig = VisualJointTypeConfig.CUSTOM
 

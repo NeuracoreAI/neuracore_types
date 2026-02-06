@@ -55,6 +55,11 @@ class ParallelGripperOpenAmountDataImportConfig(NCDataImportConfig):
         # Clip the value to 0-1
         transform_list.append(Clip(min=0.0, max=1.0))
 
+        # Convert from close amount to open amount if needed
+        if self.format.invert_gripper_amount:
+            transform_list.append(FlipSign())
+            transform_list.append(Offset(value=1.0))
+
         for item in self.mapping:
             item_transforms = copy.deepcopy(transform_list)
             if item.inverted:

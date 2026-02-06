@@ -21,6 +21,7 @@ from neuracore_types.importer.transform import (
     DataTransformSequence,
     DegreesToRadians,
     FlipSign,
+    Normalize,
     NumpyToScalar,
     Offset,
     Pose,
@@ -256,7 +257,7 @@ class VisualJointPositionsDataImportConfig(NCDataImportConfig):
     """Import configuration for VisualJointPositionsData."""
 
     @model_validator(mode="after")
-    def validate_index_provided(self) -> "JointTorquesDataImportConfig":
+    def validate_index_provided(self) -> "VisualJointPositionsDataImportConfig":
         """Validate that either all or no indexes are provided."""
         if self.format.visual_joint_type == VisualJointTypeConfig.GRIPPER:
             indexes = [item.index for item in self.mapping]
@@ -280,7 +281,23 @@ class VisualJointPositionsDataImportConfig(NCDataImportConfig):
         if self.format.visual_joint_type == VisualJointTypeConfig.GRIPPER:
             # Use gripper open amount to calculate the visual joint positions
             # from joint limits
+
+            # Add Normalize transform if needed
+            if self.format.normalize:
+                transform_list.append(
+                    Normalize(
+                        min=self.format.normalize.min, max=self.format.normalize.max
+                    )
+                )
+
+            # Clip the value to 0-1
             transform_list.append(Clip(min=0.0, max=1.0))
+
+            # Convert from close amount to open amount if needed
+            if self.format.invert_gripper_amount:
+                transform_list.append(FlipSign())
+                transform_list.append(Offset(value=1.0))
+
             # Joint limits to be filled in during data import from URDF
             transform_list.append(Unnormalize(min=0.0, max=1.0))
 
