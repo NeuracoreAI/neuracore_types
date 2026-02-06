@@ -8,6 +8,9 @@ from pydantic import ConfigDict, Field, model_validator
 
 from neuracore_types.importer.config import (
     AngleConfig,
+    JointPositionTypeConfig,
+    PoseConfig,
+    RotationConfig,
     TorqueUnitsConfig,
     VisualJointTypeConfig,
 )
@@ -20,6 +23,7 @@ from neuracore_types.importer.transform import (
     FlipSign,
     NumpyToScalar,
     Offset,
+    Pose,
     Scale,
     Unnormalize,
 )
@@ -77,22 +81,133 @@ class JointPositionsDataImportConfig(NCDataImportConfig):
     """Import configuration for JointPositionsData."""
 
     @model_validator(mode="after")
+    def validate_orientation_required(self) -> "JointPositionsDataImportConfig":
+        """Validate orientation is when converting joint position type from TCP."""
+        if self.format.joint_position_type == JointPositionTypeConfig.TCP:
+            if self.format.pose_type == PoseConfig.POSITION_ORIENTATION:
+                if self.format.orientation is None:
+                    raise ValueError(
+                        "orientation must be provided when format is "
+                        "'position_orientation'"
+                    )
+                if self.format.orientation.type == RotationConfig.QUATERNION:
+                    if not self.format.orientation.quaternion_order:
+                        raise ValueError(
+                            "quaternion_order must be provided when type is "
+                            "'quaternion'"
+                        )
+                if self.format.orientation.type == RotationConfig.EULER:
+                    if not self.format.orientation.euler_order:
+                        raise ValueError(
+                            "euler_order must be provided when type is 'euler'"
+                        )
+        return self
+
+    @model_validator(mode="after")
     def validate_index_provided(self) -> "JointPositionsDataImportConfig":
-        """Validate that either all or no indexes are provided."""
-        _validate_index_provided(self.mapping, self.__class__.__name__)
+        """Validate that indexes provided are valid.
+
+        When directly importing joint positions, check either all or no indexes
+        are provided. When converting from TCP to joint positions, check that
+        the index range length matches the orientation format.
+        """
+        if self.format.joint_position_type == JointPositionTypeConfig.CUSTOM:
+            _validate_index_provided(self.mapping, self.__class__.__name__)
+        elif self.format.joint_position_type == JointPositionTypeConfig.TCP:
+            if len(self.mapping) != 1:
+                raise ValueError(
+                    "Only one mapping item is allowed when converting from TCP "
+                    "to joint positions"
+                )
+
+            if self.format.pose_type == PoseConfig.MATRIX:
+                return self
+            else:
+                if self.mapping[0].index_range is None:
+                    raise ValueError("index_range is required for pose data points")
+                index_length = (
+                    self.mapping[0].index_range.end - self.mapping[0].index_range.start
+                )
+
+                if self.format.pose_type == PoseConfig.MATRIX:
+                    if index_length != 16:
+                        raise ValueError(
+                            "Index range length must be 16 for matrix format, "
+                            f"got {index_length}"
+                        )
+                elif self.format.pose_type == PoseConfig.POSITION_ORIENTATION:
+                    if self.format.orientation is None:
+                        raise ValueError(
+                            "orientation is required when pose_type is "
+                            "'position_orientation'"
+                        )
+                    if self.format.orientation.type == RotationConfig.QUATERNION:
+                        expected_length = 7  # 3 position + 4 quaternion
+                    elif self.format.orientation.type in [
+                        RotationConfig.EULER,
+                        RotationConfig.AXIS_ANGLE,
+                    ]:  # euler or axis_angle
+                        expected_length = 6  # 3 position + 3 euler or axis_angle
+                    elif self.format.orientation.type == RotationConfig.MATRIX:
+                        expected_length = 9  # 3 position + 3x3 matrix
+                    else:
+                        raise ValueError(
+                            f"Unsupported orientation type: "
+                            f"{self.format.orientation.type}"
+                        )
+                    if index_length != expected_length:
+                        raise ValueError(
+                            f"Index range length must be {expected_length} for "
+                            f"orientation type {self.format.orientation.type}, "
+                            f"got {index_length}"
+                        )
         return self
 
     def _populate_transforms(self) -> None:
         """Populate transforms based on configuration."""
         transform_list: list[DataTransform] = []
 
-        # Add DegreesToRadians transform if needed
-        if self.format.angle_units == AngleConfig.DEGREES:
-            transform_list.append(DegreesToRadians())
+        if self.format.joint_position_type == JointPositionTypeConfig.CUSTOM:
+            # Add DegreesToRadians transform if needed
+            if self.format.angle_units == AngleConfig.DEGREES:
+                transform_list.append(DegreesToRadians())
 
-        for item in self.mapping:
-            item_transforms = _apply_common_joint_item_transforms(item, transform_list)
-            item.transforms = DataTransformSequence(transforms=item_transforms)
+            for item in self.mapping:
+                item_transforms = _apply_common_joint_item_transforms(
+                    item, transform_list
+                )
+                item.transforms = DataTransformSequence(transforms=item_transforms)
+        elif self.format.joint_position_type == JointPositionTypeConfig.TCP:
+            for item in self.mapping:
+                item_transforms = copy.deepcopy(transform_list)
+                if self.format.pose_type == PoseConfig.MATRIX:
+                    item_transforms.append(Pose(pose_type=PoseConfig.MATRIX))
+                elif self.format.pose_type == PoseConfig.POSITION_ORIENTATION:
+                    if self.format.orientation is None:
+                        raise ValueError(
+                            "orientation is required when pose_type is "
+                            "'position_orientation'"
+                        )
+                    # Determine sequence
+                    seq: str = "xyzw"
+                    if self.format.orientation.type == RotationConfig.QUATERNION:
+                        seq = self.format.orientation.quaternion_order.value
+                    elif self.format.orientation.type == RotationConfig.EULER:
+                        seq = self.format.orientation.euler_order.value
+
+                    item_transforms.append(
+                        Pose(
+                            pose_type=PoseConfig.POSITION_ORIENTATION,
+                            rotation_type=RotationConfig(self.format.orientation.type),
+                            angle_type=AngleConfig(self.format.orientation.angle_units),
+                            seq=seq,
+                        )
+                    )
+                item.transforms = DataTransformSequence(transforms=item_transforms)
+        else:
+            raise ValueError(
+                f"Invalid joint position type: {self.format.joint_position_type}"
+            )
 
 
 class JointVelocitiesDataImportConfig(NCDataImportConfig):
