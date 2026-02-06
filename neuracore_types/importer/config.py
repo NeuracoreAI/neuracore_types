@@ -42,6 +42,13 @@ class VisualJointTypeConfig(str, Enum):
     CUSTOM = "CUSTOM"
 
 
+class JointPositionTypeConfig(str, Enum):
+    """Types of joint positions."""
+
+    TCP = "TCP"
+    CUSTOM = "CUSTOM"
+
+
 class RotationConfig(str, Enum):
     """Types of rotations."""
 

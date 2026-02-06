@@ -13,6 +13,7 @@ from neuracore_types.importer.config import (
     ImageChannelOrderConfig,
     ImageConventionConfig,
     IndexRangeConfig,
+    JointPositionTypeConfig,
     LanguageConfig,
     NormalizeConfig,
     OrientationConfig,
@@ -75,3 +76,6 @@ class DataFormat(BaseModel):
 
     # Visual joint type fields
     visual_joint_type: VisualJointTypeConfig = VisualJointTypeConfig.CUSTOM
+
+    # Joint position type fields
+    joint_position_type: JointPositionTypeConfig = JointPositionTypeConfig.CUSTOM
