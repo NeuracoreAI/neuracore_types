@@ -82,3 +82,4 @@ class DataFormat(BaseModel):
 
     # Joint position type fields
     joint_position_type: JointPositionTypeConfig = JointPositionTypeConfig.CUSTOM
+    ik_init_config: list[float] | None = None
