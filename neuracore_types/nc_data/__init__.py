@@ -108,6 +108,9 @@ NCDataImportConfigUnion = Union[
 ]
 
 
+# IMPORTANT: When adding or removing a datatype,
+# please ensure that you update the 'DATA_TYPE_CONTENT_MAPPING' mapping
+# below to map the datatype with the content-type (RGB or JSON)
 class DataType(str, Enum):
     """Enumeration of supported data types in the Neuracore system.
 
@@ -170,6 +173,22 @@ DATA_TYPE_TO_NC_DATA_IMPORT_CONFIG_CLASS: dict[DataType, type[NCDataImportConfig
     DataType.POSES: PoseDataImportConfig,
     DataType.LANGUAGE: LanguageDataImportConfig,
     DataType.CUSTOM_1D: Custom1DDataImportConfig,
+}
+DATA_TYPE_CONTENT_MAPPING: dict[DataType, str] = {
+    DataType.RGB_IMAGES: "RGB",
+    DataType.DEPTH_IMAGES: "RGB",
+    DataType.JOINT_POSITIONS: "JSON",
+    DataType.JOINT_VELOCITIES: "JSON",
+    DataType.JOINT_TORQUES: "JSON",
+    DataType.JOINT_TARGET_POSITIONS: "JSON",
+    DataType.END_EFFECTOR_POSES: "JSON",
+    DataType.PARALLEL_GRIPPER_OPEN_AMOUNTS: "JSON",
+    DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS: "JSON",
+    DataType.VISUAL_JOINT_POSITIONS: "JSON",
+    DataType.POINT_CLOUDS: "JSON",
+    DataType.POSES: "JSON",
+    DataType.LANGUAGE: "JSON",
+    DataType.CUSTOM_1D: "JSON",
 }
 
 
