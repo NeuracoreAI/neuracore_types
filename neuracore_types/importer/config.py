@@ -45,7 +45,7 @@ class VisualJointTypeConfig(str, Enum):
 class JointPositionTypeConfig(str, Enum):
     """Types of joint positions."""
 
-    TCP = "TCP"
+    END_EFFECTOR = "END_EFFECTOR"
     CUSTOM = "CUSTOM"
 
 

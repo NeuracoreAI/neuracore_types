@@ -84,7 +84,7 @@ class JointPositionsDataImportConfig(NCDataImportConfig):
     @model_validator(mode="after")
     def validate_orientation_required(self) -> "JointPositionsDataImportConfig":
         """Validate orientation is when converting joint position type from TCP."""
-        if self.format.joint_position_type == JointPositionTypeConfig.TCP:
+        if self.format.joint_position_type == JointPositionTypeConfig.END_EFFECTOR:
             if self.format.pose_type == PoseConfig.POSITION_ORIENTATION:
                 if self.format.orientation is None:
                     raise ValueError(
@@ -114,7 +114,7 @@ class JointPositionsDataImportConfig(NCDataImportConfig):
         """
         if self.format.joint_position_type == JointPositionTypeConfig.CUSTOM:
             _validate_index_provided(self.mapping, self.__class__.__name__)
-        elif self.format.joint_position_type == JointPositionTypeConfig.TCP:
+        elif self.format.joint_position_type == JointPositionTypeConfig.END_EFFECTOR:
             if len(self.mapping) != 1:
                 raise ValueError(
                     "Only one mapping item is allowed when converting from TCP "
@@ -178,7 +178,7 @@ class JointPositionsDataImportConfig(NCDataImportConfig):
                     item, transform_list
                 )
                 item.transforms = DataTransformSequence(transforms=item_transforms)
-        elif self.format.joint_position_type == JointPositionTypeConfig.TCP:
+        elif self.format.joint_position_type == JointPositionTypeConfig.END_EFFECTOR:
             for item in self.mapping:
                 item_transforms = copy.deepcopy(transform_list)
                 if self.format.pose_type == PoseConfig.MATRIX:
