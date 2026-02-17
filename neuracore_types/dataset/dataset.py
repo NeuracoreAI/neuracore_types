@@ -141,3 +141,17 @@ class Dataset(BaseModel):
     deleted: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+
+class DatasetUpdateRequest(BaseModel):
+    """Request model for dataset updates.
+
+    Attributes:
+        name: Optional new name for the dataset.
+        description: Optional new description.
+        tags: Optional new list of tags.
+    """
+
+    name: str | None = None
+    description: str | None = None
+    tags: list[str] | None = None
