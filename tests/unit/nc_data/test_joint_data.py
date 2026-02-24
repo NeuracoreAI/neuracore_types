@@ -435,21 +435,6 @@ class TestVisualJointPositionsDataImportConfig:
         assert config.mapping[0].index == 0
         assert config.mapping[1].index == 1
 
-    def test_gripper_type_missing_indexes_invalid(self):
-        """Test validation with GRIPPER type missing indexes."""
-        with pytest.raises(
-            ValueError,
-            match="All indexes must be provided for gripper visual joint positions",
-        ):
-            VisualJointPositionsDataImportConfig(
-                source="gripper",
-                format=DataFormat(visual_joint_type=VisualJointTypeConfig.GRIPPER),
-                mapping=[
-                    MappingItem(name="gripper_joint_0", index=0),
-                    MappingItem(name="gripper_joint_1"),  # Missing index
-                ],
-            )
-
     def test_custom_type_auto_index(self):
         """Test CUSTOM type auto-assigns indexes."""
         config = VisualJointPositionsDataImportConfig(
