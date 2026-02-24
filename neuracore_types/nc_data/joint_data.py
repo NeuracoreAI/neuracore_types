@@ -259,15 +259,9 @@ class VisualJointPositionsDataImportConfig(NCDataImportConfig):
     @model_validator(mode="after")
     def validate_index_provided(self) -> "VisualJointPositionsDataImportConfig":
         """Validate that either all or no indexes are provided."""
-        if self.format.visual_joint_type == VisualJointTypeConfig.GRIPPER:
-            indexes = [item.index for item in self.mapping]
-            if any(idx is None for idx in indexes):
-                raise ValueError(
-                    "All indexes must be provided for gripper visual joint positions"
-                )
-        elif self.format.visual_joint_type == VisualJointTypeConfig.CUSTOM:
+        if self.format.visual_joint_type == VisualJointTypeConfig.CUSTOM:
             _validate_index_provided(self.mapping, self.__class__.__name__)
-        else:
+        elif self.format.visual_joint_type != VisualJointTypeConfig.GRIPPER:
             raise ValueError(
                 f"Invalid visual joint type: {self.format.visual_joint_type}"
             )
