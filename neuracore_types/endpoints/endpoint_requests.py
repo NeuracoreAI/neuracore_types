@@ -11,11 +11,12 @@ class DeploymentConfig(BaseModel):
 
     Attributes:
         machine_type: Type of machine to use for deployment.
+            If None, the backend will auto-determine based on gpu_type.
         gpu_type: Type of GPU to use for deployment.
         gpu_count: Number of GPUs to use for deployment.
     """
 
-    machine_type: str | None = "n1-standard-4"
+    machine_type: str | None = None
     gpu_type: GPUType | None = GPUType.NVIDIA_TESLA_T4
     gpu_count: int | None = 1
 
