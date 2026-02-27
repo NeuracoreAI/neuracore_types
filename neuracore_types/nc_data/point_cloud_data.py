@@ -8,6 +8,7 @@ from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.importer.config import DistanceUnitsConfig
 from neuracore_types.importer.transform import (
+    CastToNumpyDtype,
     DataTransform,
     DataTransformSequence,
     Scale,
@@ -48,6 +49,9 @@ class PointCloudDataImportConfig(NCDataImportConfig):
         # Add Scale transform to convert mm to m
         if self.format.distance_units == DistanceUnitsConfig.MM:
             transform_list.append(Scale(factor=0.001))
+
+        # Convert to float16
+        transform_list.append(CastToNumpyDtype(dtype=np.float16))
 
         for item in self.mapping:
             item.transforms = DataTransformSequence(transforms=transform_list)
