@@ -99,6 +99,34 @@ class BatchedRGBData(BatchedNCData):
             intrinsics = torch.zeros((1, 1, 3, 3), dtype=torch.float32)
         return cls(frame=frame, extrinsics=extrinsics, intrinsics=intrinsics)
 
+    def transform_nc_data(self) -> None:
+        """Apply in-place transformations, e.g. reshaping, reordering dimensions, etc.
+
+        Example usage might include:
+        - Reordering dimensions from (B, T, C, H, W) to (B, T, H, W, C) for images
+        - Normalizing values to a specific range
+        - Resizing images to a common resolution
+
+        Args:
+            nc_data: BatchedNCData instance to transform
+
+        Returns:
+            BatchedNCData: Transformed instance
+        """
+        # TODO: In future, the resizing spec should come from the algorithm
+        #   or from user specification, not be hardcoded here.
+
+        # Resize each frame to 224x224 while preserving (B, T, C, H, W).
+        if self.frame.shape[-2:] != (224, 224):
+            batch_size, time_steps, channels, _, _ = self.frame.shape
+            reshaped = self.frame.reshape(
+                batch_size * time_steps, channels, *self.frame.shape[-2:]
+            )
+            resized = torch.nn.functional.interpolate(
+                reshaped, size=(224, 224), mode="bilinear", align_corners=False
+            )
+            self.frame = resized.reshape(batch_size, time_steps, channels, 224, 224)
+
     @classmethod
     def from_nc_data_list(cls, nc_data_list: list[NCData]) -> "BatchedRGBData":
         """Create BatchedRGBData from list of RGBCameraData.

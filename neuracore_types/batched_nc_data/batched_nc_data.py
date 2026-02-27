@@ -46,6 +46,22 @@ class BatchedNCData(BaseModel):
             "from_nc_data_list method must be implemented in subclasses."
         )
 
+    def transform_nc_data(self) -> None:
+        """Apply in-place transformations, e.g. reshaping, reordering dimensions, etc.
+
+        Example usage might include:
+        - Reordering dimensions from (B, T, C, H, W) to (B, T, H, W, C) for images
+        - Normalizing values to a specific range
+        - Resizing images to a common resolution
+
+        Args:
+            nc_data: BatchedNCData instance to transform
+
+        Returns:
+            BatchedNCData: Transformed instance
+        """
+        pass
+
     @classmethod
     def sample(cls, batch_size: int = 1, time_steps: int = 1) -> "BatchedNCData":
         """Sample an example instance of BatchedNCData."""
