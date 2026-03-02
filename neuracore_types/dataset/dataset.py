@@ -61,10 +61,16 @@ class SynchronizationProgress(BaseModel):
     Attributes:
         synchronized_dataset_id: Unique identifier for the synced dataset.
         num_synchronized_demonstrations: Number of demonstrations synchronized so far.
+        has_failures: Whether any recording synchronization has failed.
+        num_failed_recordings: Number of failed recordings.
+        failed_recording_ids: IDs of recordings that failed synchronization.
     """
 
     synchronized_dataset_id: str
     num_synchronized_demonstrations: int
+    has_failures: bool = False
+    num_failed_recordings: int = 0
+    failed_recording_ids: list[str] = Field(default_factory=list)
 
 
 class SynchronizedDatasetStatistics(BaseModel):
