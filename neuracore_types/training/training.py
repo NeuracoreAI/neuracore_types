@@ -130,8 +130,8 @@ class TrainingJob(BaseModel):
         previous_training_time: The time spent on the previous training, if applicable.
         error: Any error message associated with the job, if applicable.
         resume_points: List of timestamps where the job can be resumed.
-        input_robot_data_spec: List of data types for the input data.
-        output_robot_data_spec: List of data types for the output data.
+        input_cross_embodiment_description: List of data types for the input data.
+        output_cross_embodiment_description: List of data types for the output data.
     """
 
     id: str
@@ -161,10 +161,10 @@ class TrainingJob(BaseModel):
     resume_points: list[float] = Field(
         default_factory=lambda: [], json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    input_robot_data_spec: CrossEmbodimentDescription = Field(
+    input_cross_embodiment_description: CrossEmbodimentDescription = Field(
         default_factory=lambda: {}, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    output_robot_data_spec: CrossEmbodimentDescription = Field(
+    output_cross_embodiment_description: CrossEmbodimentDescription = Field(
         default_factory=lambda: {}, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     synchronization_details: SynchronizationDetails

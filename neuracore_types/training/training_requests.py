@@ -19,9 +19,9 @@ class TrainingJobRequest(BaseModel):
         frequency: Synchronization frequency in Hz.
         gpu_type: Type of GPU to use for training.
         num_gpus: Number of GPUs to use for training.
-        input_robot_data_spec: The robust mapping of robot to input
+        input_cross_embodiment_description: The robust mapping of robot to input
             data types to names
-        output_robot_data_spec: The robust mapping of robot to output
+        output_cross_embodiment_description: The robust mapping of robot to output
             data types to names
     """
 
@@ -32,8 +32,8 @@ class TrainingJobRequest(BaseModel):
     gpu_type: GPUType
     num_gpus: int
     synchronization_details: SynchronizationDetails
-    input_robot_data_spec: CrossEmbodimentDescription
-    output_robot_data_spec: CrossEmbodimentDescription
+    input_cross_embodiment_description: CrossEmbodimentDescription
+    output_cross_embodiment_description: CrossEmbodimentDescription
 
 
 class InternalStartTrainingJobRequest(BaseModel):
@@ -50,8 +50,8 @@ class InternalStartTrainingJobRequest(BaseModel):
         algorithm_config: Configuration parameters for the algorithm.
         gpu_type: The type of GPU to use for the job.
         num_gpus: The number of GPUs to allocate for the job.
-        input_robot_data_spec: Mapping of robot to input data types to names
-        output_robot_data_spec: Mapping of robot to output data types to names
+        input_cross_embodiment_description: Mapping of robot to input data types to names
+        output_cross_embodiment_description: Mapping of robot to output data types to names
     """
 
     org_id: str
@@ -64,5 +64,5 @@ class InternalStartTrainingJobRequest(BaseModel):
     gpu_type: GPUType
     num_gpus: int
     synchronization_details: SynchronizationDetails
-    input_robot_data_spec: CrossEmbodimentDescription
-    output_robot_data_spec: CrossEmbodimentDescription
+    input_cross_embodiment_description: CrossEmbodimentDescription
+    output_cross_embodiment_description: CrossEmbodimentDescription
