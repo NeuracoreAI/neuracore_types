@@ -6,8 +6,7 @@ from typing import Any
 from ordered_set import OrderedSet
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
-from neuracore_types.episode.episode import RobotDataSpec
-from neuracore_types.hardware import GPUType
+from neuracore_types.episode.episode import CrossEmbodimentDescription
 from neuracore_types.nc_data import DataType, NCDataStatsUnion
 from neuracore_types.synchronization.synchronization import SynchronizationDetails
 from neuracore_types.utils.pydantic_to_ts import (
@@ -162,10 +161,10 @@ class TrainingJob(BaseModel):
     resume_points: list[float] = Field(
         default_factory=lambda: [], json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    input_robot_data_spec: RobotDataSpec = Field(
+    input_robot_data_spec: CrossEmbodimentDescription = Field(
         default_factory=lambda: {}, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    output_robot_data_spec: RobotDataSpec = Field(
+    output_robot_data_spec: CrossEmbodimentDescription = Field(
         default_factory=lambda: {}, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     synchronization_details: SynchronizationDetails
