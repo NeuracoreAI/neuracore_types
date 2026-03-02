@@ -7,6 +7,7 @@ work correctly and ensure consistent ordering across sync points.
 import time
 
 import numpy as np
+import pytest
 
 from neuracore_types import (
     Custom1DData,
@@ -62,28 +63,14 @@ SYNCHRONIZED_POINT_UNORDERED = SynchronizedPoint(
 )
 
 ORDER_SCHEMA = {
-    DataType.JOINT_POSITIONS: sorted(
-        SYNCHRONIZED_POINT_UNORDERED.data[DataType.JOINT_POSITIONS].keys()
-    ),
-    DataType.JOINT_VELOCITIES: sorted(
-        SYNCHRONIZED_POINT_UNORDERED.data[DataType.JOINT_VELOCITIES].keys()
-    ),
-    DataType.POSES: sorted(SYNCHRONIZED_POINT_UNORDERED.data[DataType.POSES].keys()),
-    DataType.RGB_IMAGES: sorted(
-        SYNCHRONIZED_POINT_UNORDERED.data[DataType.RGB_IMAGES].keys()
-    ),
-    DataType.DEPTH_IMAGES: sorted(
-        SYNCHRONIZED_POINT_UNORDERED.data[DataType.DEPTH_IMAGES].keys()
-    ),
-    DataType.POINT_CLOUDS: sorted(
-        SYNCHRONIZED_POINT_UNORDERED.data[DataType.POINT_CLOUDS].keys()
-    ),
-    DataType.LANGUAGE: sorted(
-        SYNCHRONIZED_POINT_UNORDERED.data[DataType.LANGUAGE].keys()
-    ),
-    DataType.CUSTOM_1D: sorted(
-        SYNCHRONIZED_POINT_UNORDERED.data[DataType.CUSTOM_1D].keys()
-    ),
+    DataType.JOINT_POSITIONS: {2: "joint_3", 0: "joint_1", 1: "joint_2"},
+    DataType.JOINT_VELOCITIES: {1: "joint_2", 2: "joint_3", 0: "joint_1"},
+    DataType.POSES: {1: "pose_2", 0: "pose_1"},
+    DataType.RGB_IMAGES: {2: "camera_3", 0: "camera_1", 1: "camera_2"},
+    DataType.DEPTH_IMAGES: {1: "depth_2", 0: "depth_1"},
+    DataType.POINT_CLOUDS: {1: "lidar_2", 0: "lidar_1"},
+    DataType.LANGUAGE: {0: "default"},
+    DataType.CUSTOM_1D: {1: "sensor_z", 0: "sensor_a"},
 }
 
 
@@ -158,3 +145,65 @@ def test_synced_data_ordering():
 
     for frame in ordered_synced_data.observations:
         _verify_sync_point_ordering(frame)
+
+
+def test_sync_point_ordering_errors_on_extra_data_type():
+    """Ordering should reject sync points with data types outside the schema."""
+    sync_point = SynchronizedPoint.model_validate(
+        SYNCHRONIZED_POINT_UNORDERED.model_dump()
+    )
+    sync_point.data[DataType.JOINT_TORQUES] = {"joint_1": JointData(value=0.4)}
+
+    with pytest.raises(
+        ValueError,
+        match="SynchronizedPoint data types must exactly match embodiment_description",
+    ):
+        sync_point.order(ORDER_SCHEMA)
+
+
+def test_sync_point_ordering_errors_on_missing_data_type():
+    """Ordering should reject schemas that require a missing data type."""
+    sync_point = SynchronizedPoint.model_validate(
+        SYNCHRONIZED_POINT_UNORDERED.model_dump()
+    )
+    sync_point.data.pop(DataType.CUSTOM_1D)
+
+    with pytest.raises(
+        ValueError,
+        match="SynchronizedPoint data types must exactly match embodiment_description",
+    ):
+        sync_point.order(ORDER_SCHEMA)
+
+
+def test_sync_point_ordering_errors_on_extra_sensor_name():
+    """Ordering should reject extra sensor names within a data type."""
+    sync_point = SynchronizedPoint.model_validate(
+        SYNCHRONIZED_POINT_UNORDERED.model_dump()
+    )
+    sync_point.data[DataType.JOINT_POSITIONS]["joint_extra"] = JointData(value=0.4)
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "SynchronizedPoint names for DataType .* "
+            "must exactly match embodiment_description"
+        ),
+    ):
+        sync_point.order(ORDER_SCHEMA)
+
+
+def test_sync_point_ordering_errors_on_missing_sensor_name():
+    """Ordering should reject missing sensor names within a data type."""
+    sync_point = SynchronizedPoint.model_validate(
+        SYNCHRONIZED_POINT_UNORDERED.model_dump()
+    )
+    sync_point.data[DataType.JOINT_POSITIONS].pop("joint_2")
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "SynchronizedPoint names for DataType .* "
+            "must exactly match embodiment_description"
+        ),
+    ):
+        sync_point.order(ORDER_SCHEMA)

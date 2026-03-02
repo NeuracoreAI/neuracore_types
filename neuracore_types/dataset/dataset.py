@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from neuracore_types.episode.episode import CrossEmbodimentDescription
 from neuracore_types.nc_data import DataType, NCDataStatsUnion
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
@@ -78,13 +79,14 @@ class SynchronizedDatasetStatistics(BaseModel):
 
     Attributes:
         synchronized_dataset_id: Unique identifier for the synced dataset.
-        robot_data_spec: Mapping of robot IDs to data type names.
+        cross_embodiment_description: Mapping of robot IDs to data type names.
         dataset_statistics: Statistics for each robot and data type.
     """
 
     synchronized_dataset_id: str
-    robot_data_spec: dict[str, dict[DataType, list[str]]]
-    dataset_statistics: dict[DataType, list[NCDataStatsUnion]] = Field(
+    input_cross_embodiment_description: CrossEmbodimentDescription
+    output_cross_embodiment_description: CrossEmbodimentDescription
+    dataset_statistics: dict[str, dict[DataType, list[NCDataStatsUnion]]] = Field(
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)

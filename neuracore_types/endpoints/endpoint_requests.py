@@ -2,8 +2,8 @@
 
 from pydantic import BaseModel, Field
 
-from neuracore_types.episode import DataSpec
-from neuracore_types.hardware import GPUType
+from neuracore_types.episode import EmbodimentDescription
+from neuracore_types.training.training import GPUType
 
 
 class DeploymentConfig(BaseModel):
@@ -28,14 +28,16 @@ class DeploymentRequest(BaseModel):
         training_id: Identifier of the trained model to deploy.
         name: Optional name for the endpoint.
         ttl: Optional time-to-live in seconds for the endpoint.
-        model_input_order: Specification of the model input data order.
-        model_output_order: Specification of the model output data order.
+        input_embodiment_description: Specification of the model input data
+            order.
+        output_embodiment_description: Specification of the model output data
+            order.
         config: Deployment configuration parameters.
     """
 
     training_id: str
     name: str | None = None
     ttl: int | None = None
-    model_input_order: DataSpec
-    model_output_order: DataSpec
+    input_embodiment_description: EmbodimentDescription
+    output_embodiment_description: EmbodimentDescription
     config: DeploymentConfig = Field(default_factory=DeploymentConfig)

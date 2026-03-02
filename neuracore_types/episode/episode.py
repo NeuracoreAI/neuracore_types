@@ -15,8 +15,9 @@ from neuracore_types.utils.pydantic_to_ts import (
     fix_required_with_defaults,
 )
 
-DataSpec = dict[DataType, list[str]]
-RobotDataSpec = dict[str, DataSpec]
+EmbodimentDescription = dict[DataType, dict[int, str]]
+CrossEmbodimentDescription = dict[str, EmbodimentDescription]
+CrossEmbodimentUnion = dict[str, dict[DataType, list[str]]]
 
 NAME_MAX_LENGTH = 60
 NOTES_MAX_LENGTH = 1000
@@ -41,34 +42,70 @@ class SynchronizedPoint(BaseModel):
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
-    def order(self, order_spec: dict[DataType, list[str]]) -> "SynchronizedPoint":
-        """Return a new SynchronizedPoint with all dictionary data ordered.
+    def order(
+        self, embodiment_description: EmbodimentDescription
+    ) -> "SynchronizedPoint":
+        """Return a new sync point ordered by indexed embodiment specification.
 
-        Uses model_construct() to skip validation for better performance,
-        since we're just reordering existing validated data.
+        The `embodiment_description` defines the exact set of `DataType` entries
+        and per-type sensor names that must be present in this sync point.
+        Ordering is determined by sorting each data type's integer indices in the
+        embodiment description and then mapping those indices to sensor names.
+
+        This method is strict by design to mirror the training data pipeline:
+        the sync point and the embodiment description must describe the same
+        information. Extra or missing data types raise an error. Extra or missing
+        sensor names within a data type also raise an error.
+
+        Uses `model_construct()` to skip validation for better performance,
+        since this only reorders already validated data.
+
+        Args:
+            embodiment_description: Mapping of `DataType -> {index: sensor_name}`
+                describing the exact names to include and their order.
+
+        Returns:
+            A new `SynchronizedPoint` with each data type's dictionary rebuilt in
+            sorted index order from the embodiment description.
+
+        Raises:
+            ValueError: If the sync point and embodiment description do not have
+                exactly matching data types or sensor names.
         """
-        if not set(self.data.keys()).issubset(set(order_spec.keys())):
+        sync_point_data_types = set(self.data.keys())
+        expected_data_types = set(embodiment_description.keys())
+        if sync_point_data_types != expected_data_types:
+            extra_data_types = sync_point_data_types - expected_data_types
+            missing_data_types = expected_data_types - sync_point_data_types
             raise ValueError(
-                "SynchronizedPoint contains DataTypes not present in order_spec.\n"
-                f"Keys in synchronized point: {set(self.data.keys())}\n"
-                f"Keys in order_spec: {set(order_spec.keys())}\n"
+                "SynchronizedPoint data types must exactly match "
+                "embodiment_description.\n"
+                f"Extra data types in synchronized point: {extra_data_types}\n"
+                f"Missing data types from synchronized point: {missing_data_types}\n"
             )
-        # Check that all specified keys are present
-        for data_type, keys in order_spec.items():
-            if data_type in self.data:
-                missing_keys = set(keys) - set(self.data[data_type].keys())
-                if missing_keys:
-                    raise ValueError(
-                        f"SynchronizedPoint missing keys for DataType {data_type}: "
-                        f"{missing_keys}"
-                    )
-        # Use model_construct to skip validation - data is already validated
+
+        for data_type, indexed_names in embodiment_description.items():
+            sync_point_names = set(self.data[data_type].keys())
+            expected_names = set(indexed_names.values())
+            if sync_point_names != expected_names:
+                extra_names = sync_point_names - expected_names
+                missing_names = expected_names - sync_point_names
+                raise ValueError(
+                    f"SynchronizedPoint names for DataType {data_type} must exactly "
+                    "match embodiment_description.\n"
+                    f"Extra names in synchronized point: {extra_names}\n"
+                    f"Missing names from synchronized point: {missing_names}\n"
+                )
+
         return SynchronizedPoint.model_construct(
             timestamp=self.timestamp,
             robot_id=self.robot_id,
             data={
-                data_type: {name: data_dict[name] for name in order_spec[data_type]}
-                for data_type, data_dict in self.data.items()
+                data_type: {
+                    indexed_names[index]: self.data[data_type][indexed_names[index]]
+                    for index in sorted(indexed_names)
+                }
+                for data_type, indexed_names in embodiment_description.items()
             },
         )
 
@@ -97,11 +134,16 @@ class SynchronizedEpisode(BaseModel):
     end_time: float
     robot_id: str
 
-    def order(self, order_spec: dict[DataType, list[str]]) -> "SynchronizedEpisode":
-        """Return a new SynchronizedEpisode with all synchronized observations ordered.
+    def order(self, order_spec: EmbodimentDescription) -> "SynchronizedEpisode":
+        """Return a new episode with observations ordered by index specification.
+
+        Args:
+            order_spec: Mapping of `DataType -> {index: sensor_name}` used to
+                reorder every observation.
 
         Returns:
-            New SynchronizedEpisode with all synchronized observations ordered.
+            New `SynchronizedEpisode` with each observation ordered according to
+            the provided indexed embodiment description.
         """
         return SynchronizedEpisode(
             observations=[
