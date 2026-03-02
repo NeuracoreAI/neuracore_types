@@ -16,8 +16,8 @@ from neuracore_types.utils.pydantic_to_ts import (
     fix_required_with_defaults,
 )
 
-DataSpec = dict[DataType, list[str]]
-RobotDataSpec = dict[str, DataSpec]
+EmbodimentDescription = dict[DataType, dict[int, str]]
+CrossEmbodimentDescription = dict[str, EmbodimentDescription]
 
 NAME_MAX_LENGTH = 60
 NOTES_MAX_LENGTH = 1000

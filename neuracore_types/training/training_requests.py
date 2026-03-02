@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from neuracore_types.episode.episode import RobotDataSpec
+from neuracore_types.episode.episode import CrossEmbodimentDescription
 from neuracore_types.synchronization.synchronization import SynchronizationDetails
 from neuracore_types.training.training import GPUType
 
@@ -33,8 +33,8 @@ class TrainingJobRequest(BaseModel):
     gpu_type: GPUType
     num_gpus: int
     synchronization_details: SynchronizationDetails
-    input_robot_data_spec: RobotDataSpec
-    output_robot_data_spec: RobotDataSpec
+    input_robot_data_spec: CrossEmbodimentDescription
+    output_robot_data_spec: CrossEmbodimentDescription
 
 
 class InternalStartTrainingJobRequest(BaseModel):
@@ -65,5 +65,5 @@ class InternalStartTrainingJobRequest(BaseModel):
     gpu_type: GPUType
     num_gpus: int
     synchronization_details: SynchronizationDetails
-    input_robot_data_spec: RobotDataSpec
-    output_robot_data_spec: RobotDataSpec
+    input_robot_data_spec: CrossEmbodimentDescription
+    output_robot_data_spec: CrossEmbodimentDescription

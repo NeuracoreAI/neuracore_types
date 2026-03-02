@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from neuracore_types.episode.episode import RobotDataSpec
+from neuracore_types.episode.episode import CrossEmbodimentDescription
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -22,7 +22,7 @@ class SynchronizationDetails(BaseModel):
     """
 
     frequency: int
-    robot_data_spec: RobotDataSpec | None
+    robot_data_spec: CrossEmbodimentDescription | None
     max_delay_s: float = Field(
         default=0.1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
