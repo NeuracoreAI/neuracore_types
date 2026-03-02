@@ -14,7 +14,7 @@ class SynchronizationDetails(BaseModel):
 
     Attributes:
         frequency: Synchronization frequency in Hz.
-        robot_data_spec: Specification of robot data to include in the synchronization.
+        cross_embodiment_description: Specification of robot data to include in the synchronization.
         max_delay_s: Maximum allowable delay (in seconds) for synchronization.
         allow_duplicates: Whether to allow duplicate data points in the synchronization.
         trim_start_end: Whether to trim the start and end of the episode
@@ -22,7 +22,7 @@ class SynchronizationDetails(BaseModel):
     """
 
     frequency: int
-    robot_data_spec: CrossEmbodimentDescription | None
+    cross_embodiment_description: CrossEmbodimentDescription | None
     max_delay_s: float = Field(
         default=0.1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
@@ -43,7 +43,7 @@ class SynchronizationDetails(BaseModel):
         """
         # Convert the nested dict structure to something hashable
         robot_data_spec_hashable = None
-        if self.robot_data_spec is not None:
+        if self.cross_embodiment_description is not None:
             # Convert dict[str, dict[DataType, list[str]]] to a frozen structure
             robot_data_spec_hashable = tuple(
                 sorted(
@@ -52,11 +52,11 @@ class SynchronizationDetails(BaseModel):
                         tuple(
                             sorted(
                                 (data_type, tuple(fields))
-                                for data_type, fields in data_spec.items()
+                                for data_type, fields in embodiment_description.items()
                             )
                         ),
                     )
-                    for robot_name, data_spec in self.robot_data_spec.items()
+                    for robot_name, embodiment_description in self.cross_embodiment_description.items()
                 )
             )
 
