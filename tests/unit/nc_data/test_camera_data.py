@@ -15,15 +15,6 @@ from neuracore_types.importer.config import (
     ImageConventionConfig,
 )
 from neuracore_types.importer.data_config import DataFormat, MappingItem
-from neuracore_types.importer.transform import (
-    CastToNumpyDtype,
-    Clip,
-    ImageChannelOrder,
-    ImageFormat,
-    NanToNum,
-    Scale,
-    Unnormalize,
-)
 from neuracore_types.nc_data.camera_data import (
     DepthCameraDataImportConfig,
     RGBCameraDataImportConfig,
@@ -332,6 +323,30 @@ class TestBatchedDepthData:
         assert batched.frame.shape == (1, 1, 1, 100, 100)
         assert batched.intrinsics.shape == (1, 1, 3, 3)
 
+    def test_from_nc_data_handles_none_extrinsics(self):
+        """Test BatchedDepthData.from_nc_data() handles None extrinsics."""
+        depth_data = DepthCameraData(
+            frame=np.random.randn(100, 100).astype(np.float32),
+            intrinsics=None,
+            extrinsics=None,
+        )
+        batched = BatchedDepthData.from_nc_data(depth_data)
+        assert batched.extrinsics.shape == (1, 1, 4, 4)
+        assert batched.intrinsics.shape == (1, 1, 3, 3)
+
+    def test_transform_nc_data(self):
+        """Test that transform_nc_data can be called without error."""
+        frame = np.random.randn(100, 100).astype(np.float32)
+        depth_data = DepthCameraData(
+            frame=frame,
+            intrinsics=np.ones((3, 3), dtype=np.float32),
+            extrinsics=np.ones((4, 4), dtype=np.float32),
+        )
+        batched = BatchedDepthData.from_nc_data(depth_data)
+        batched.transform_nc_data()
+        # Check that frame is now of size (224, 224) after transformation
+        assert batched.frame.shape == (1, 1, 1, 224, 224)
+
     def test_sample(self):
         """Test BatchedDepthData.sample() with different dimensions."""
         batched = BatchedDepthData.sample(batch_size=3, time_steps=2)
@@ -387,6 +402,15 @@ class TestBatchedDepthData:
         assert batched.intrinsics.shape == (1, 10, 3, 3)
         assert batched.extrinsics.shape == (1, 10, 4, 4)
 
+    def test_from_nc_data_list_large_batch(self):
+        """Test from_nc_data_list with large number of depth images."""
+        num_images = 100
+        depth_data_list = [DepthCameraData.sample() for _ in range(num_images)]
+        batched = BatchedDepthData.from_nc_data_list(depth_data_list)
+        assert batched.frame.shape[0] == 1  # Batch dimension
+        assert batched.frame.shape[1] == num_images  # Time dimension
+        assert batched.frame.shape[2] == 1  # Channels
+
     def test_from_nc_data_list_preserves_depth_values(self):
         """Test that from_nc_data_list preserves exact depth values."""
         frame1 = np.ones((50, 50), dtype=np.float32) * 1.5
@@ -409,18 +433,30 @@ class TestBatchedDepthData:
         assert torch.allclose(batched.frame[0, 0, 0], torch.ones(50, 50) * 1.5)
         assert torch.allclose(batched.frame[0, 1, 0], torch.ones(50, 50) * 2.5)
 
+    def test_from_nc_data_list_handles_none_extrinsics(self):
+        """Test from_nc_data_list with None extrinsics/intrinsics."""
+        depth_data = DepthCameraData(
+            frame=np.random.randn(100, 100).astype(np.float32),
+            intrinsics=None,
+            extrinsics=None,
+        )
+        batched = BatchedDepthData.from_nc_data_list([depth_data])
+        assert batched.extrinsics.shape == (1, 1, 4, 4)
+        assert batched.intrinsics.shape == (1, 1, 3, 3)
+
+    def test_from_nc_data_list_followed_by_transform(self):
+        """Test that from_nc_data_list can be followed by transform_nc_data."""
+        depth_data_list = [DepthCameraData.sample() for _ in range(5)]
+        batched = BatchedDepthData.from_nc_data_list(depth_data_list)
+        batched.transform_nc_data()
+        assert batched.frame.shape == (1, 5, 1, 224, 224)
+
 
 class TestRGBCameraDataImportConfig:
     """Tests for RGBCameraDataImportConfig class."""
 
     def test_rgb_camera_data_import_config_defaults(self):
         """Test RGBCameraDataImportConfig with default format."""
-        data_point = RGBCameraDataImportConfig(source="camera")
-        assert data_point.source == "camera"
-        assert len(data_point.mapping) == 0
-
-    def test_rgb_camera_data_import_config_transforms_channels_last_rgb(self):
-        """Test RGBCameraDataImportConfig transforms for channels_last RGB."""
         data_point = RGBCameraDataImportConfig(
             source="camera",
             mapping=[MappingItem(name="image")],
@@ -431,20 +467,47 @@ class TestRGBCameraDataImportConfig:
             ),
         )
         assert len(data_point.mapping) == 1
-        transforms = data_point.mapping[0].transforms.transforms
-        assert isinstance(transforms[0], Clip)
-        assert isinstance(transforms[1], CastToNumpyDtype)
+        frame = (
+            np.stack([np.eye(100, 100, dtype=np.uint8) for _ in range(3)], axis=2) * 255
+        )
+        transforms = data_point.mapping[0].transforms
+        transformed_data = transforms(frame)
+        assert transformed_data.shape == (100, 100, 3)
+        assert transformed_data.dtype == np.uint8
+        assert transformed_data.min() == 0
+        assert transformed_data.max() == 255
 
-    def test_rgb_camera_data_import_config_transforms_channels_first(self):
+    def test_rgb_camera_data_import_config_normalized_pixel_values(self):
+        """Test RGBCameraDataImportConfig transforms for channels_last RGB."""
+        data_point = RGBCameraDataImportConfig(
+            source="camera",
+            mapping=[MappingItem(name="image")],
+            format=DataFormat(normalized_pixel_values=True),
+        )
+        frame = np.stack([np.eye(100, 100, dtype=np.uint8) for _ in range(3)], axis=2)
+        transforms = data_point.mapping[0].transforms
+        transformed_data = transforms(frame)
+        assert transformed_data.shape == (100, 100, 3)
+        assert transformed_data.dtype == np.uint8
+        assert transformed_data.min() == 0
+        assert transformed_data.max() == 255
+
+    def test_rgb_camera_data_import_config_channels_first(self):
         """Test RGBCameraDataImportConfig transforms for channels_first."""
         data_point = RGBCameraDataImportConfig(
             source="camera",
             mapping=[MappingItem(name="image")],
             format=DataFormat(image_convention=ImageConventionConfig.CHANNELS_FIRST),
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        # ImageFormat is added after Clip, CastToNumpyDtype
-        assert isinstance(transforms[2], ImageFormat)
+        frame = (
+            np.stack([np.eye(100, 100, dtype=np.uint8) for _ in range(3)], axis=0) * 255
+        )
+        transforms = data_point.mapping[0].transforms
+        transformed_data = transforms(frame)
+        assert transformed_data.shape == (100, 100, 3)
+        assert transformed_data.dtype == np.uint8
+        assert transformed_data.min() == 0
+        assert transformed_data.max() == 255
 
     def test_rgb_camera_data_import_config_transforms_bgr(self):
         """Test RGBCameraDataImportConfig transforms for BGR order."""
@@ -453,19 +516,19 @@ class TestRGBCameraDataImportConfig:
             mapping=[MappingItem(name="image")],
             format=DataFormat(order_of_channels=ImageChannelOrderConfig.BGR),
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert isinstance(transforms[-1], ImageChannelOrder)
-
-    def test_rgb_camera_data_import_config_transforms_normalized(self):
-        """Test RGBCameraDataImportConfig transforms for normalized pixel values."""
-        data_point = RGBCameraDataImportConfig(
-            source="camera",
-            mapping=[MappingItem(name="image")],
-            format=DataFormat(normalized_pixel_values=True),
-        )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert isinstance(transforms[0], Unnormalize)
-        assert isinstance(transforms[1], Clip)
+        frame_r = np.ones((100, 100), dtype=np.uint8) * 255
+        frame_g = np.ones((100, 100), dtype=np.uint8) * 255
+        frame_b = np.zeros((100, 100), dtype=np.uint8)
+        frame = np.stack([frame_r, frame_g, frame_b], axis=2)
+        transforms = data_point.mapping[0].transforms
+        transformed_data = transforms(frame)
+        assert transformed_data.shape == (100, 100, 3)
+        assert transformed_data.dtype == np.uint8
+        assert transformed_data.min() == 0
+        assert transformed_data.max() == 255
+        assert transformed_data[..., 0].max() == 0
+        assert transformed_data[..., 1].max() == 255
+        assert transformed_data[..., 2].max() == 255
 
 
 class TestDepthCameraDataImportConfig:
@@ -478,9 +541,12 @@ class TestDepthCameraDataImportConfig:
             mapping=[MappingItem(name="depth_image")],
             format=DataFormat(distance_units=DistanceUnitsConfig.M),
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert isinstance(transforms[0], NanToNum)
-        assert not any(isinstance(t, Scale) for t in transforms)
+        transforms = data_point.mapping[0].transforms
+        frame = np.ones((100, 100), dtype=np.float32) * 1000.0
+        transformed_data = transforms(frame)
+        assert transformed_data.shape == (100, 100)
+        assert transformed_data.dtype == np.float32
+        assert transformed_data.max() == 1000.0
 
     def test_depth_camera_data_import_config_millimeters(self):
         """Test DepthCameraDataImportConfig with millimeters."""
@@ -489,5 +555,41 @@ class TestDepthCameraDataImportConfig:
             mapping=[MappingItem(name="depth_image")],
             format=DataFormat(distance_units=DistanceUnitsConfig.MM),
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert any(isinstance(t, Scale) for t in transforms)
+        frame = np.ones((100, 100), dtype=np.float32) * 1000.0
+        transforms = data_point.mapping[0].transforms
+        transformed_data = transforms(frame)
+        assert transformed_data.shape == (100, 100)
+        assert transformed_data.dtype == np.float32
+        assert transformed_data.max() == 1.0
+
+    def test_depth_camera_data_import_default(self):
+        """Test DepthCameraDataImportConfig with default format."""
+        data_point = DepthCameraDataImportConfig(
+            source="depth", mapping=[MappingItem(name="depth_image")]
+        )
+        transforms = data_point.mapping[0].transforms
+        frame = np.random.randn(100, 100).astype(np.float32)
+        transformed_data = transforms(frame)
+        assert transformed_data.shape == (100, 100)
+
+    def test_depth_camera_data_import_3_dimensions(self):
+        """Test DepthCameraDataImportConfig with 3 dimensions."""
+        data_point = DepthCameraDataImportConfig(
+            source="depth",
+            mapping=[MappingItem(name="depth_image")],
+        )
+        transforms = data_point.mapping[0].transforms
+        frame = np.random.randn(100, 100, 1).astype(np.float32)
+        transformed_data = transforms(frame)
+        assert transformed_data.shape == (100, 100)
+
+    def test_depth_camera_data_import_3_dimensions_channels_first(self):
+        """Test DepthCameraDataImportConfig with 3 dimensions and channels first."""
+        data_point = DepthCameraDataImportConfig(
+            source="depth",
+            mapping=[MappingItem(name="depth_image")],
+        )
+        transforms = data_point.mapping[0].transforms
+        frame = np.random.randn(1, 100, 100).astype(np.float32)
+        transformed_data = transforms(frame)
+        assert transformed_data.shape == (100, 100)

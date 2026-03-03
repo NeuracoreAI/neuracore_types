@@ -7,7 +7,6 @@ import torch
 
 from neuracore_types import BatchedCustom1DData, Custom1DData
 from neuracore_types.importer.data_config import MappingItem
-from neuracore_types.importer.transform import FlipSign, Offset
 from neuracore_types.nc_data.custom_1d_data import Custom1DDataImportConfig
 
 
@@ -196,8 +195,13 @@ class TestCustom1DDataImportConfig:
             source="custom",
             mapping=[MappingItem(name="custom_value", inverted=True)],
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert any(isinstance(t, FlipSign) for t in transforms)
+        data = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        transformed_data = data_point.mapping[0].transforms(data)
+        assert transformed_data.shape == (3,)
+        assert transformed_data.dtype == np.float32
+        assert transformed_data[0] == -1.0
+        assert transformed_data[1] == -2.0
+        assert transformed_data[2] == -3.0
 
     def test_custom_1d_data_import_config_offset(self):
         """Test Custom1DDataImportConfig with offset."""
@@ -205,5 +209,10 @@ class TestCustom1DDataImportConfig:
             source="custom",
             mapping=[MappingItem(name="custom_value", offset=2.5)],
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert any(isinstance(t, Offset) for t in transforms)
+        data = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        transformed_data = data_point.mapping[0].transforms(data)
+        assert transformed_data.shape == (3,)
+        assert transformed_data.dtype == np.float32
+        assert transformed_data[0] == 3.5
+        assert transformed_data[1] == 4.5
+        assert transformed_data[2] == 5.5
