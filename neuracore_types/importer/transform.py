@@ -173,6 +173,14 @@ class NumpyToScalar(DataTransform):
         return data.item()
 
 
+class Squeeze(DataTransform):
+    """Squeeze any singleton dimensions."""
+
+    def __call__(self, data: np.ndarray) -> np.ndarray:
+        """Squeeze any singleton dimensions."""
+        return data.squeeze()
+
+
 class Scale(DataTransform):
     """Scale the data by a factor."""
 

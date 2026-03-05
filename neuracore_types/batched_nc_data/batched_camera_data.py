@@ -255,23 +255,29 @@ class BatchedDepthData(BatchedNCData):
 
         depth_data: DepthCameraData = cast(DepthCameraData, nc_data)
         # Need to change from (H, W) to (1, H, W)
-        assert isinstance(depth_data.frame, np.ndarray)
+        frame = np.array(depth_data.frame)
         frame = (
-            torch.tensor(depth_data.frame, dtype=torch.float32)
+            torch.tensor(frame, dtype=torch.float32)
             .unsqueeze(0)
             .unsqueeze(0)
             .unsqueeze(0)
         )
-        extrinsics = (
-            torch.tensor(depth_data.extrinsics, dtype=torch.float32)
-            .unsqueeze(0)
-            .unsqueeze(0)
-        )
-        intrinsics = (
-            torch.tensor(depth_data.intrinsics, dtype=torch.float32)
-            .unsqueeze(0)
-            .unsqueeze(0)
-        )
+        if depth_data.extrinsics is not None:
+            extrinsics = (
+                torch.tensor(depth_data.extrinsics, dtype=torch.float32)
+                .unsqueeze(0)
+                .unsqueeze(0)
+            )
+        else:
+            extrinsics = torch.zeros((1, 1, 4, 4), dtype=torch.float32)
+        if depth_data.intrinsics is not None:
+            intrinsics = (
+                torch.tensor(depth_data.intrinsics, dtype=torch.float32)
+                .unsqueeze(0)
+                .unsqueeze(0)
+            )
+        else:
+            intrinsics = torch.zeros((1, 1, 3, 3), dtype=torch.float32)
         return cls(frame=frame, extrinsics=extrinsics, intrinsics=intrinsics)
 
     @classmethod
@@ -292,11 +298,17 @@ class BatchedDepthData(BatchedNCData):
 
         for nc in nc_data_list:
             depth_data: DepthCameraData = cast(DepthCameraData, nc)
-            assert isinstance(depth_data.frame, np.ndarray)
             # (H, W) -> (1, H, W)
-            frames.append(depth_data.frame[np.newaxis, ...])
-            extrinsics_list.append(depth_data.extrinsics)
-            intrinsics_list.append(depth_data.intrinsics)
+            frame = np.array(depth_data.frame)
+            frames.append(frame[np.newaxis, ...])
+            if depth_data.extrinsics is not None:
+                extrinsics_list.append(depth_data.extrinsics)
+            else:
+                extrinsics_list.append(np.zeros((4, 4), dtype=np.float32))
+            if depth_data.intrinsics is not None:
+                intrinsics_list.append(depth_data.intrinsics)
+            else:
+                intrinsics_list.append(np.zeros((3, 3), dtype=np.float32))
 
         # Shape: (1, T, 1, H, W)
         frame_tensor = torch.tensor(np.stack(frames), dtype=torch.float32).unsqueeze(0)
@@ -333,3 +345,25 @@ class BatchedDepthData(BatchedNCData):
             extrinsics=torch.zeros((batch_size, time_steps, 4, 4), dtype=torch.float32),
             intrinsics=torch.zeros((batch_size, time_steps, 3, 3), dtype=torch.float32),
         )
+
+    def transform_nc_data(self) -> None:
+        """Apply in-place transformations, e.g. reshaping, reordering dimensions, etc.
+
+        Example usage might include:
+        - Reordering dimensions from (B, T, C, H, W) to (B, T, H, W, C) for images
+        - Normalizing values to a specific range
+        - Resizing images to a common resolution
+
+        Args:
+            nc_data: BatchedNCData instance to transform
+        """
+        # Resize each frame to 224x224 while preserving (B, T, C, H, W).
+        if self.frame.shape[-2:] != (224, 224):
+            batch_size, time_steps, channels, _, _ = self.frame.shape
+            reshaped = self.frame.reshape(
+                batch_size * time_steps, channels, *self.frame.shape[-2:]
+            )
+            resized = torch.nn.functional.interpolate(
+                reshaped, size=(224, 224), mode="bilinear", align_corners=False
+            )
+            self.frame = resized.reshape(batch_size, time_steps, channels, 224, 224)

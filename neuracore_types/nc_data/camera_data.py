@@ -22,6 +22,7 @@ from neuracore_types.importer.transform import (
     ImageFormat,
     NanToNum,
     Scale,
+    Squeeze,
     Unnormalize,
 )
 from neuracore_types.nc_data.nc_data import (
@@ -97,6 +98,12 @@ class DepthCameraDataImportConfig(NCDataImportConfig):
         # Add Scale transform to convert mm to m
         if self.format.distance_units == DistanceUnitsConfig.MM:
             transform_list.append(Scale(factor=0.001))
+
+        # Convert to float32
+        transform_list.append(CastToNumpyDtype(dtype=np.float32))
+
+        # Squeeze any singleton dimensions
+        transform_list.append(Squeeze())
 
         for item in self.mapping:
             item.transforms = DataTransformSequence(transforms=transform_list)

@@ -1,5 +1,6 @@
 """Tests for JointData and BatchedJointData."""
 
+import numpy as np
 import pytest
 import torch
 
@@ -272,9 +273,9 @@ class TestJointPositionsDataImportConfig:
             mapping=[MappingItem(name="joint_0")],
             format=DataFormat(angle_units=AngleConfig.RADIANS),
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert not any(isinstance(t, DegreesToRadians) for t in transforms)
-        assert isinstance(transforms[-1], NumpyToScalar)
+        data = np.array([np.pi], dtype=np.float32)
+        transformed_data = data_point.mapping[0].transforms(data)
+        assert np.isclose(transformed_data, np.pi)
 
     def test_joint_positions_transforms_degrees(self):
         """Test JointPositionsDataImportConfig transforms for degrees."""
@@ -283,8 +284,9 @@ class TestJointPositionsDataImportConfig:
             mapping=[MappingItem(name="joint_0")],
             format=DataFormat(angle_units=AngleConfig.DEGREES),
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert any(isinstance(t, DegreesToRadians) for t in transforms)
+        data = np.array([90.0], dtype=np.float32)
+        transformed_data = data_point.mapping[0].transforms(data)
+        assert np.isclose(transformed_data, np.pi / 2)
 
     def test_joint_positions_transforms_inverted(self):
         """Test JointPositionsDataImportConfig transforms with inverted flag."""
@@ -292,8 +294,9 @@ class TestJointPositionsDataImportConfig:
             source="joints",
             mapping=[MappingItem(name="joint_0", inverted=True)],
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert any(isinstance(t, FlipSign) for t in transforms)
+        data = np.array([1.0], dtype=np.float32)
+        transformed_data = data_point.mapping[0].transforms(data)
+        assert transformed_data == -1.0
 
     def test_joint_positions_transforms_offset(self):
         """Test JointPositionsDataImportConfig transforms with offset."""
@@ -301,8 +304,9 @@ class TestJointPositionsDataImportConfig:
             source="joints",
             mapping=[MappingItem(name="joint_0", offset=1.5)],
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert any(isinstance(t, Offset) for t in transforms)
+        data = np.array([1.0], dtype=np.float32)
+        transformed_data = data_point.mapping[0].transforms(data)
+        assert transformed_data == 2.5
 
 
 class TestJointVelocitiesDataImportConfig:
@@ -486,7 +490,6 @@ class TestVisualJointPositionsDataImportConfig:
             mapping=[MappingItem(name="gripper_joint_0", index=0)],
         )
         transforms = config.mapping[0].transforms.transforms
-        # Should have Clip, Unnormalize, and NumpyToScalar
         assert any(isinstance(t, Clip) for t in transforms)
         assert any(isinstance(t, Unnormalize) for t in transforms)
         assert isinstance(transforms[-1], NumpyToScalar)

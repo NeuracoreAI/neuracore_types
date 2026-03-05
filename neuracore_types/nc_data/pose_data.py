@@ -98,12 +98,13 @@ class PoseDataImportConfig(NCDataImportConfig):
                     expected_length = 9  # 3 position + 3x3 matrix
                 else:
                     raise ValueError(
-                        f"Unsupported orientation type: {self.format.orientation.type}"
+                        "Unsupported orientation type: "
+                        f"{self.format.orientation.type.value}"
                     )
                 if index_length != expected_length:
                     raise ValueError(
                         f"Index range length must be {expected_length} for "
-                        f"orientation type {self.format.orientation.type}, "
+                        f"orientation type {self.format.orientation.type.value}, "
                         f"got {index_length}"
                     )
 
