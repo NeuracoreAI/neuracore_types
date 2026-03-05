@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from neuracore_types.episode.episode import CrossEmbodimentDescription
+from neuracore_types.episode.episode import DataType
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -22,7 +22,7 @@ class SynchronizationDetails(BaseModel):
     """
 
     frequency: int
-    cross_embodiment_description: CrossEmbodimentDescription | None
+    cross_embodiment_union: dict[str, dict[DataType, list[str]]] | None
     max_delay_s: float = Field(
         default=0.1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
@@ -41,28 +41,28 @@ class SynchronizationDetails(BaseModel):
         Returns:
             int: The computed hash value.
         """
-        # Convert the nested dict structure to something hashable
-        robot_data_spec_hashable = None
-        if self.cross_embodiment_description is not None:
+                # Convert the nested dict structure to something hashable
+        cross_embodiment_union = None
+        if self.cross_embodiment_union is not None:
             # Convert dict[str, dict[DataType, list[str]]] to a frozen structure
-            robot_data_spec_hashable = tuple(
+            cross_embodiment_union = tuple(
                 sorted(
                     (
                         robot_name,
                         tuple(
                             sorted(
                                 (data_type, tuple(fields))
-                                for data_type, fields in embodiment_description.items()
+                                for data_type, fields in data_spec.items()
                             )
                         ),
                     )
-                    for robot_name, embodiment_description in self.cross_embodiment_description.items()
+                    for robot_name, data_spec in self.cross_embodiment_union.items()
                 )
             )
 
         return hash((
             self.frequency,
-            robot_data_spec_hashable,
+            cross_embodiment_union,
             self.max_delay_s,
             self.allow_duplicates,
             self.trim_start_end,
