@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 
-from neuracore_types.episode import DataSpec
+from neuracore_types.episode import EmbodimentDescription
 from neuracore_types.training.training import GPUType
 
 
@@ -36,6 +36,6 @@ class DeploymentRequest(BaseModel):
     training_id: str
     name: str | None = None
     ttl: int | None = None
-    model_input_order: DataSpec
-    model_output_order: DataSpec
+    model_input_order: EmbodimentDescription
+    model_output_order: EmbodimentDescription
     config: DeploymentConfig = Field(default_factory=DeploymentConfig)
