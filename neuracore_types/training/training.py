@@ -7,25 +7,13 @@ from ordered_set import OrderedSet
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.episode.episode import RobotDataSpec
+from neuracore_types.hardware import GPUType
 from neuracore_types.nc_data import DataType, NCDataStatsUnion
 from neuracore_types.synchronization.synchronization import SynchronizationDetails
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
 )
-
-
-class GPUType(str, Enum):
-    """GPU types available for training."""
-
-    NVIDIA_H100_80GB = "NVIDIA_H100_80GB"
-    NVIDIA_A100_80GB = "NVIDIA_A100_80GB"
-    NVIDIA_TESLA_A100 = "NVIDIA_TESLA_A100"
-    NVIDIA_TESLA_V100 = "NVIDIA_TESLA_V100"
-    NVIDIA_TESLA_P100 = "NVIDIA_TESLA_P100"
-    NVIDIA_TESLA_T4 = "NVIDIA_TESLA_T4"
-    NVIDIA_TESLA_P4 = "NVIDIA_TESLA_P4"
-    NVIDIA_L4 = "NVIDIA_L4"
 
 
 class MetricsData(BaseModel):
