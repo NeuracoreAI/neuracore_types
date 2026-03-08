@@ -3,7 +3,7 @@
 from pydantic import BaseModel, Field
 
 from neuracore_types.episode import DataSpec
-from neuracore_types.training.training import GPUType
+from neuracore_types.hardware import GPUType
 
 
 class DeploymentConfig(BaseModel):
