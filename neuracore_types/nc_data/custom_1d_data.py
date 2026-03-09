@@ -111,5 +111,7 @@ class Custom1DData(NCData):
             count=np.array([1], dtype=np.int32),
             min=np.array(self.data, dtype=np.float32),
             max=np.array(self.data, dtype=np.float32),
+            q01=np.array(self.data, dtype=np.float32),
+            q99=np.array(self.data, dtype=np.float32),
         )
         return Custom1DDataStats(data=stats)

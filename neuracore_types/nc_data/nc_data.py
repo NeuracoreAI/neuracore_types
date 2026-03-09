@@ -105,6 +105,14 @@ class DataItemStats(BaseModel):
         default_factory=lambda: np.array([]),
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
+    q01: np.ndarray = Field(
+        default_factory=lambda: np.array([]),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    q99: np.ndarray = Field(
+        default_factory=lambda: np.array([]),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
 
     def concatenate(self, other: "DataItemStats") -> "DataItemStats":
         """Concatenate two DataItemStats objects along the data dimension."""
@@ -117,6 +125,8 @@ class DataItemStats(BaseModel):
             count=np.concatenate((self.count, other.count)),
             min=np.concatenate((self.min, other.min)),
             max=np.concatenate((self.max, other.max)),
+            q01=np.concatenate((self.q01, other.q01)),
+            q99=np.concatenate((self.q99, other.q99)),
         )
 
     @classmethod
@@ -184,4 +194,26 @@ class DataItemStats(BaseModel):
     @field_serializer("max", when_used="json")
     def serialize_max(self, v: Optional[np.ndarray]) -> Optional[list]:
         """Serialize max field to JSON list."""
+        return self._serialize_field(v)
+
+    @field_validator("q01", mode="before")
+    @classmethod
+    def decode_q01(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+        """Decode q01 field to NumPy array."""
+        return cls._decode_field(v, np.float32)
+
+    @field_serializer("q01", when_used="json")
+    def serialize_q01(self, v: Optional[np.ndarray]) -> Optional[list]:
+        """Serialize q01 field to JSON list."""
+        return self._serialize_field(v)
+
+    @field_validator("q99", mode="before")
+    @classmethod
+    def decode_q99(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+        """Decode q99 field to NumPy array."""
+        return cls._decode_field(v, np.float32)
+
+    @field_serializer("q99", when_used="json")
+    def serialize_q99(self, v: Optional[np.ndarray]) -> Optional[list]:
+        """Serialize q99 field to JSON list."""
         return self._serialize_field(v)

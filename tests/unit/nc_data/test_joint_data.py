@@ -199,6 +199,8 @@ class TestJointDataStatistics:
         assert stats.value.min[0] == 5.0
         assert stats.value.max[0] == 5.0
         assert stats.value.std[0] == 0.0
+        assert stats.value.q01[0] == 5.0
+        assert stats.value.q99[0] == 5.0
 
     def test_statistics_concatenation(self):
         """Test that joint statistics can be concatenated."""
@@ -212,6 +214,12 @@ class TestJointDataStatistics:
         assert len(concatenated.mean) == 2
         assert concatenated.mean[0] == 1.0
         assert concatenated.mean[1] == 2.0
+        assert len(concatenated.q01) == 2
+        assert concatenated.q01[0] == 1.0
+        assert concatenated.q01[1] == 2.0
+        assert len(concatenated.q99) == 2
+        assert concatenated.q99[0] == 1.0
+        assert concatenated.q99[1] == 2.0
 
     def test_statistics_with_negative_value(self):
         """Test statistics with negative joint value."""
@@ -221,6 +229,16 @@ class TestJointDataStatistics:
         assert stats.value.mean[0] == -3.5
         assert stats.value.min[0] == -3.5
         assert stats.value.max[0] == -3.5
+        assert stats.value.q01[0] == pytest.approx(-3.5)
+        assert stats.value.q99[0] == pytest.approx(-3.5)
+
+    def test_statistics_quantiles_single_observation(self):
+        """For a single observation, q01 and q99 equal the value itself."""
+        data = JointData(value=3.7)
+        stats = data.calculate_statistics()
+
+        assert stats.value.q01[0] == pytest.approx(3.7)
+        assert stats.value.q99[0] == pytest.approx(3.7)
 
 
 class TestJointPositionsDataImportConfig:

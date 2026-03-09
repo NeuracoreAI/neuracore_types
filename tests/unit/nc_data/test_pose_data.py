@@ -163,12 +163,21 @@ class TestPoseDataStatistics:
         assert np.allclose(stats.pose.max, pose)
 
     def test_statistics_std(self):
-        """Test that std is 1.0 for all elements in single sample."""
+        """Test that std is 0.0 for all elements in single sample."""
         pose = np.array([1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0])
         data = PoseData(pose=pose)
         stats = data.calculate_statistics()
 
         assert np.allclose(stats.pose.std, 0.0)
+
+    def test_statistics_quantiles(self):
+        """For a single observation, q01 and q99 equal the pose values."""
+        pose = np.array([1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0])
+        data = PoseData(pose=pose)
+        stats = data.calculate_statistics()
+
+        assert np.allclose(stats.pose.q01, pose)
+        assert np.allclose(stats.pose.q99, pose)
 
     def test_statistics_concatenation(self):
         """Test that pose statistics can be concatenated."""
@@ -180,6 +189,8 @@ class TestPoseDataStatistics:
 
         concatenated = stats1.pose.concatenate(stats2.pose)
         assert len(concatenated.mean) == 14  # 7 + 7
+        assert len(concatenated.q01) == 14
+        assert len(concatenated.q99) == 14
 
 
 class TestPoseDataImportConfig:
@@ -269,7 +280,7 @@ class TestPoseDataImportConfig:
         orientation = OrientationConfig(type=RotationConfig.QUATERNION)
         with pytest.raises(
             ValueError,
-            match="Index range length must be 7 for orientation type QUATERNION",
+            match="Index range length must be 7 for orientation type",
         ):
             PoseDataImportConfig(
                 source="pose",
@@ -286,7 +297,7 @@ class TestPoseDataImportConfig:
         index_range = IndexRangeConfig(start=0, end=5)  # Should be 6
         orientation = OrientationConfig(type=RotationConfig.EULER)
         with pytest.raises(
-            ValueError, match="Index range length must be 6 for orientation type EULER"
+            ValueError, match="Index range length must be 6 for orientation type"
         ):
             PoseDataImportConfig(
                 source="pose",

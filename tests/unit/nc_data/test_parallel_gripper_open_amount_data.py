@@ -140,6 +140,16 @@ class TestParallelGripperStatistics:
         assert stats.open_amount.count[0] == 1
         assert np.isclose(stats.open_amount.min[0], 0.8)
         assert np.isclose(stats.open_amount.max[0], 0.8)
+        assert np.isclose(stats.open_amount.q01[0], 0.8)
+        assert np.isclose(stats.open_amount.q99[0], 0.8)
+
+    def test_statistics_quantiles_single_observation(self):
+        """For a single observation, q01 and q99 equal the open_amount."""
+        data = ParallelGripperOpenAmountData(open_amount=0.25)
+        stats = data.calculate_statistics()
+
+        assert np.isclose(stats.open_amount.q01[0], 0.25)
+        assert np.isclose(stats.open_amount.q99[0], 0.25)
 
     def test_statistics_concatenation(self):
         """Test that gripper statistics can be concatenated."""
@@ -153,6 +163,12 @@ class TestParallelGripperStatistics:
         assert len(concatenated.mean) == 2
         assert np.isclose(concatenated.mean[0], 0.3)
         assert np.isclose(concatenated.mean[1], 0.7)
+        assert len(concatenated.q01) == 2
+        assert np.isclose(concatenated.q01[0], 0.3)
+        assert np.isclose(concatenated.q01[1], 0.7)
+        assert len(concatenated.q99) == 2
+        assert np.isclose(concatenated.q99[0], 0.3)
+        assert np.isclose(concatenated.q99[1], 0.7)
 
 
 class TestParallelGripperTargetOpenAmountDataType:

@@ -331,6 +331,8 @@ class JointData(NCData):
             count=np.array([1], dtype=np.int32),
             min=np.array([self.value], dtype=np.float32),
             max=np.array([self.value], dtype=np.float32),
+            q01=np.array([self.value], dtype=np.float32),
+            q99=np.array([self.value], dtype=np.float32),
         )
         return JointDataStats(value=stats)
 

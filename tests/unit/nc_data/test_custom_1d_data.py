@@ -177,6 +177,59 @@ class TestCustom1DDataSerialization:
         assert np.array_equal(loaded.data, arr)
 
 
+class TestCustom1DDataStatistics:
+    """Tests for Custom1DData statistics."""
+
+    def test_statistics_shape(self):
+        """Test that statistics have the correct shape."""
+        arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)
+        data = Custom1DData(data=arr)
+        stats = data.calculate_statistics()
+
+        assert len(stats.data.mean) == 5
+        assert len(stats.data.std) == 5
+        assert len(stats.data.min) == 5
+        assert len(stats.data.max) == 5
+        assert len(stats.data.q01) == 5
+        assert len(stats.data.q99) == 5
+
+    def test_statistics_values(self):
+        """Test that statistics contain correct values for a single observation."""
+        arr = np.array([5.0, 10.0], dtype=np.float32)
+        data = Custom1DData(data=arr)
+        stats = data.calculate_statistics()
+
+        assert np.allclose(stats.data.mean, arr)
+        assert np.allclose(stats.data.min, arr)
+        assert np.allclose(stats.data.max, arr)
+        assert np.allclose(stats.data.q01, arr)
+        assert np.allclose(stats.data.q99, arr)
+
+    def test_statistics_quantiles_single_observation(self):
+        """For a single observation, q01 and q99 equal the data values."""
+        arr = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        data = Custom1DData(data=arr)
+        stats = data.calculate_statistics()
+
+        assert np.allclose(stats.data.q01, arr)
+        assert np.allclose(stats.data.q99, arr)
+
+    def test_statistics_concatenation(self):
+        """Test that custom 1D statistics can be concatenated."""
+        arr1 = np.array([1.0, 2.0], dtype=np.float32)
+        arr2 = np.array([3.0, 4.0], dtype=np.float32)
+
+        stats1 = Custom1DData(data=arr1).calculate_statistics()
+        stats2 = Custom1DData(data=arr2).calculate_statistics()
+
+        concatenated = stats1.data.concatenate(stats2.data)
+        assert len(concatenated.mean) == 4
+        assert len(concatenated.q01) == 4
+        assert len(concatenated.q99) == 4
+        assert np.allclose(concatenated.q01[:2], arr1)
+        assert np.allclose(concatenated.q01[2:], arr2)
+
+
 class TestCustom1DDataImportConfig:
     """Tests for Custom1DDataImportConfig class."""
 
