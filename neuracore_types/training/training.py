@@ -69,7 +69,7 @@ class ModelInitDescription(BaseModel):
     output_data_types: OrderedSet[DataType]
     # Dataset statistics for all data types, where the len of the list corresponds
     # to the max number of data items for that data type (across all robots)
-    dataset_statistics: dict[DataType, list[NCDataStatsUnion]]
+    dataset_statistics: dict[str, dict[DataType, list[NCDataStatsUnion]]]
     output_prediction_horizon: int = Field(
         default=1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
