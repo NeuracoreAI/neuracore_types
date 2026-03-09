@@ -86,7 +86,7 @@ class SynchronizedDatasetStatistics(BaseModel):
     synchronized_dataset_id: str
     input_cross_embodiment_description: CrossEmbodimentDescription
     output_cross_embodiment_description: CrossEmbodimentDescription
-    dataset_statistics: dict[dict[DataType, list[NCDataStatsUnion]]] = Field(
+    dataset_statistics: dict[str, dict[DataType, list[NCDataStatsUnion]]] = Field(
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
