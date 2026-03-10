@@ -202,5 +202,7 @@ class PoseData(NCData):
             count=np.array([1] * len(self.pose), dtype=np.int32),
             min=np.array(self.pose, dtype=np.float32),
             max=np.array(self.pose, dtype=np.float32),
+            q01=np.array(self.pose, dtype=np.float32),
+            q99=np.array(self.pose, dtype=np.float32),
         )
         return PoseDataStats(pose=stats)

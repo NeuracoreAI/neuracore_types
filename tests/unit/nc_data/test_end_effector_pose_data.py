@@ -135,6 +135,15 @@ class TestEndEffectorPoseDataStatistics:
         assert np.allclose(stats.pose.min, pose)
         assert np.allclose(stats.pose.max, pose)
 
+    def test_statistics_quantiles(self):
+        """For a single observation, q01 and q99 equal the pose values."""
+        pose = np.array([1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0])
+        data = EndEffectorPoseData(pose=pose)
+        stats = data.calculate_statistics()
+
+        assert np.allclose(stats.pose.q01, pose)
+        assert np.allclose(stats.pose.q99, pose)
+
     def test_statistics_concatenation(self):
         """Test that pose statistics can be concatenated."""
         data1 = EndEffectorPoseData(pose=np.array([1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0]))
@@ -145,3 +154,5 @@ class TestEndEffectorPoseDataStatistics:
 
         concatenated = stats1.pose.concatenate(stats2.pose)
         assert len(concatenated.mean) == 14  # 7 + 7
+        assert len(concatenated.q01) == 14
+        assert len(concatenated.q99) == 14
