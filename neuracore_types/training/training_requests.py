@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from neuracore_types.hardware import GPUType
 from neuracore_types.episode.episode import CrossEmbodimentDescription
 from neuracore_types.synchronization.synchronization import SynchronizationDetails
 

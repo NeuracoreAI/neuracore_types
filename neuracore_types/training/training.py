@@ -6,6 +6,7 @@ from typing import Any
 from ordered_set import OrderedSet
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
+from neuracore_types.hardware import GPUType
 from neuracore_types.episode.episode import CrossEmbodimentDescription
 from neuracore_types.nc_data import DataType, NCDataStatsUnion
 from neuracore_types.synchronization.synchronization import SynchronizationDetails
