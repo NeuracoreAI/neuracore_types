@@ -153,3 +153,14 @@ class OrientationConfig(BaseModel):
     quaternion_order: QuaternionOrderConfig = QuaternionOrderConfig.XYZW
     euler_order: EulerOrderConfig = EulerOrderConfig.XYZ
     angle_units: AngleConfig = AngleConfig.RADIANS
+
+
+class IntrinsicsConfig(str, Enum):
+    """Format of camera intrinsics data in the source dataset.
+
+    MATRIX: 3x3 camera intrinsics matrix.
+    FLAT: Flat array of [fx, fy, cx, cy].
+    """
+
+    MATRIX = "MATRIX"
+    FLAT = "FLAT"

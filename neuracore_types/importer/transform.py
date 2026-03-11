@@ -14,6 +14,8 @@ from neuracore_types.importer.config import (
     EulerOrderConfig,
     ImageChannelOrderConfig,
     ImageConventionConfig,
+    IntrinsicsConfig,
+    OrientationConfig,
     PoseConfig,
     QuaternionOrderConfig,
     RotationConfig,
@@ -264,3 +266,74 @@ class LanguageFromBytes(DataTransform):
     def __call__(self, data: bytes) -> str:
         """Convert bytes to UTF-8 string."""
         return data.decode("utf-8")
+
+
+class ExtrinsicsToMatrix(DataTransform):
+    """Convert raw extrinsics data to a 4x4 homogeneous transformation matrix.
+
+    Supports MATRIX format (raw 16-element flat array or 4x4) and
+    POSITION_ORIENTATION format (3 position + rotation components).
+    """
+
+    extrinsics_format: PoseConfig = PoseConfig.MATRIX
+    extrinsics_orientation: OrientationConfig | None = None
+
+    def __call__(self, data: np.ndarray) -> np.ndarray:
+        """Convert raw extrinsics data to a 4x4 transformation matrix."""
+        raw = np.asarray(data, dtype=np.float64).flatten()
+
+        if self.extrinsics_format == PoseConfig.MATRIX:
+            return raw.reshape(4, 4)
+
+        orient = self.extrinsics_orientation
+        rotation_type = orient.type if orient else RotationConfig.QUATERNION
+        position = raw[:3]
+
+        if rotation_type == RotationConfig.QUATERNION:
+            quat = raw[3:7]
+            if orient and orient.quaternion_order == QuaternionOrderConfig.WXYZ:
+                quat = np.array([quat[1], quat[2], quat[3], quat[0]])
+            rot_matrix = R.from_quat(quat).as_matrix()
+        elif rotation_type == RotationConfig.EULER:
+            euler = raw[3:6]
+            order = orient.euler_order.value if orient else EulerOrderConfig.XYZ.value
+            if orient and orient.angle_units == AngleConfig.DEGREES:
+                euler = np.radians(euler)
+            rot_matrix = R.from_euler(order, euler).as_matrix()
+        else:
+            raise ValueError(f"Unsupported extrinsics rotation type: {rotation_type}")
+
+        matrix = np.eye(4, dtype=np.float64)
+        matrix[:3, :3] = rot_matrix
+        matrix[:3, 3] = position
+        return matrix
+
+
+class IntrinsicsToMatrix(DataTransform):
+    """Convert raw intrinsics data to a 3x3 camera intrinsics matrix.
+
+    Supports MATRIX format (raw 9-element flat array or 3x3) and
+    FLAT format ([fx, fy, cx, cy]).
+    """
+
+    intrinsics_format: IntrinsicsConfig = IntrinsicsConfig.MATRIX
+
+    def __call__(self, data: np.ndarray) -> np.ndarray:
+        """Convert raw intrinsics data to a 3x3 intrinsics matrix."""
+        raw = np.asarray(data, dtype=np.float64).flatten()
+
+        if self.intrinsics_format == IntrinsicsConfig.MATRIX:
+            return raw.reshape(3, 3)
+
+        if self.intrinsics_format == IntrinsicsConfig.FLAT:
+            fx, fy, cx, cy = raw[:4]
+            return np.array(
+                [
+                    [fx, 0.0, cx],
+                    [0.0, fy, cy],
+                    [0.0, 0.0, 1.0],
+                ],
+                dtype=np.float64,
+            )
+
+        raise ValueError(f"Unsupported intrinsics format: {self.intrinsics_format}")
