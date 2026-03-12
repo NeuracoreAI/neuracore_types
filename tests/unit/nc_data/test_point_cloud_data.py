@@ -9,7 +9,7 @@ import torch
 
 from neuracore_types import BatchedPointCloudData, PointCloudData
 from neuracore_types.importer.config import DistanceUnitsConfig
-from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.importer.data_config import DataFormat, PointCloudDataMappingItem
 from neuracore_types.importer.transform import Scale
 from neuracore_types.nc_data.point_cloud_data import PointCloudDataImportConfig
 
@@ -203,7 +203,7 @@ class TestPointCloudDataImportConfig:
         """Test PointCloudDataImportConfig with meters."""
         data_point = PointCloudDataImportConfig(
             source="point_cloud",
-            mapping=[MappingItem(name="points")],
+            mapping=[PointCloudDataMappingItem(name="points")],
             format=DataFormat(distance_units=DistanceUnitsConfig.M),
         )
         transforms = data_point.mapping[0].transforms.transforms
@@ -213,7 +213,7 @@ class TestPointCloudDataImportConfig:
         """Test PointCloudDataImportConfig with millimeters."""
         data_point = PointCloudDataImportConfig(
             source="point_cloud",
-            mapping=[MappingItem(name="points")],
+            mapping=[PointCloudDataMappingItem(name="points")],
             format=DataFormat(distance_units=DistanceUnitsConfig.MM),
         )
         transforms = data_point.mapping[0].transforms.transforms

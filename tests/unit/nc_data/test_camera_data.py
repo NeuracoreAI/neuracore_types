@@ -14,7 +14,11 @@ from neuracore_types.importer.config import (
     ImageChannelOrderConfig,
     ImageConventionConfig,
 )
-from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.importer.data_config import (
+    DataFormat,
+    DepthCameraDataMappingItem,
+    RGBCameraDataMappingItem,
+)
 from neuracore_types.nc_data.camera_data import (
     DepthCameraDataImportConfig,
     RGBCameraDataImportConfig,
@@ -459,7 +463,7 @@ class TestRGBCameraDataImportConfig:
         """Test RGBCameraDataImportConfig with default format."""
         data_point = RGBCameraDataImportConfig(
             source="camera",
-            mapping=[MappingItem(name="image")],
+            mapping=[RGBCameraDataMappingItem(name="image")],
             format=DataFormat(
                 image_convention=ImageConventionConfig.CHANNELS_LAST,
                 order_of_channels=ImageChannelOrderConfig.RGB,
@@ -481,7 +485,7 @@ class TestRGBCameraDataImportConfig:
         """Test RGBCameraDataImportConfig transforms for channels_last RGB."""
         data_point = RGBCameraDataImportConfig(
             source="camera",
-            mapping=[MappingItem(name="image")],
+            mapping=[RGBCameraDataMappingItem(name="image")],
             format=DataFormat(normalized_pixel_values=True),
         )
         frame = np.stack([np.eye(100, 100, dtype=np.uint8) for _ in range(3)], axis=2)
@@ -496,7 +500,7 @@ class TestRGBCameraDataImportConfig:
         """Test RGBCameraDataImportConfig transforms for channels_first."""
         data_point = RGBCameraDataImportConfig(
             source="camera",
-            mapping=[MappingItem(name="image")],
+            mapping=[RGBCameraDataMappingItem(name="image")],
             format=DataFormat(image_convention=ImageConventionConfig.CHANNELS_FIRST),
         )
         frame = (
@@ -513,7 +517,7 @@ class TestRGBCameraDataImportConfig:
         """Test RGBCameraDataImportConfig transforms for BGR order."""
         data_point = RGBCameraDataImportConfig(
             source="camera",
-            mapping=[MappingItem(name="image")],
+            mapping=[RGBCameraDataMappingItem(name="image")],
             format=DataFormat(order_of_channels=ImageChannelOrderConfig.BGR),
         )
         frame_r = np.ones((100, 100), dtype=np.uint8) * 255
@@ -538,7 +542,7 @@ class TestDepthCameraDataImportConfig:
         """Test DepthCameraDataImportConfig with meters."""
         data_point = DepthCameraDataImportConfig(
             source="depth",
-            mapping=[MappingItem(name="depth_image")],
+            mapping=[DepthCameraDataMappingItem(name="depth_image")],
             format=DataFormat(distance_units=DistanceUnitsConfig.M),
         )
         transforms = data_point.mapping[0].transforms
@@ -552,7 +556,7 @@ class TestDepthCameraDataImportConfig:
         """Test DepthCameraDataImportConfig with millimeters."""
         data_point = DepthCameraDataImportConfig(
             source="depth",
-            mapping=[MappingItem(name="depth_image")],
+            mapping=[DepthCameraDataMappingItem(name="depth_image")],
             format=DataFormat(distance_units=DistanceUnitsConfig.MM),
         )
         frame = np.ones((100, 100), dtype=np.float32) * 1000.0
@@ -565,7 +569,7 @@ class TestDepthCameraDataImportConfig:
     def test_depth_camera_data_import_default(self):
         """Test DepthCameraDataImportConfig with default format."""
         data_point = DepthCameraDataImportConfig(
-            source="depth", mapping=[MappingItem(name="depth_image")]
+            source="depth", mapping=[DepthCameraDataMappingItem(name="depth_image")]
         )
         transforms = data_point.mapping[0].transforms
         frame = np.random.randn(100, 100).astype(np.float32)
@@ -576,7 +580,7 @@ class TestDepthCameraDataImportConfig:
         """Test DepthCameraDataImportConfig with 3 dimensions."""
         data_point = DepthCameraDataImportConfig(
             source="depth",
-            mapping=[MappingItem(name="depth_image")],
+            mapping=[DepthCameraDataMappingItem(name="depth_image")],
         )
         transforms = data_point.mapping[0].transforms
         frame = np.random.randn(100, 100, 1).astype(np.float32)
@@ -587,7 +591,7 @@ class TestDepthCameraDataImportConfig:
         """Test DepthCameraDataImportConfig with 3 dimensions and channels first."""
         data_point = DepthCameraDataImportConfig(
             source="depth",
-            mapping=[MappingItem(name="depth_image")],
+            mapping=[DepthCameraDataMappingItem(name="depth_image")],
         )
         transforms = data_point.mapping[0].transforms
         frame = np.random.randn(1, 100, 100).astype(np.float32)

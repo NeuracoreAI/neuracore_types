@@ -13,6 +13,7 @@ from neuracore_types.importer.config import (
     ImageChannelOrderConfig,
     ImageConventionConfig,
     IndexRangeConfig,
+    IntrinsicsConfig,
     JointPositionTypeConfig,
     LanguageConfig,
     NormalizeConfig,
@@ -45,6 +46,45 @@ class MappingItem(BaseModel):
         if self.index is not None and self.index_range is not None:
             raise ValueError("index and index_range cannot be provided together")
         return self
+
+
+class RGBCameraDataMappingItem(MappingItem):
+    """Mapping item for RGB camera streams, with optional calibration sources."""
+
+    extrinsics_source: str | None = None
+    intrinsics_source: str | None = None
+    extrinsics_transforms: DataTransformSequence = Field(
+        default_factory=lambda: DataTransformSequence(transforms=[])
+    )
+    intrinsics_transforms: DataTransformSequence = Field(
+        default_factory=lambda: DataTransformSequence(transforms=[])
+    )
+
+
+class DepthCameraDataMappingItem(MappingItem):
+    """Mapping item for depth camera streams, with optional calibration sources."""
+
+    extrinsics_source: str | None = None
+    intrinsics_source: str | None = None
+    extrinsics_transforms: DataTransformSequence = Field(
+        default_factory=lambda: DataTransformSequence(transforms=[])
+    )
+    intrinsics_transforms: DataTransformSequence = Field(
+        default_factory=lambda: DataTransformSequence(transforms=[])
+    )
+
+
+class PointCloudDataMappingItem(MappingItem):
+    """Mapping item for point cloud streams, with optional calibration sources."""
+
+    extrinsics_source: str | None = None
+    intrinsics_source: str | None = None
+    extrinsics_transforms: DataTransformSequence = Field(
+        default_factory=lambda: DataTransformSequence(transforms=[])
+    )
+    intrinsics_transforms: DataTransformSequence = Field(
+        default_factory=lambda: DataTransformSequence(transforms=[])
+    )
 
 
 class DataFormat(BaseModel):
@@ -83,3 +123,8 @@ class DataFormat(BaseModel):
     # Joint position type fields
     joint_position_type: JointPositionTypeConfig = JointPositionTypeConfig.CUSTOM
     ik_init_config: list[float] | None = None
+
+    # Camera extrinsics/intrinsics format fields
+    extrinsics_format: PoseConfig = PoseConfig.MATRIX
+    extrinsics_orientation: OrientationConfig | None = None
+    intrinsics_format: IntrinsicsConfig = IntrinsicsConfig.MATRIX

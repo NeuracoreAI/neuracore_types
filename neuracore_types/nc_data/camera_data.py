@@ -13,6 +13,10 @@ from neuracore_types.importer.config import (
     ImageChannelOrderConfig,
     ImageConventionConfig,
 )
+from neuracore_types.importer.data_config import (
+    DepthCameraDataMappingItem,
+    RGBCameraDataMappingItem,
+)
 from neuracore_types.importer.transform import (
     CastToNumpyDtype,
     Clip,
@@ -57,6 +61,8 @@ class CameraDataStats(NCDataStats):
 class RGBCameraDataImportConfig(NCDataImportConfig):
     """Import configuration for RGBCameraData."""
 
+    mapping: list[RGBCameraDataMappingItem] = Field(default_factory=list)
+
     def _populate_transforms(self) -> None:
         """Populate transforms based on configuration."""
         transform_list: list[DataTransform] = []
@@ -87,6 +93,8 @@ class RGBCameraDataImportConfig(NCDataImportConfig):
 
 class DepthCameraDataImportConfig(NCDataImportConfig):
     """Import configuration for DepthCameraData."""
+
+    mapping: list[DepthCameraDataMappingItem] = Field(default_factory=list)
 
     def _populate_transforms(self) -> None:
         """Populate transforms based on configuration."""

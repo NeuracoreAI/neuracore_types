@@ -7,6 +7,7 @@ import numpy as np
 from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.importer.config import DistanceUnitsConfig
+from neuracore_types.importer.data_config import PointCloudDataMappingItem
 from neuracore_types.importer.transform import (
     CastToNumpyDtype,
     DataTransform,
@@ -41,6 +42,8 @@ class PointCloudDataStats(NCDataStats):
 
 class PointCloudDataImportConfig(NCDataImportConfig):
     """Import configuration for PointCloudData."""
+
+    mapping: list[PointCloudDataMappingItem] = Field(default_factory=list)
 
     def _populate_transforms(self) -> None:
         """Populate transforms based on configuration."""
