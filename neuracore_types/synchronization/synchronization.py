@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from neuracore_types.episode.episode import RobotDataSpec
+from neuracore_types.episode.episode import DataType
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -14,7 +14,7 @@ class SynchronizationDetails(BaseModel):
 
     Attributes:
         frequency: Synchronization frequency in Hz.
-        robot_data_spec: Specification of robot data to include in the synchronization.
+        cross_embodiment_description: Specification of robot data to include in the synchronization.
         max_delay_s: Maximum allowable delay (in seconds) for synchronization.
         allow_duplicates: Whether to allow duplicate data points in the synchronization.
         trim_start_end: Whether to trim the start and end of the episode
@@ -22,7 +22,7 @@ class SynchronizationDetails(BaseModel):
     """
 
     frequency: int
-    robot_data_spec: RobotDataSpec | None
+    cross_embodiment_union: dict[str, dict[DataType, list[str]]] | None
     max_delay_s: float = Field(
         default=0.1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
@@ -41,11 +41,11 @@ class SynchronizationDetails(BaseModel):
         Returns:
             int: The computed hash value.
         """
-        # Convert the nested dict structure to something hashable
-        robot_data_spec_hashable = None
-        if self.robot_data_spec is not None:
+                # Convert the nested dict structure to something hashable
+        cross_embodiment_union = None
+        if self.cross_embodiment_union is not None:
             # Convert dict[str, dict[DataType, list[str]]] to a frozen structure
-            robot_data_spec_hashable = tuple(
+            cross_embodiment_union = tuple(
                 sorted(
                     (
                         robot_name,
@@ -56,13 +56,13 @@ class SynchronizationDetails(BaseModel):
                             )
                         ),
                     )
-                    for robot_name, data_spec in self.robot_data_spec.items()
+                    for robot_name, data_spec in self.cross_embodiment_union.items()
                 )
             )
 
         return hash((
             self.frequency,
-            robot_data_spec_hashable,
+            cross_embodiment_union,
             self.max_delay_s,
             self.allow_duplicates,
             self.trim_start_end,
