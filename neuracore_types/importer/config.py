@@ -35,17 +35,38 @@ class RobotConfig(BaseModel):
     overwrite_existing: bool = False
 
 
-class VisualJointTypeConfig(str, Enum):
-    """Types of visual joint positions."""
+class VisualJointInputTypeConfig(str, Enum):
+    """Types of visual joint positions.
+
+    GRIPPER: Extract gripper joint positions from the gripper open amount.
+    CUSTOM: Directly use the specified joint positions from the source.
+    """
 
     GRIPPER = "GRIPPER"
     CUSTOM = "CUSTOM"
 
 
-class JointPositionTypeConfig(str, Enum):
-    """Types of joint positions."""
+class JointPositionInputTypeConfig(str, Enum):
+    """Types of joint positions.
+
+    END_EFFECTOR: Extract joint positions from the end effector pose using
+    Inverse Kinematics.
+    CUSTOM: Directly use the specified joint positions from the source.
+    """
 
     END_EFFECTOR = "END_EFFECTOR"
+    CUSTOM = "CUSTOM"
+
+
+class EndEffectorPoseInputTypeConfig(str, Enum):
+    """Types of end effector poses.
+
+    JOINT_POSITIONS: Extract end effector pose from the joint positions using
+    Forward Kinematics.
+    CUSTOM: Directly use the specified end effector pose from the source.
+    """
+
+    JOINT_POSITIONS = "JOINT_POSITIONS"
     CUSTOM = "CUSTOM"
 
 
@@ -88,6 +109,26 @@ class EulerOrderConfig(str, Enum):
     ZXY = "ZXY"
     YZX = "YZX"
     XZY = "XZY"
+
+
+class ActionTypeConfig(str, Enum):
+    """Action type configuration.
+
+    Specifies whether actions are absolute or relative to the current state.
+    """
+
+    ABSOLUTE = "ABSOLUTE"
+    RELATIVE = "RELATIVE"
+
+
+class ActionSpaceConfig(str, Enum):
+    """Action space configuration.
+
+    Specifies whether actions are in joint space or end effector space.
+    """
+
+    END_EFFECTOR = "END_EFFECTOR"
+    JOINT = "JOINT"
 
 
 class IndexRangeConfig(BaseModel):

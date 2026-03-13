@@ -6,10 +6,12 @@ from pathlib import Path
 from typing import Annotated, Union
 
 import yaml  # type: ignore[import-untyped]
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from neuracore_types.importer.config import (
     DatasetTypeConfig,
+    EndEffectorPoseInputTypeConfig,
+    JointPositionInputTypeConfig,
     OutputDatasetConfig,
     RobotConfig,
 )
@@ -235,3 +237,25 @@ class DatasetImportConfig(BaseModel):
         }
 
         return cls(**data)
+
+    @model_validator(mode="after")
+    def validate_fk_ik_config(self) -> "DatasetImportConfig":
+        """Validate that FK and IK config are not provided together."""
+        ik_requested = (
+            DataType.JOINT_POSITIONS in self.data_import_config
+            and self.data_import_config[
+                DataType.JOINT_POSITIONS
+            ].format.joint_position_input_type
+            == JointPositionInputTypeConfig.END_EFFECTOR
+        )
+        fk_requested = (
+            DataType.END_EFFECTOR_POSES in self.data_import_config
+            and self.data_import_config[DataType.END_EFFECTOR_POSES].format.ee_pose_type
+            == EndEffectorPoseInputTypeConfig.JOINT_POSITIONS
+        )
+        if ik_requested and fk_requested:
+            raise ValueError(
+                "Cannot request both Forward Kinematics and Inverse Kinematics "
+                "at the same time."
+            )
+        return self

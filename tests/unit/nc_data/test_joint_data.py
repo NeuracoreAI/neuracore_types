@@ -9,7 +9,7 @@ from neuracore_types.batched_nc_data import DATA_TYPE_TO_BATCHED_NC_DATA_CLASS
 from neuracore_types.importer.config import (
     AngleConfig,
     TorqueUnitsConfig,
-    VisualJointTypeConfig,
+    VisualJointInputTypeConfig,
 )
 from neuracore_types.importer.data_config import DataFormat, MappingItem
 from neuracore_types.importer.transform import (
@@ -448,7 +448,9 @@ class TestVisualJointPositionsDataImportConfig:
         """Test VisualJointPositionsDataImportConfig with GRIPPER type."""
         config = VisualJointPositionsDataImportConfig(
             source="gripper",
-            format=DataFormat(visual_joint_type=VisualJointTypeConfig.GRIPPER),
+            format=DataFormat(
+                visual_joint_input_type=VisualJointInputTypeConfig.GRIPPER
+            ),
             mapping=[
                 MappingItem(name="gripper_joint_0", index=0),
                 MappingItem(name="gripper_joint_1", index=1),
@@ -461,7 +463,9 @@ class TestVisualJointPositionsDataImportConfig:
         """Test CUSTOM type auto-assigns indexes."""
         config = VisualJointPositionsDataImportConfig(
             source="joints",
-            format=DataFormat(visual_joint_type=VisualJointTypeConfig.CUSTOM),
+            format=DataFormat(
+                visual_joint_input_type=VisualJointInputTypeConfig.CUSTOM
+            ),
             mapping=[
                 MappingItem(name="joint_0"),
                 MappingItem(name="joint_1"),
@@ -476,7 +480,9 @@ class TestVisualJointPositionsDataImportConfig:
         """Test CUSTOM type with all indexes provided."""
         config = VisualJointPositionsDataImportConfig(
             source="joints",
-            format=DataFormat(visual_joint_type=VisualJointTypeConfig.CUSTOM),
+            format=DataFormat(
+                visual_joint_input_type=VisualJointInputTypeConfig.CUSTOM
+            ),
             mapping=[
                 MappingItem(name="joint_0", index=5),
                 MappingItem(name="joint_1", index=6),
@@ -493,7 +499,9 @@ class TestVisualJointPositionsDataImportConfig:
         ):
             VisualJointPositionsDataImportConfig(
                 source="joints",
-                format=DataFormat(visual_joint_type=VisualJointTypeConfig.CUSTOM),
+                format=DataFormat(
+                    visual_joint_input_type=VisualJointInputTypeConfig.CUSTOM
+                ),
                 mapping=[
                     MappingItem(name="joint_0", index=0),
                     MappingItem(name="joint_1"),  # Missing index
@@ -504,7 +512,9 @@ class TestVisualJointPositionsDataImportConfig:
         """Test VisualJointPositionsDataImportConfig transforms for GRIPPER type."""
         config = VisualJointPositionsDataImportConfig(
             source="gripper",
-            format=DataFormat(visual_joint_type=VisualJointTypeConfig.GRIPPER),
+            format=DataFormat(
+                visual_joint_input_type=VisualJointInputTypeConfig.GRIPPER
+            ),
             mapping=[MappingItem(name="gripper_joint_0", index=0)],
         )
         transforms = config.mapping[0].transforms.transforms
@@ -516,7 +526,9 @@ class TestVisualJointPositionsDataImportConfig:
         """Test GRIPPER type transforms with inverted flag."""
         config = VisualJointPositionsDataImportConfig(
             source="gripper",
-            format=DataFormat(visual_joint_type=VisualJointTypeConfig.GRIPPER),
+            format=DataFormat(
+                visual_joint_input_type=VisualJointInputTypeConfig.GRIPPER
+            ),
             mapping=[MappingItem(name="gripper_joint_0", index=0, inverted=True)],
         )
         transforms = config.mapping[0].transforms.transforms
@@ -529,7 +541,9 @@ class TestVisualJointPositionsDataImportConfig:
         """Test GRIPPER type transforms with offset."""
         config = VisualJointPositionsDataImportConfig(
             source="gripper",
-            format=DataFormat(visual_joint_type=VisualJointTypeConfig.GRIPPER),
+            format=DataFormat(
+                visual_joint_input_type=VisualJointInputTypeConfig.GRIPPER
+            ),
             mapping=[MappingItem(name="gripper_joint_0", index=0, offset=1.5)],
         )
         transforms = config.mapping[0].transforms.transforms
@@ -543,7 +557,7 @@ class TestVisualJointPositionsDataImportConfig:
         config = VisualJointPositionsDataImportConfig(
             source="joints",
             format=DataFormat(
-                visual_joint_type=VisualJointTypeConfig.CUSTOM,
+                visual_joint_input_type=VisualJointInputTypeConfig.CUSTOM,
                 angle_units=AngleConfig.DEGREES,
             ),
             mapping=[
@@ -564,7 +578,9 @@ class TestVisualJointPositionsDataImportConfig:
         """Test GRIPPER type with multiple joints."""
         config = VisualJointPositionsDataImportConfig(
             source="gripper",
-            format=DataFormat(visual_joint_type=VisualJointTypeConfig.GRIPPER),
+            format=DataFormat(
+                visual_joint_input_type=VisualJointInputTypeConfig.GRIPPER
+            ),
             mapping=[
                 MappingItem(name="gripper_joint_0", index=0),
                 MappingItem(name="gripper_joint_1", index=1),

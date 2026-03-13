@@ -8,19 +8,22 @@ data when importing it into Neuracore.
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from neuracore_types.importer.config import (
+    ActionSpaceConfig,
+    ActionTypeConfig,
     AngleConfig,
     DistanceUnitsConfig,
+    EndEffectorPoseInputTypeConfig,
     ImageChannelOrderConfig,
     ImageConventionConfig,
     IndexRangeConfig,
     IntrinsicsConfig,
-    JointPositionTypeConfig,
+    JointPositionInputTypeConfig,
     LanguageConfig,
     NormalizeConfig,
     OrientationConfig,
     PoseConfig,
     TorqueUnitsConfig,
-    VisualJointTypeConfig,
+    VisualJointInputTypeConfig,
 )
 from neuracore_types.importer.transform import DataTransformSequence
 
@@ -107,6 +110,9 @@ class DataFormat(BaseModel):
     # Pose format fields
     pose_type: PoseConfig = PoseConfig.MATRIX
     orientation: OrientationConfig | None = None
+    ee_pose_input_type: EndEffectorPoseInputTypeConfig = (
+        EndEffectorPoseInputTypeConfig.CUSTOM
+    )
 
     # Language format fields
     language_type: LanguageConfig = LanguageConfig.STRING
@@ -118,11 +124,19 @@ class DataFormat(BaseModel):
     invert_gripper_amount: bool = False
 
     # Visual joint type fields
-    visual_joint_type: VisualJointTypeConfig = VisualJointTypeConfig.CUSTOM
+    visual_joint_input_type: VisualJointInputTypeConfig = (
+        VisualJointInputTypeConfig.CUSTOM
+    )
 
     # Joint position type fields
-    joint_position_type: JointPositionTypeConfig = JointPositionTypeConfig.CUSTOM
+    joint_position_input_type: JointPositionInputTypeConfig = (
+        JointPositionInputTypeConfig.CUSTOM
+    )
     ik_init_config: list[float] | None = None
+
+    # Joint target position type fields
+    action_type: ActionTypeConfig = ActionTypeConfig.ABSOLUTE
+    action_space: ActionSpaceConfig = ActionSpaceConfig.JOINT
 
     # Camera extrinsics/intrinsics format fields
     extrinsics_format: PoseConfig = PoseConfig.MATRIX
