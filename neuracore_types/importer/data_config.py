@@ -8,8 +8,10 @@ data when importing it into Neuracore.
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from neuracore_types.importer.config import (
+    ActionTypeConfig,
     AngleConfig,
     DistanceUnitsConfig,
+    EndEffectorPoseTypeConfig,
     ImageChannelOrderConfig,
     ImageConventionConfig,
     IndexRangeConfig,
@@ -107,6 +109,7 @@ class DataFormat(BaseModel):
     # Pose format fields
     pose_type: PoseConfig = PoseConfig.MATRIX
     orientation: OrientationConfig | None = None
+    ee_pose_type: EndEffectorPoseTypeConfig = EndEffectorPoseTypeConfig.CUSTOM
 
     # Language format fields
     language_type: LanguageConfig = LanguageConfig.STRING
@@ -123,6 +126,9 @@ class DataFormat(BaseModel):
     # Joint position type fields
     joint_position_type: JointPositionTypeConfig = JointPositionTypeConfig.CUSTOM
     ik_init_config: list[float] | None = None
+
+    # Joint target position type fields
+    action_type: ActionTypeConfig = ActionTypeConfig.ABSOLUTE
 
     # Camera extrinsics/intrinsics format fields
     extrinsics_format: PoseConfig = PoseConfig.MATRIX

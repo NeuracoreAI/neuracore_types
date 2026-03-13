@@ -49,6 +49,13 @@ class JointPositionTypeConfig(str, Enum):
     CUSTOM = "CUSTOM"
 
 
+class EndEffectorPoseTypeConfig(str, Enum):
+    """Types of end effector poses."""
+
+    CUSTOM = "CUSTOM"
+    JOINT_POSITIONS = "JOINT_POSITIONS"
+
+
 class RotationConfig(str, Enum):
     """Types of rotations."""
 
@@ -88,6 +95,13 @@ class EulerOrderConfig(str, Enum):
     ZXY = "ZXY"
     YZX = "YZX"
     XZY = "XZY"
+
+
+class ActionTypeConfig(str, Enum):
+    """Action types."""
+
+    ABSOLUTE = "ABSOLUTE"
+    RELATIVE = "RELATIVE"
 
 
 class IndexRangeConfig(BaseModel):
