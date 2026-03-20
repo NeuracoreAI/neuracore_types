@@ -7,12 +7,13 @@ import numpy as np
 from pydantic import ConfigDict, Field, model_validator
 
 from neuracore_types.importer.config import (
+    ActionSpaceConfig,
     AngleConfig,
-    JointPositionTypeConfig,
+    JointPositionInputTypeConfig,
     PoseConfig,
     RotationConfig,
     TorqueUnitsConfig,
-    VisualJointTypeConfig,
+    VisualJointInputTypeConfig,
 )
 from neuracore_types.importer.data_config import MappingItem
 from neuracore_types.importer.transform import (
@@ -84,7 +85,11 @@ class JointPositionsDataImportConfig(NCDataImportConfig):
     @model_validator(mode="after")
     def validate_orientation_required(self) -> "JointPositionsDataImportConfig":
         """Validate orientation is when converting joint position type from TCP."""
-        if self.format.joint_position_type == JointPositionTypeConfig.END_EFFECTOR:
+        if (
+            self.format.joint_position_input_type
+            == JointPositionInputTypeConfig.END_EFFECTOR
+            or self.format.action_space == ActionSpaceConfig.END_EFFECTOR
+        ):
             if self.format.pose_type == PoseConfig.POSITION_ORIENTATION:
                 if self.format.orientation is None:
                     raise ValueError(
@@ -112,9 +117,13 @@ class JointPositionsDataImportConfig(NCDataImportConfig):
         are provided. When converting from TCP to joint positions, check that
         the index range length matches the orientation format.
         """
-        if self.format.joint_position_type == JointPositionTypeConfig.CUSTOM:
+        if self.format.joint_position_input_type == JointPositionInputTypeConfig.CUSTOM:
             _validate_index_provided(self.mapping, self.__class__.__name__)
-        elif self.format.joint_position_type == JointPositionTypeConfig.END_EFFECTOR:
+        elif (
+            self.format.joint_position_input_type
+            == JointPositionInputTypeConfig.END_EFFECTOR
+            or self.format.action_space == ActionSpaceConfig.END_EFFECTOR
+        ):
             if len(self.mapping) != 1:
                 raise ValueError(
                     "Only one mapping item is allowed when converting from TCP "
@@ -168,17 +177,11 @@ class JointPositionsDataImportConfig(NCDataImportConfig):
         """Populate transforms based on configuration."""
         transform_list: list[DataTransform] = []
 
-        if self.format.joint_position_type == JointPositionTypeConfig.CUSTOM:
-            # Add DegreesToRadians transform if needed
-            if self.format.angle_units == AngleConfig.DEGREES:
-                transform_list.append(DegreesToRadians())
-
-            for item in self.mapping:
-                item_transforms = _apply_common_joint_item_transforms(
-                    item, transform_list
-                )
-                item.transforms = DataTransformSequence(transforms=item_transforms)
-        elif self.format.joint_position_type == JointPositionTypeConfig.END_EFFECTOR:
+        if (
+            self.format.joint_position_input_type
+            == JointPositionInputTypeConfig.END_EFFECTOR
+            or self.format.action_space == ActionSpaceConfig.END_EFFECTOR
+        ):
             for item in self.mapping:
                 item_transforms = copy.deepcopy(transform_list)
                 if self.format.pose_type == PoseConfig.MATRIX:
@@ -205,9 +208,23 @@ class JointPositionsDataImportConfig(NCDataImportConfig):
                         )
                     )
                 item.transforms = DataTransformSequence(transforms=item_transforms)
+        elif (
+            self.format.joint_position_input_type == JointPositionInputTypeConfig.CUSTOM
+            or self.format.action_space == ActionSpaceConfig.JOINT
+        ):
+            # Add DegreesToRadians transform if needed
+            if self.format.angle_units == AngleConfig.DEGREES:
+                transform_list.append(DegreesToRadians())
+
+            for item in self.mapping:
+                item_transforms = _apply_common_joint_item_transforms(
+                    item, transform_list
+                )
+                item.transforms = DataTransformSequence(transforms=item_transforms)
         else:
             raise ValueError(
-                f"Invalid joint position type: {self.format.joint_position_type}"
+                f"Invalid joint position input type: "
+                f"{self.format.joint_position_input_type}"
             )
 
 
@@ -259,11 +276,11 @@ class VisualJointPositionsDataImportConfig(NCDataImportConfig):
     @model_validator(mode="after")
     def validate_index_provided(self) -> "VisualJointPositionsDataImportConfig":
         """Validate that either all or no indexes are provided."""
-        if self.format.visual_joint_type == VisualJointTypeConfig.CUSTOM:
+        if self.format.visual_joint_input_type == VisualJointInputTypeConfig.CUSTOM:
             _validate_index_provided(self.mapping, self.__class__.__name__)
-        elif self.format.visual_joint_type != VisualJointTypeConfig.GRIPPER:
+        elif self.format.visual_joint_input_type != VisualJointInputTypeConfig.GRIPPER:
             raise ValueError(
-                f"Invalid visual joint type: {self.format.visual_joint_type}"
+                f"Invalid visual joint type: {self.format.visual_joint_input_type}"
             )
 
         return self
@@ -272,7 +289,7 @@ class VisualJointPositionsDataImportConfig(NCDataImportConfig):
         """Populate transforms based on configuration."""
         transform_list: list[DataTransform] = []
 
-        if self.format.visual_joint_type == VisualJointTypeConfig.GRIPPER:
+        if self.format.visual_joint_input_type == VisualJointInputTypeConfig.GRIPPER:
             # Use gripper open amount to calculate the visual joint positions
             # from joint limits
 
@@ -295,13 +312,14 @@ class VisualJointPositionsDataImportConfig(NCDataImportConfig):
             # Joint limits to be filled in during data import from URDF
             transform_list.append(Unnormalize(min=0.0, max=1.0))
 
-        elif self.format.visual_joint_type == VisualJointTypeConfig.CUSTOM:
+        elif self.format.visual_joint_input_type == VisualJointInputTypeConfig.CUSTOM:
             # Add DegreesToRadians transform if needed
             if self.format.angle_units == AngleConfig.DEGREES:
                 transform_list.append(DegreesToRadians())
         else:
             raise ValueError(
-                f"Invalid visual joint type: {self.format.visual_joint_type}"
+                f"Invalid visual joint input type: "
+                f"{self.format.visual_joint_input_type}"
             )
 
         for item in self.mapping:
