@@ -250,7 +250,9 @@ class DatasetImportConfig(BaseModel):
         )
         fk_requested = (
             DataType.END_EFFECTOR_POSES in self.data_import_config
-            and self.data_import_config[DataType.END_EFFECTOR_POSES].format.ee_pose_type
+            and self.data_import_config[
+                DataType.END_EFFECTOR_POSES
+            ].format.ee_pose_input_type
             == EndEffectorPoseInputTypeConfig.JOINT_POSITIONS
         )
         if ik_requested and fk_requested:
