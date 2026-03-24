@@ -4,6 +4,7 @@ import json
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from neuracore_types.importer.config import (
     AngleConfig,
@@ -391,6 +392,21 @@ class TestDatasetConfig:
         config_path = tmp_path / "config.json"
         config_path.write_text("{invalid json}")
         with pytest.raises(RuntimeError):
+            DatasetImportConfig.from_file(config_path)
+
+    def test_dataset_config_from_file_rejects_unknown_top_level_keys(self, tmp_path):
+        """Unknown keys in the file must raise validation errors."""
+        config_path = tmp_path / "config.yaml"
+        config_data = {
+            "input_dataset_name": "input_dataset",
+            "output_dataset": {"name": "output_dataset"},
+            "robot": {"name": "test_robot"},
+            "data_import_config": {},
+            "not_a_real_field": 1,
+        }
+        with config_path.open("w") as f:
+            yaml.dump(config_data, f)
+        with pytest.raises(ValidationError):
             DatasetImportConfig.from_file(config_path)
 
     def test_dataset_config_with_data_points(self):
