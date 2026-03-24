@@ -97,6 +97,8 @@ class DataFormat(BaseModel):
     when importing data. Relevant fields depend on the data type.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     # RGB image format fields
     image_convention: ImageConventionConfig = ImageConventionConfig.CHANNELS_LAST
     order_of_channels: ImageChannelOrderConfig = ImageChannelOrderConfig.RGB

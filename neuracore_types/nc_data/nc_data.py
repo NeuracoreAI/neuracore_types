@@ -22,6 +22,8 @@ class NCDataStats(BaseModel):
 class NCDataImportConfig(BaseModel):
     """Configuration for importing data to Neuracore."""
 
+    model_config = ConfigDict(extra="forbid")
+
     source: str = Field(
         default="",
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,

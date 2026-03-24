@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Annotated, Union
 
 import yaml  # type: ignore[import-untyped]
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from neuracore_types.importer.config import (
     DatasetTypeConfig,
@@ -201,6 +201,8 @@ class DatasetImportConfig(BaseModel):
     For each data type, define the format of the incoming data which will be
     converted to the format expected by Neuracore.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     input_dataset_name: str
     output_dataset: OutputDatasetConfig
