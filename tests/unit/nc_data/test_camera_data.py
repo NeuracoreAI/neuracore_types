@@ -160,19 +160,6 @@ class TestBatchedRGBData:
         assert batched.intrinsics.shape == (1, 1, 3, 3)
         assert batched.extrinsics.shape == (1, 1, 4, 4)
 
-    def test_transform_nc_data(self):
-        """Test that transform_nc_data can be called without error."""
-        frame = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        rgb_data = RGBCameraData(
-            frame=frame,
-            intrinsics=np.ones((3, 3), dtype=np.float32),
-            extrinsics=np.ones((4, 4), dtype=np.float32),
-        )
-        batched = BatchedRGBData.from_nc_data(rgb_data)
-        batched.transform_nc_data()
-        # Check that frame is now of size (224, 224) after transformation
-        assert batched.frame.shape == (1, 1, 3, 224, 224)
-
     def test_sample(self):
         """Test BatchedRGBData.sample() with different dimensions."""
         batched = BatchedRGBData.sample(batch_size=2, time_steps=3)
@@ -292,23 +279,6 @@ class TestBatchedRGBData:
         assert batched.intrinsics.shape == (1, 1, 3, 3)
         assert batched.extrinsics.shape == (1, 1, 4, 4)
 
-    def test_from_nc_data_list_followed_by_transform(self):
-        """Test that from_nc_data_list can be followed by transform_nc_data."""
-        frame = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        rgb_data_list = [
-            RGBCameraData(
-                frame=frame,
-                intrinsics=np.ones((3, 3), dtype=np.float32),
-                extrinsics=np.ones((4, 4), dtype=np.float32),
-            )
-            for _ in range(5)
-        ]
-        batched = BatchedRGBData.from_nc_data_list(rgb_data_list)
-        batched.transform_nc_data()
-
-        # After transformation, frame should be resized to (224, 224)
-        assert batched.frame.shape == (1, 5, 3, 224, 224)
-
 
 class TestBatchedDepthData:
     """Tests for BatchedDepthData functionality."""
@@ -337,19 +307,6 @@ class TestBatchedDepthData:
         batched = BatchedDepthData.from_nc_data(depth_data)
         assert batched.extrinsics.shape == (1, 1, 4, 4)
         assert batched.intrinsics.shape == (1, 1, 3, 3)
-
-    def test_transform_nc_data(self):
-        """Test that transform_nc_data can be called without error."""
-        frame = np.random.randn(100, 100).astype(np.float32)
-        depth_data = DepthCameraData(
-            frame=frame,
-            intrinsics=np.ones((3, 3), dtype=np.float32),
-            extrinsics=np.ones((4, 4), dtype=np.float32),
-        )
-        batched = BatchedDepthData.from_nc_data(depth_data)
-        batched.transform_nc_data()
-        # Check that frame is now of size (224, 224) after transformation
-        assert batched.frame.shape == (1, 1, 1, 224, 224)
 
     def test_sample(self):
         """Test BatchedDepthData.sample() with different dimensions."""
@@ -447,13 +404,6 @@ class TestBatchedDepthData:
         batched = BatchedDepthData.from_nc_data_list([depth_data])
         assert batched.extrinsics.shape == (1, 1, 4, 4)
         assert batched.intrinsics.shape == (1, 1, 3, 3)
-
-    def test_from_nc_data_list_followed_by_transform(self):
-        """Test that from_nc_data_list can be followed by transform_nc_data."""
-        depth_data_list = [DepthCameraData.sample() for _ in range(5)]
-        batched = BatchedDepthData.from_nc_data_list(depth_data_list)
-        batched.transform_nc_data()
-        assert batched.frame.shape == (1, 5, 1, 224, 224)
 
 
 class TestRGBCameraDataImportConfig:

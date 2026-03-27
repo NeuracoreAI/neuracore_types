@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_valid
 from neuracore_types.episode.episode import CrossEmbodimentDescription
 from neuracore_types.hardware import GPUType
 from neuracore_types.nc_data import DataType, NCDataStatsUnion
+from neuracore_types.preprocessing import PreProcessingConfiguration
 from neuracore_types.synchronization.synchronization import SynchronizationDetails
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
@@ -75,6 +76,22 @@ class ModelInitDescription(BaseModel):
     output_dataset_statistics: dict[DataType, list[NCDataStatsUnion]]
     output_prediction_horizon: int = Field(
         default=1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    # Optional slot-based preprocessing configuration for model inputs.
+    # Slot indices are interpreted relative to the input robot data spec.
+    input_preprocessing_config: PreProcessingConfiguration | None = Field(
+        default=None,
+        description=(
+            "Optional preprocessing for input streams " "(steps per DataType/slot)."
+        ),
+    )
+    # Optional slot-based preprocessing configuration for model outputs.
+    # Slot indices are interpreted relative to the output robot data spec.
+    output_preprocessing_config: PreProcessingConfiguration | None = Field(
+        default=None,
+        description=(
+            "Optional preprocessing for output streams " "(steps per DataType/slot)."
+        ),
     )
 
     model_config = ConfigDict(
