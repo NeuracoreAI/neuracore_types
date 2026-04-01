@@ -14,16 +14,6 @@ from neuracore_types.utils.pydantic_to_ts import (
 )
 
 
-class RecordingUploadMethod(str, Enum):
-    """Method used to upload recording data.
-
-    Indicates how the recording data is being uploaded to the backend.
-    """
-
-    STREAMING = "streaming"
-    DATA_DAEMON = "data_daemon"
-
-
 class MessageType(str, Enum):
     """Enumerates the types of signaling messages for WebRTC handshakes.
 
