@@ -194,6 +194,9 @@ class OrientationConfig(BaseModel):
     quaternion_order: QuaternionOrderConfig = QuaternionOrderConfig.XYZW
     euler_order: EulerOrderConfig = EulerOrderConfig.XYZ
     angle_units: AngleConfig = AngleConfig.RADIANS
+    align_frame_roll: float = 0.0
+    align_frame_pitch: float = 0.0
+    align_frame_yaw: float = 0.0
 
 
 class IntrinsicsConfig(str, Enum):

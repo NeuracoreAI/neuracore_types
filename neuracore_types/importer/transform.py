@@ -117,6 +117,69 @@ class Pose(DataTransform):
             return np.concatenate([pose[:3, 3], self.rotation_transform(rot_mat)])
 
 
+class ScalePosition(DataTransform):
+    """Scale the position of the pose by a factor."""
+
+    factor: float
+
+    def __call__(self, pose: np.ndarray) -> np.ndarray:
+        """Scale the position by a factor.
+
+        Expected input pose is [x, y, z, qx, qy, qz, qw].
+        """
+        if pose.shape != (7,):
+            raise ValueError("Expected pose to be in [x, y, z, qx, qy, qz, qw] format")
+        pose = pose.copy()
+        pose[:3] = pose[:3] * self.factor
+        return pose
+
+
+class ScaleOrientation(DataTransform):
+    """Scale the orientation (rotation) of the pose by a factor."""
+
+    factor: float
+
+    def __call__(self, pose: np.ndarray) -> np.ndarray:
+        """Scale the orientation by a factor.
+
+        Expected input pose is [x, y, z, qx, qy, qz, qw].
+        """
+        if pose.shape != (7,):
+            raise ValueError("Expected pose to be in [x, y, z, qx, qy, qz, qw] format")
+        pose = pose.copy()
+        rotvec = R.from_quat(pose[3:]).as_rotvec()
+        pose[3:] = R.from_rotvec(rotvec * self.factor).as_quat()
+        return pose
+
+
+class AlignActionReferenceFrame(DataTransform):
+    """Re-express an action pose in a rotated reference frame.
+
+    The provided roll, pitch, and yaw define an offset rotation between the
+    source and target action frames. The pose is transformed as
+    ``T' = R_offset @ T @ R_offset.T`` where ``T`` is the input SE(3) pose.
+    """
+
+    roll: float = 0.0
+    pitch: float = 0.0
+    yaw: float = 0.0
+
+    def __call__(self, pose: np.ndarray) -> np.ndarray:
+        """Align pose translation and orientation to the target action frame.
+
+        Expected input pose format is ``[x, y, z, qx, qy, qz, qw]``.
+        """
+        pose_T = np.eye(4)
+        pose_T[:3, 3] = pose[:3]
+        pose_T[:3, :3] = R.from_quat(pose[3:7]).as_matrix()
+        offset_T = np.eye(4)
+        offset_T[:3, :3] = R.from_euler(
+            "xyz", [self.roll, self.pitch, self.yaw]
+        ).as_matrix()
+        pose_T = offset_T @ pose_T @ offset_T.T
+        return np.concatenate([pose_T[:3, 3], R.from_matrix(pose_T[:3, :3]).as_quat()])
+
+
 class ImageFormat(DataTransform):
     """Convert image format to HWC."""
 

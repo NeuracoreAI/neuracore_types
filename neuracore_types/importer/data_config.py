@@ -112,6 +112,8 @@ class DataFormat(BaseModel):
     # Pose format fields
     pose_type: PoseConfig = PoseConfig.MATRIX
     orientation: OrientationConfig | None = None
+    scale_position: float = 1.0
+    scale_orientation: float = 1.0
     ee_pose_input_type: EndEffectorPoseInputTypeConfig = (
         EndEffectorPoseInputTypeConfig.CUSTOM
     )

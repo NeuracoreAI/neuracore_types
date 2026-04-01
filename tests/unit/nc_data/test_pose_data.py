@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 import torch
+from scipy.spatial.transform import Rotation as R
 
 from neuracore_types import BatchedPoseData, PoseData
 from neuracore_types.importer.config import (
@@ -15,7 +16,6 @@ from neuracore_types.importer.config import (
     RotationConfig,
 )
 from neuracore_types.importer.data_config import DataFormat, MappingItem
-from neuracore_types.importer.transform import Pose
 from neuracore_types.nc_data.pose_data import PoseDataImportConfig
 
 
@@ -204,26 +204,45 @@ class TestPoseDataImportConfig:
             mapping=[MappingItem(name="end_effector_pose", index_range=index_range)],
             format=DataFormat(pose_type=PoseConfig.MATRIX),
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert any(isinstance(t, Pose) for t in transforms)
+        rot_x_pi2 = R.from_euler("x", np.pi / 2).as_matrix()
+        matrix_pose = np.eye(4, dtype=np.float64)
+        matrix_pose[:3, :3] = rot_x_pi2
+        matrix_pose[:3, 3] = [1.0, 2.0, 3.0]
+        transformed_data = data_point.mapping[0].transforms(matrix_pose)
+        s2 = np.sqrt(2.0) / 2.0
+        expected = np.array(
+            [1.0, 2.0, 3.0, s2, 0.0, 0.0, s2],
+            dtype=np.float64,
+        )
+        assert np.allclose(transformed_data, expected)
 
     def test_pose_data_import_config_position_orientation_quaternion(self):
-        """Test PoseDataImportConfig with position_orientation and quaternion."""
+        """Test quaternion path with scaling and frame align."""
         index_range = IndexRangeConfig(start=0, end=7)
         orientation = OrientationConfig(
             type=RotationConfig.QUATERNION,
             quaternion_order=QuaternionOrderConfig.WXYZ,
             angle_units=AngleConfig.RADIANS,
+            align_frame_yaw=np.pi / 2,
         )
         data_point = PoseDataImportConfig(
             source="pose",
             mapping=[MappingItem(name="end_effector_pose", index_range=index_range)],
             format=DataFormat(
-                pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
+                pose_type=PoseConfig.POSITION_ORIENTATION,
+                orientation=orientation,
+                scale_position=2.0,
+                scale_orientation=3.0,
             ),
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert any(isinstance(t, Pose) for t in transforms)
+        s2 = np.sqrt(2.0) / 2.0
+        pose_wxyz = np.array([1.0, 0.0, 0.0, s2, s2, 0.0, 0.0], dtype=np.float64)
+        transformed_data = data_point.mapping[0].transforms(pose_wxyz)
+        expected = np.array(
+            [0.0, 2.0, 0.0, 0.0, -s2, 0.0, s2],
+            dtype=np.float64,
+        )
+        assert np.allclose(transformed_data, expected)
 
     def test_pose_data_import_config_position_orientation_euler(self):
         """Test PoseDataImportConfig with position_orientation and euler."""
@@ -240,8 +259,37 @@ class TestPoseDataImportConfig:
                 pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
             ),
         )
-        transforms = data_point.mapping[0].transforms.transforms
-        assert any(isinstance(t, Pose) for t in transforms)
+        pose_euler = np.array([1.0, 2.0, 3.0, 90.0, 0.0, 0.0], dtype=np.float64)
+        transformed_data = data_point.mapping[0].transforms(pose_euler)
+        expected = np.array(
+            [1.0, 2.0, 3.0, 0.0, 0.0, np.sqrt(2) / 2, np.sqrt(2) / 2],
+            dtype=np.float64,
+        )
+        assert np.allclose(transformed_data, expected)
+
+    def test_pose_data_import_config_position_orientation_axis_angle(self):
+        """Test PoseDataImportConfig with position_orientation and axis-angle."""
+        index_range = IndexRangeConfig(start=0, end=6)
+        orientation = OrientationConfig(
+            type=RotationConfig.AXIS_ANGLE,
+            angle_units=AngleConfig.RADIANS,
+        )
+        data_point = PoseDataImportConfig(
+            source="pose",
+            mapping=[MappingItem(name="end_effector_pose", index_range=index_range)],
+            format=DataFormat(
+                pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
+            ),
+        )
+        pose_axis_angle = np.array(
+            [1.0, 2.0, 3.0, 0.0, 0.0, np.pi / 2], dtype=np.float64
+        )
+        transformed_data = data_point.mapping[0].transforms(pose_axis_angle)
+        expected = np.array(
+            [1.0, 2.0, 3.0, 0.0, 0.0, np.sqrt(2) / 2, np.sqrt(2) / 2],
+            dtype=np.float64,
+        )
+        assert np.allclose(transformed_data, expected)
 
     def test_pose_data_import_config_requires_orientation(self):
         """Test validation that 'orientation' is required for position_orientation."""
@@ -296,6 +344,23 @@ class TestPoseDataImportConfig:
         """Test PoseDataImportConfig validation for euler index_range length."""
         index_range = IndexRangeConfig(start=0, end=5)  # Should be 6
         orientation = OrientationConfig(type=RotationConfig.EULER)
+        with pytest.raises(
+            ValueError, match="Index range length must be 6 for orientation type"
+        ):
+            PoseDataImportConfig(
+                source="pose",
+                mapping=[
+                    MappingItem(name="end_effector_pose", index_range=index_range)
+                ],
+                format=DataFormat(
+                    pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
+                ),
+            )
+
+    def test_pose_data_import_config_axis_angle_index_range_length(self):
+        """Test PoseDataImportConfig validation for axis-angle index_range length."""
+        index_range = IndexRangeConfig(start=0, end=5)  # Should be 6
+        orientation = OrientationConfig(type=RotationConfig.AXIS_ANGLE)
         with pytest.raises(
             ValueError, match="Index range length must be 6 for orientation type"
         ):
