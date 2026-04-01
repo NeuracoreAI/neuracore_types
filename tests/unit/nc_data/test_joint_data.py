@@ -3,11 +3,20 @@
 import numpy as np
 import pytest
 import torch
+from scipy.spatial.transform import Rotation as R
 
 from neuracore_types import BatchedJointData, JointData
 from neuracore_types.batched_nc_data import DATA_TYPE_TO_BATCHED_NC_DATA_CLASS
 from neuracore_types.importer.config import (
+    ActionSpaceConfig,
     AngleConfig,
+    EulerOrderConfig,
+    IndexRangeConfig,
+    JointPositionInputTypeConfig,
+    OrientationConfig,
+    PoseConfig,
+    QuaternionOrderConfig,
+    RotationConfig,
     TorqueUnitsConfig,
     VisualJointInputTypeConfig,
 )
@@ -325,6 +334,98 @@ class TestJointPositionsDataImportConfig:
         data = np.array([1.0], dtype=np.float32)
         transformed_data = data_point.mapping[0].transforms(data)
         assert transformed_data == 2.5
+
+    def test_joint_positions_end_effector_matrix_pose_transforms(self):
+        """Test IK input with MATRIX pose format."""
+        data_point = JointPositionsDataImportConfig(
+            source="ee",
+            mapping=[
+                MappingItem(
+                    name="joint_0", index_range=IndexRangeConfig(start=0, end=16)
+                )
+            ],
+            format=DataFormat(
+                joint_position_input_type=JointPositionInputTypeConfig.END_EFFECTOR,
+                pose_type=PoseConfig.MATRIX,
+            ),
+        )
+
+        rot_x_pi2 = R.from_euler("x", np.pi / 2).as_matrix()
+        matrix_pose = np.eye(4, dtype=np.float64)
+        matrix_pose[:3, :3] = rot_x_pi2
+        matrix_pose[:3, 3] = [1.0, 2.0, 3.0]
+        transformed_data = data_point.mapping[0].transforms(matrix_pose)
+        s2 = np.sqrt(2.0) / 2.0
+        expected = np.array(
+            [1.0, 2.0, 3.0, s2, 0.0, 0.0, s2],
+            dtype=np.float64,
+        )
+        assert np.allclose(transformed_data, expected)
+
+    def test_joint_positions_end_effector_quaternion_pose_transforms(self):
+        """Test IK input with POSITION_ORIENTATION quaternion."""
+        data_point = JointPositionsDataImportConfig(
+            source="ee",
+            mapping=[
+                MappingItem(
+                    name="joint_0", index_range=IndexRangeConfig(start=0, end=7)
+                )
+            ],
+            format=DataFormat(
+                joint_position_input_type=JointPositionInputTypeConfig.END_EFFECTOR,
+                pose_type=PoseConfig.POSITION_ORIENTATION,
+                orientation=OrientationConfig(
+                    type=RotationConfig.QUATERNION,
+                    quaternion_order=QuaternionOrderConfig.WXYZ,
+                    angle_units=AngleConfig.DEGREES,
+                    align_frame_roll=0.0,
+                    align_frame_pitch=0.0,
+                    align_frame_yaw=np.pi / 2,
+                ),
+                scale_position=2.0,
+                scale_orientation=3.0,
+            ),
+        )
+
+        s2 = np.sqrt(2.0) / 2.0
+        pose_wxyz = np.array([1.0, 0.0, 0.0, s2, s2, 0.0, 0.0], dtype=np.float64)
+        transformed_data = data_point.mapping[0].transforms(pose_wxyz)
+
+        expected = np.array(
+            [0.0, 2.0, 0.0, 0.0, -s2, 0.0, s2],
+            dtype=np.float64,
+        )
+        assert np.allclose(transformed_data, expected)
+
+    def test_joint_positions_action_space_end_effector_euler_pose_transforms(self):
+        """Test IK input with POSITION_ORIENTATION euler."""
+        data_point = JointPositionsDataImportConfig(
+            source="ee_action",
+            mapping=[
+                MappingItem(
+                    name="joint_0", index_range=IndexRangeConfig(start=0, end=6)
+                )
+            ],
+            format=DataFormat(
+                action_space=ActionSpaceConfig.END_EFFECTOR,
+                pose_type=PoseConfig.POSITION_ORIENTATION,
+                orientation=OrientationConfig(
+                    type=RotationConfig.EULER,
+                    euler_order=EulerOrderConfig.ZYX,
+                    angle_units=AngleConfig.RADIANS,
+                ),
+            ),
+        )
+
+        pose_euler = np.array([1.0, 2.0, 3.0, np.pi / 2, 0.0, 0.0], dtype=np.float64)
+        transformed_data = data_point.mapping[0].transforms(pose_euler)
+        expected_quat = R.from_euler(
+            "zyx", [np.pi / 2, 0.0, 0.0], degrees=False
+        ).as_quat()
+        expected = np.concatenate(
+            [np.array([1.0, 2.0, 3.0], dtype=np.float64), expected_quat]
+        )
+        assert np.allclose(transformed_data, expected)
 
 
 class TestJointVelocitiesDataImportConfig:

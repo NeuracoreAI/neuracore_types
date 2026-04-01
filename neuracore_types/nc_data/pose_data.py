@@ -12,11 +12,20 @@ from pydantic import (
     model_validator,
 )
 
-from neuracore_types.importer.config import AngleConfig, PoseConfig, RotationConfig
+from neuracore_types.importer.config import (
+    AngleConfig,
+    EulerOrderConfig,
+    PoseConfig,
+    QuaternionOrderConfig,
+    RotationConfig,
+)
 from neuracore_types.importer.transform import (
+    AlignActionReferenceFrame,
     DataTransform,
     DataTransformSequence,
     Pose,
+    ScaleOrientation,
+    ScalePosition,
 )
 from neuracore_types.nc_data.nc_data import (
     DataItemStats,
@@ -125,11 +134,13 @@ class PoseDataImportConfig(NCDataImportConfig):
                         "'position_orientation'"
                     )
                 # Determine sequence
-                seq: str = "xyzw"
+                seq: QuaternionOrderConfig | EulerOrderConfig = (
+                    QuaternionOrderConfig.XYZW
+                )
                 if self.format.orientation.type == RotationConfig.QUATERNION:
-                    seq = self.format.orientation.quaternion_order.value
+                    seq = self.format.orientation.quaternion_order
                 elif self.format.orientation.type == RotationConfig.EULER:
-                    seq = self.format.orientation.euler_order.value
+                    seq = self.format.orientation.euler_order
 
                 item_transforms.append(
                     Pose(
@@ -137,6 +148,19 @@ class PoseDataImportConfig(NCDataImportConfig):
                         rotation_type=RotationConfig(self.format.orientation.type),
                         angle_type=AngleConfig(self.format.orientation.angle_units),
                         seq=seq,
+                    )
+                )
+
+            item_transforms.append(ScalePosition(factor=self.format.scale_position))
+            item_transforms.append(
+                ScaleOrientation(factor=self.format.scale_orientation)
+            )
+            if self.format.orientation is not None:
+                item_transforms.append(
+                    AlignActionReferenceFrame(
+                        roll=self.format.orientation.align_frame_roll,
+                        pitch=self.format.orientation.align_frame_pitch,
+                        yaw=self.format.orientation.align_frame_yaw,
                     )
                 )
             item.transforms = DataTransformSequence(transforms=item_transforms)
