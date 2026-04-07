@@ -8,9 +8,17 @@ from neuracore_types.preprocessing import (
 )
 
 
-def test_preprocessing_method_custom_callable_requires_custom_name():
+def test_preprocessing_method_custom_callable_requires_custom_prefix():
     with pytest.raises(ValidationError, match="custom_callable is only allowed"):
         PreProcessingMethod(name="resize_pad", custom_callable="test.path.to.function")
+
+
+def test_preprocessing_method_custom_callable_allows_custom_prefix_name():
+    method = PreProcessingMethod(
+        name="custom_rgb_normalizer",
+        custom_callable="test.path.to.function",
+    )
+    assert method.name == "custom_rgb_normalizer"
 
 
 def test_preprocessing_configuration_slot_keys_string_are_converted_to_int():

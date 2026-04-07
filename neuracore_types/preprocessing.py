@@ -35,13 +35,13 @@ class PreProcessingMethod(BaseModel):
     Attributes:
         name: Identifier of the preprocessing operation. For built-in methods
             this should match a known registry key (e.g. "resize_pad").
-            The special value "custom" can be used together with
+            Names starting with "custom" can be used together with
             ``custom_callable`` to point to user-defined functions.
         phase: When this method should be applied. Defaults to both train and
             inference.
         args: Keyword arguments passed to the underlying implementation.
         custom_callable: Optional dotted path to a user-defined preprocessing
-            function. Only valid when ``name == "custom"``.
+            function. Only valid when ``name`` starts with ``"custom"``.
     """
 
     name: str = Field(..., description="Identifier of the preprocessing op.")
@@ -62,10 +62,10 @@ class PreProcessingMethod(BaseModel):
 
     @model_validator(mode="after")
     def _validate_custom_callable(self) -> PreProcessingMethod:
-        """Ensure custom_callable is only used with name='custom'."""
-        if self.custom_callable is not None and self.name != "custom":
+        """Ensure custom_callable is only used with custom-prefixed names."""
+        if self.custom_callable is not None and not self.name.startswith("custom"):
             raise ValueError(
-                "custom_callable is only allowed when name='custom'. "
+                "custom_callable is only allowed when name starts with 'custom'. "
                 f"Got name='{self.name}'."
             )
         return self
