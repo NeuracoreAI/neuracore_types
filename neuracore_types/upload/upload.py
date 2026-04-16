@@ -326,3 +326,64 @@ class TracesMetadataRequest(BaseModel):
     """
 
     traces: dict[str, int] = {}  # trace_id -> total_bytes
+
+
+class TraceStatusUpdates(BaseModel):
+    """Represents an update status/progress of a data trace.
+
+    Attributes:
+        status: The status of the trace upload.
+        uploaded_bytes: The number of bytes uploaded.
+        total_bytes: The total number of bytes expected.
+    """
+
+    status: RecordingDataTraceStatus | None = None
+    uploaded_bytes: int | None = None
+    total_bytes: int | None = None
+
+    def stack(self, new_updates: "TraceStatusUpdates") -> "TraceStatusUpdates":
+        """Stack new updates on top of existing updates.
+
+        Args:
+            new_updates: The new updates to stack.
+
+        Returns:
+            A new TraceStatusUpdates object with the stacked updates.
+        """
+        return TraceStatusUpdates(
+            status=new_updates.status or self.status,
+            uploaded_bytes=new_updates.uploaded_bytes or self.uploaded_bytes,
+            total_bytes=new_updates.total_bytes or self.total_bytes,
+        )
+
+    def minimal_changes(self) -> dict:
+        """Returns a dictionary with only the fields that have changed.
+
+        Returns:
+            A dictionary with only the fields that have changed.
+        """
+        output: dict = {}
+
+        if self.status is not None:
+            output["status"] = self.status.value
+
+        if self.status == RecordingDataTraceStatus.UPLOAD_COMPLETE:
+            output["uploaded_at"] = datetime.now().timestamp()
+
+        if self.uploaded_bytes is not None:
+            output["uploaded_bytes"] = self.uploaded_bytes
+
+        if self.total_bytes is not None:
+            output["total_bytes"] = self.total_bytes
+
+        return output
+
+
+class BatchedUpdateTraceRequest(BaseModel):
+    """Request body for updating the status/progress of multiple data traces.
+
+    Attributes:
+        updates: A dictionary of trace_id -> TraceStatusUpdates
+    """
+
+    updates: dict[str, TraceStatusUpdates]
