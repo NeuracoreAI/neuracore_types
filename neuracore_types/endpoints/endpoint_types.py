@@ -4,6 +4,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
+from neuracore_types.episode import EmbodimentDescription
 from neuracore_types.hardware import GPUType
 from neuracore_types.utils.pydantic_to_ts import REQUIRED_WITH_DEFAULT_FLAG
 
@@ -34,6 +35,8 @@ class Endpoint(BaseModel):
         expiration_time: Timestamp when the endpoint expires (if set)
         cloud_compute_job_id: ID of the cloud compute job running this endpoint
         zone: The GCP zone where the endpoint is running
+        input_embodiment_description: Optional model input data order
+        output_embodiment_description: Optional model output data order
     """
 
     id: str
@@ -52,6 +55,8 @@ class Endpoint(BaseModel):
     error_code: int | None = None
     expiration_time: float | None = None
     cloud_compute_job_id: str | None = None
+    input_embodiment_description: EmbodimentDescription | None = None
+    output_embodiment_description: EmbodimentDescription | None = None
 
     class Config:
         """Configuration for Pydantic models."""
