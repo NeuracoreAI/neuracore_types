@@ -159,6 +159,7 @@ class TrainingJob(BaseModel):
         default=GPUType.NVIDIA_TESLA_T4, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     num_gpus: int = Field(default=1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    disk_size_gb: int = Field(default=500, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     resumed_at: float | None = None
     previous_training_time: float | None = None
     error: str | None = None
