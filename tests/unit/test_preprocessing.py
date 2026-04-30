@@ -2,32 +2,21 @@ import pytest
 from pydantic import ValidationError
 
 from neuracore_types import DataType
-from neuracore_types.preprocessing import (
-    PreProcessingConfiguration,
-    PreProcessingMethod,
-)
+from neuracore_types.preprocessing import PreProcessingConfiguration
 
 
-def test_preprocessing_method_custom_callable_requires_custom_prefix():
-    with pytest.raises(ValidationError, match="custom_callable is only allowed"):
-        PreProcessingMethod(name="resize_pad", custom_callable="test.path.to.function")
+class _DummyMethod:
+    @staticmethod
+    def allowed_data_types() -> frozenset[DataType]:
+        return frozenset({DataType.RGB_IMAGES})
 
-
-def test_preprocessing_method_custom_callable_allows_custom_prefix_name():
-    method = PreProcessingMethod(
-        name="custom_rgb_normalizer",
-        custom_callable="test.path.to.function",
-    )
-    assert method.name == "custom_rgb_normalizer"
+    def __call__(self, data):
+        return data
 
 
 def test_preprocessing_configuration_slot_keys_string_are_converted_to_int():
     config = PreProcessingConfiguration(
-        steps={
-            DataType.RGB_IMAGES: {
-                "0": [PreProcessingMethod(name="resize_pad", args={"size": [64, 64]})]
-            }
-        }
+        steps={DataType.RGB_IMAGES: {"0": [_DummyMethod()]}}
     )
 
     assert 0 in config.steps[DataType.RGB_IMAGES]
@@ -37,13 +26,7 @@ def test_preprocessing_configuration_slot_keys_string_are_converted_to_int():
 def test_preprocessing_configuration_invalid_slot_key_raises():
     with pytest.raises(ValidationError):
         PreProcessingConfiguration(
-            steps={
-                DataType.RGB_IMAGES: {
-                    "not_an_int": [
-                        PreProcessingMethod(name="resize_pad", args={"size": [64, 64]})
-                    ]
-                }
-            }
+            steps={DataType.RGB_IMAGES: {"not_an_int": [_DummyMethod()]}}
         )
 
 
@@ -56,8 +39,6 @@ def test_preprocessing_configuration_unknown_data_type_key_raises():
     with pytest.raises(ValidationError):
         PreProcessingConfiguration(
             steps={
-                "unknown_data_type": {  # type: ignore[dict-item]
-                    0: [PreProcessingMethod(name="resize_pad", args={"size": [64, 64]})]
-                }
+                "unknown_data_type": {0: [_DummyMethod()]}  # type: ignore[dict-item]
             }
         )
