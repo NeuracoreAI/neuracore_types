@@ -32,6 +32,7 @@ class TrainingJobRequest(BaseModel):
     algorithm_config: dict[str, Any]
     gpu_type: GPUType
     num_gpus: int
+    disk_size_gb: int = 500
     synchronization_details: SynchronizationDetails
     input_cross_embodiment_description: CrossEmbodimentDescription
     output_cross_embodiment_description: CrossEmbodimentDescription
@@ -66,6 +67,7 @@ class InternalStartTrainingJobRequest(BaseModel):
     algorithm_config: dict[str, Any]
     gpu_type: GPUType
     num_gpus: int
+    disk_size_gb: int = 500
     synchronization_details: SynchronizationDetails
     input_cross_embodiment_description: CrossEmbodimentDescription
     output_cross_embodiment_description: CrossEmbodimentDescription
