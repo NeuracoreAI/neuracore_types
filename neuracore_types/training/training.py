@@ -76,6 +76,14 @@ class ModelInitDescription(BaseModel):
     output_prediction_horizon: int = Field(
         default=1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
+    # Per-data-type preprocessing methods for model inputs.
+    input_preprocessing_config: dict[DataType, list[Any]] = Field(
+        default_factory=dict,
+    )
+    # Per-data-type preprocessing methods for model outputs.
+    output_preprocessing_config: dict[DataType, list[Any]] = Field(
+        default_factory=dict,
+    )
 
     model_config = ConfigDict(
         json_schema_extra=fix_required_with_defaults,
