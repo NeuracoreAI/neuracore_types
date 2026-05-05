@@ -15,7 +15,7 @@ from neuracore_types.importer.config import (
     QuaternionOrderConfig,
     RotationConfig,
 )
-from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.importer.data_config import DataFormat, PoseDataMappingItem
 from neuracore_types.nc_data.pose_data import PoseDataImportConfig
 
 
@@ -201,7 +201,9 @@ class TestPoseDataImportConfig:
         index_range = IndexRangeConfig(start=0, end=16)
         data_point = PoseDataImportConfig(
             source="pose",
-            mapping=[MappingItem(name="end_effector_pose", index_range=index_range)],
+            mapping=[
+                PoseDataMappingItem(name="end_effector_pose", index_range=index_range)
+            ],
             format=DataFormat(pose_type=PoseConfig.MATRIX),
         )
         rot_x_pi2 = R.from_euler("x", np.pi / 2).as_matrix()
@@ -227,7 +229,9 @@ class TestPoseDataImportConfig:
         )
         data_point = PoseDataImportConfig(
             source="pose",
-            mapping=[MappingItem(name="end_effector_pose", index_range=index_range)],
+            mapping=[
+                PoseDataMappingItem(name="end_effector_pose", index_range=index_range)
+            ],
             format=DataFormat(
                 pose_type=PoseConfig.POSITION_ORIENTATION,
                 orientation=orientation,
@@ -254,7 +258,9 @@ class TestPoseDataImportConfig:
         )
         data_point = PoseDataImportConfig(
             source="pose",
-            mapping=[MappingItem(name="end_effector_pose", index_range=index_range)],
+            mapping=[
+                PoseDataMappingItem(name="end_effector_pose", index_range=index_range)
+            ],
             format=DataFormat(
                 pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
             ),
@@ -276,7 +282,9 @@ class TestPoseDataImportConfig:
         )
         data_point = PoseDataImportConfig(
             source="pose",
-            mapping=[MappingItem(name="end_effector_pose", index_range=index_range)],
+            mapping=[
+                PoseDataMappingItem(name="end_effector_pose", index_range=index_range)
+            ],
             format=DataFormat(
                 pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
             ),
@@ -301,7 +309,9 @@ class TestPoseDataImportConfig:
             PoseDataImportConfig(
                 source="pose",
                 mapping=[
-                    MappingItem(name="end_effector_pose", index_range=index_range)
+                    PoseDataMappingItem(
+                        name="end_effector_pose", index_range=index_range
+                    )
                 ],
                 format=DataFormat(
                     pose_type=PoseConfig.POSITION_ORIENTATION, orientation=None
@@ -316,7 +326,7 @@ class TestPoseDataImportConfig:
         ):
             PoseDataImportConfig(
                 source="pose",
-                mapping=[MappingItem(name="end_effector_pose")],
+                mapping=[PoseDataMappingItem(name="end_effector_pose")],
                 format=DataFormat(
                     pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
                 ),
@@ -333,7 +343,9 @@ class TestPoseDataImportConfig:
             PoseDataImportConfig(
                 source="pose",
                 mapping=[
-                    MappingItem(name="end_effector_pose", index_range=index_range)
+                    PoseDataMappingItem(
+                        name="end_effector_pose", index_range=index_range
+                    )
                 ],
                 format=DataFormat(
                     pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
@@ -350,7 +362,9 @@ class TestPoseDataImportConfig:
             PoseDataImportConfig(
                 source="pose",
                 mapping=[
-                    MappingItem(name="end_effector_pose", index_range=index_range)
+                    PoseDataMappingItem(
+                        name="end_effector_pose", index_range=index_range
+                    )
                 ],
                 format=DataFormat(
                     pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
@@ -367,7 +381,57 @@ class TestPoseDataImportConfig:
             PoseDataImportConfig(
                 source="pose",
                 mapping=[
-                    MappingItem(name="end_effector_pose", index_range=index_range)
+                    PoseDataMappingItem(
+                        name="end_effector_pose", index_range=index_range
+                    )
+                ],
+                format=DataFormat(
+                    pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
+                ),
+            )
+
+    def test_pose_data_import_config_rejects_source_name_with_split_sources(self):
+        """Split source fields should not be mixed with source_name."""
+        orientation = OrientationConfig(type=RotationConfig.QUATERNION)
+        with pytest.raises(
+            ValueError,
+            match="source_name cannot be provided when "
+            "pose_position_source_name and pose_orientation_source_name are used",
+        ):
+            PoseDataImportConfig(
+                source="pose",
+                mapping=[
+                    PoseDataMappingItem(
+                        name="end_effector_pose",
+                        source_name="pose",
+                        pose_position_source_name="pose_pos",
+                        pose_orientation_source_name="pose_ori",
+                        index_range=IndexRangeConfig(start=0, end=7),
+                    )
+                ],
+                format=DataFormat(
+                    pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
+                ),
+            )
+
+    def test_pose_data_import_config_rejects_index_range_with_split_ranges(self):
+        """Split index ranges should not be mixed with index_range."""
+        orientation = OrientationConfig(type=RotationConfig.QUATERNION)
+        with pytest.raises(
+            ValueError,
+            match="index_range cannot be provided when "
+            "pose_position_index_range and "
+            "pose_orientation_index_range are used",
+        ):
+            PoseDataImportConfig(
+                source="pose",
+                mapping=[
+                    PoseDataMappingItem(
+                        name="end_effector_pose",
+                        index_range=IndexRangeConfig(start=0, end=7),
+                        pose_position_index_range=IndexRangeConfig(start=0, end=3),
+                        pose_orientation_index_range=IndexRangeConfig(start=0, end=4),
+                    )
                 ],
                 format=DataFormat(
                     pose_type=PoseConfig.POSITION_ORIENTATION, orientation=orientation
