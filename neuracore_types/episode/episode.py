@@ -17,7 +17,9 @@ from neuracore_types.utils.pydantic_to_ts import (
 
 EmbodimentDescription = dict[DataType, dict[int, str]]
 CrossEmbodimentDescription = dict[str, EmbodimentDescription]
-CrossEmbodimentUnion = dict[str, dict[DataType, list[str]]]
+
+EmbodimentUnion = dict[DataType, list[str]]
+CrossEmbodimentUnion = dict[str, EmbodimentUnion]
 
 NAME_MAX_LENGTH = 60
 NOTES_MAX_LENGTH = 1000
