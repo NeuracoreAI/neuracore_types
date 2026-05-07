@@ -90,6 +90,15 @@ class PointCloudDataMappingItem(MappingItem):
     )
 
 
+class PoseDataMappingItem(MappingItem):
+    """Mapping item for pose data streams, with optional calibration sources."""
+
+    pose_position_source_name: str | None = None
+    pose_orientation_source_name: str | None = None
+    pose_position_index_range: IndexRangeConfig | None = None
+    pose_orientation_index_range: IndexRangeConfig | None = None
+
+
 class DataFormat(BaseModel):
     """Per datatype format specifications.
 
