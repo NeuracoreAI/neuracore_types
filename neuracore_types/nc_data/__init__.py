@@ -138,6 +138,7 @@ class DataType(str, Enum):
     # Other
     POSES = "POSES"
     LANGUAGE = "LANGUAGE"
+    SUBTASK_LANGUAGE = "SUBTASK_LANGUAGE"
     CUSTOM_1D = "CUSTOM_1D"
 
 
@@ -155,6 +156,7 @@ DATA_TYPE_TO_NC_DATA_CLASS: dict[DataType, type[NCData]] = {
     DataType.POINT_CLOUDS: PointCloudData,
     DataType.POSES: PoseData,
     DataType.LANGUAGE: LanguageData,
+    DataType.SUBTASK_LANGUAGE: LanguageData,
     DataType.CUSTOM_1D: Custom1DData,
 }
 
@@ -174,6 +176,7 @@ DATA_TYPE_TO_NC_DATA_IMPORT_CONFIG_CLASS: dict[DataType, type[NCDataImportConfig
     DataType.POINT_CLOUDS: PointCloudDataImportConfig,
     DataType.POSES: PoseDataImportConfig,
     DataType.LANGUAGE: LanguageDataImportConfig,
+    DataType.SUBTASK_LANGUAGE: LanguageDataImportConfig,
     DataType.CUSTOM_1D: Custom1DDataImportConfig,
 }
 DATA_TYPE_CONTENT_MAPPING: dict[DataType, str] = {
@@ -190,6 +193,7 @@ DATA_TYPE_CONTENT_MAPPING: dict[DataType, str] = {
     DataType.POINT_CLOUDS: "JSON",
     DataType.POSES: "JSON",
     DataType.LANGUAGE: "JSON",
+    DataType.SUBTASK_LANGUAGE: "JSON",
     DataType.CUSTOM_1D: "JSON",
 }
 
