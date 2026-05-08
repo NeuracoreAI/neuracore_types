@@ -54,5 +54,6 @@ DATA_TYPE_TO_BATCHED_NC_DATA_CLASS: dict[DataType, type[BatchedNCData]] = {
     DataType.POINT_CLOUDS: BatchedPointCloudData,
     DataType.POSES: BatchedPoseData,
     DataType.LANGUAGE: BatchedLanguageData,
+    DataType.SUBTASK_LANGUAGE: BatchedLanguageData,
     DataType.CUSTOM_1D: BatchedCustom1DData,
 }
