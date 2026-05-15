@@ -3,10 +3,10 @@
 import time
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Union
+from typing import Annotated, Optional, Union
 
 from names_generator import generate_name
-from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, StringConstraints
 
 from neuracore_types.nc_data import DataType, NCDataUnion
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData
@@ -202,18 +202,20 @@ class RecordingMetadata(BaseModel):
         status: Current RecordingStatus of the recording
     """
 
-    name: str = Field(
+    name: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True, max_length=NAME_MAX_LENGTH, min_length=1
+        ),
+    ] = Field(
         default_factory=lambda: generate_name(style="capital"),
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
-        max_length=NAME_MAX_LENGTH,
-        strip_whitespace=True,
-        min_length=1,
     )
-    notes: str = Field(
+    notes: Annotated[
+        str, StringConstraints(strip_whitespace=True, max_length=NOTES_MAX_LENGTH)
+    ] = Field(
         default="",
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
-        max_length=NOTES_MAX_LENGTH,
-        strip_whitespace=True,
     )
     status: RecordingStatus = Field(
         default=RecordingStatus.NORMAL, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG

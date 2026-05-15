@@ -2,7 +2,7 @@
 
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from neuracore_types.episode import EmbodimentDescription
 from neuracore_types.hardware import GPUType
@@ -58,7 +58,4 @@ class Endpoint(BaseModel):
     input_embodiment_description: EmbodimentDescription | None = None
     output_embodiment_description: EmbodimentDescription | None = None
 
-    class Config:
-        """Configuration for Pydantic models."""
-
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
