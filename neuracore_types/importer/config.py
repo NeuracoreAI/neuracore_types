@@ -5,6 +5,8 @@ of the input data.
 
 """
 
+# cspell:ignore MCAP
+
 from enum import Enum
 
 from pydantic import BaseModel, Field, model_validator
@@ -188,6 +190,55 @@ class DistanceUnitsConfig(str, Enum):
     MM = "MM"
 
 
+class Frame(str, Enum):
+    """Which frame a constant SE(3) transform X composes in.
+
+    WORLD: pre-multiply, T' = X @ T -- re-express the pose in a new
+        reference/world frame (e.g. dataset poses recorded in a world frame
+        rotated/translated from the robot's base frame).
+    TOOL: post-multiply, T' = T @ X -- apply a fixed offset in the body's own
+        (tool) frame (e.g. the dataset's tool identity is offset from the URDF
+        link's identity; bridge: gripper-down vs gripper-forward).
+
+    A conjugation X @ T @ X^-1 (re-expressing an action *delta* in another
+    frame) is expressed as a WORLD entry followed by a TOOL entry holding the
+    inverse transform.
+    """
+
+    WORLD = "WORLD"
+    TOOL = "TOOL"
+
+
+class RollPitchYaw(BaseModel):
+    """Euler angles in radians: roll about X, pitch about Y, yaw about Z."""
+
+    roll: float = 0.0
+    pitch: float = 0.0
+    yaw: float = 0.0
+
+
+class XYZ(BaseModel):
+    """Cartesian translation in metres."""
+
+    x: float = 0.0
+    y: float = 0.0
+    z: float = 0.0
+
+
+class FrameTransformConfig(BaseModel):
+    """A constant SE(3) transform applied to a pose.
+
+    `rotation` is XYZ-euler (roll about X, pitch about Y, yaw about Z) in
+    radians and `translation` is (x, y, z); together they form the homogeneous
+    transform X = [R | t]. `frame` selects how X composes with the pose
+    (see Frame).
+    """
+
+    frame: Frame
+    rotation: RollPitchYaw = Field(default_factory=RollPitchYaw)
+    translation: XYZ = Field(default_factory=XYZ)
+
+
 class OrientationConfig(BaseModel):
     """Configuration for orientation of poses."""
 
@@ -195,9 +246,15 @@ class OrientationConfig(BaseModel):
     quaternion_order: QuaternionOrderConfig = QuaternionOrderConfig.XYZW
     euler_order: EulerOrderConfig = EulerOrderConfig.XYZ
     angle_units: AngleConfig = AngleConfig.RADIANS
-    align_frame_roll: float = 0.0
-    align_frame_pitch: float = 0.0
-    align_frame_yaw: float = 0.0
+    # When EULER, interpret euler_order as extrinsic (fixed-axis) rotations,
+    # matching the ROS tf default (static-axis xyz). Default False preserves
+    # the historical intrinsic interpretation; opt in for datasets that
+    # recorded orientation via ROS tf or any other extrinsic convention.
+    extrinsic_euler: bool = False
+    # Constant SE(3) transforms applied to the pose after conversion, composed
+    # in list order. Each entry chooses WORLD (pre-multiply, X @ T) or BODY
+    # (post-multiply, T @ X); see FrameTransformConfig and Frame.
+    frame_transforms: list[FrameTransformConfig] = Field(default_factory=list)
 
 
 class IntrinsicsConfig(str, Enum):

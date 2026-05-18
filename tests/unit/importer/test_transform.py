@@ -5,15 +5,20 @@ import pytest
 from scipy.spatial.transform import Rotation as R
 
 from neuracore_types.importer.config import (
+    XYZ,
     AngleConfig,
     EulerOrderConfig,
+    Frame,
+    FrameTransformConfig,
     ImageChannelOrderConfig,
     ImageConventionConfig,
     PoseConfig,
     QuaternionOrderConfig,
+    RollPitchYaw,
     RotationConfig,
 )
 from neuracore_types.importer.transform import (
+    ApplyFrameTransform,
     CastToNumpyDtype,
     Clip,
     DataTransformSequence,
@@ -104,6 +109,190 @@ class TestRotation:
         # Zero euler should give quaternion [0, 0, 0, 1]
         expected = np.array([0.0, 0.0, 0.0, 1.0])
         np.testing.assert_array_almost_equal(result, expected)
+
+    def test_apply_frame_transform_body_rotation_only(self):
+        """BODY: T' = T @ X (post-multiply).
+
+        For an identity input orientation a body rotation rotates the
+        orientation about its local axes and leaves position unchanged. Used
+        when the dataset's tool identity is rotated from the URDF link's
+        identity (e.g. bridge: gripper-down vs gripper-forward).
+        """
+        pose = np.array([0.3, 0.05, 0.07, 0.0, 0.0, 0.0, 1.0])
+        transform = ApplyFrameTransform(
+            transforms=[
+                FrameTransformConfig(
+                    frame=Frame.TOOL,
+                    rotation=RollPitchYaw(pitch=np.pi / 2),
+                )
+            ]
+        )
+        out = transform(pose)
+        np.testing.assert_array_almost_equal(out[:3], pose[:3])
+        np.testing.assert_array_almost_equal(
+            out[3:7], R.from_euler("y", np.pi / 2).as_quat()
+        )
+
+    def test_apply_frame_transform_world_rotation_pre_multiplies(self):
+        """WORLD: T' = X @ T (pre-multiply) -- re-base into a rotated frame."""
+        pose = np.array([0.3, 0.05, 0.07, 0.0, 0.0, 0.0, 1.0])
+        transform = ApplyFrameTransform(
+            transforms=[
+                FrameTransformConfig(
+                    frame=Frame.WORLD,
+                    rotation=RollPitchYaw(pitch=np.pi / 2),
+                )
+            ]
+        )
+        out = transform(pose)
+        # R_y(pi/2) @ [0.3, 0.05, 0.07] = [0.07, 0.05, -0.3]
+        np.testing.assert_array_almost_equal(out[:3], [0.07, 0.05, -0.3])
+        np.testing.assert_array_almost_equal(
+            out[3:7], R.from_euler("y", np.pi / 2).as_quat()
+        )
+
+    def test_apply_frame_transform_world_then_body_is_conjugation(self):
+        """WORLD(X) + BODY(X^-1) reproduces a conjugation X @ T @ X^-1.
+
+        This is how the former FRAME mode (re-framing an action delta) is now
+        expressed, and must hold for a fully general pose and rotation.
+        """
+        pose = np.array([0.3, 0.05, 0.07, 0.1, 0.2, 0.3, 0.9])
+        pose[3:7] /= np.linalg.norm(pose[3:7])
+        rpy = [0.4, -0.6, 1.1]
+        X = np.eye(4)
+        X[:3, :3] = R.from_euler("xyz", rpy).as_matrix()
+        T = np.eye(4)
+        T[:3, 3] = pose[:3]
+        T[:3, :3] = R.from_quat(pose[3:7]).as_matrix()
+        expected = X @ T @ np.linalg.inv(X)
+        inv_rpy = list(R.from_euler("xyz", rpy).inv().as_euler("xyz"))
+        transform = ApplyFrameTransform(
+            transforms=[
+                FrameTransformConfig(
+                    frame=Frame.WORLD,
+                    rotation=RollPitchYaw(roll=rpy[0], pitch=rpy[1], yaw=rpy[2]),
+                ),
+                FrameTransformConfig(
+                    frame=Frame.TOOL,
+                    rotation=RollPitchYaw(
+                        roll=inv_rpy[0], pitch=inv_rpy[1], yaw=inv_rpy[2]
+                    ),
+                ),
+            ]
+        )
+        out = transform(pose)
+        np.testing.assert_array_almost_equal(out[:3], expected[:3, 3])
+        np.testing.assert_array_almost_equal(
+            out[3:7], R.from_matrix(expected[:3, :3]).as_quat()
+        )
+
+    def test_apply_frame_transform_body_translation_in_tool_frame(self):
+        """BODY translation offsets position along the body's own axes."""
+        # Pose rotated +90 deg about z; a +x body offset moves +y in the world.
+        quat = R.from_euler("z", np.pi / 2).as_quat()
+        pose = np.concatenate([[1.0, 2.0, 3.0], quat])
+        transform = ApplyFrameTransform(
+            transforms=[FrameTransformConfig(frame=Frame.TOOL, translation=XYZ(x=0.5))]
+        )
+        out = transform(pose)
+        np.testing.assert_array_almost_equal(out[:3], [1.0, 2.5, 3.0])
+        np.testing.assert_array_almost_equal(out[3:7], quat)
+
+    def test_apply_frame_transform_world_translation_in_reference_frame(self):
+        """WORLD translation offsets position along the reference-frame axes."""
+        pose = np.array([1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0])
+        transform = ApplyFrameTransform(
+            transforms=[FrameTransformConfig(frame=Frame.WORLD, translation=XYZ(x=0.5))]
+        )
+        out = transform(pose)
+        np.testing.assert_array_almost_equal(out[:3], [1.5, 2.0, 3.0])
+        np.testing.assert_array_almost_equal(out[3:7], pose[3:7])
+
+    def test_apply_frame_transform_empty_is_identity(self):
+        """An empty transform list leaves the pose unchanged."""
+        pose = np.array([1.0, 2.0, 3.0, 0.1, 0.2, 0.3, 0.9])
+        pose[3:7] /= np.linalg.norm(pose[3:7])
+        out = ApplyFrameTransform(transforms=[])(pose)
+        np.testing.assert_array_almost_equal(out[:3], pose[:3])
+        # Compare as matrices to stay invariant to quaternion sign.
+        np.testing.assert_array_almost_equal(
+            R.from_quat(out[3:7]).as_matrix(), R.from_quat(pose[3:7]).as_matrix()
+        )
+
+    def test_apply_frame_transform_world_full_se3(self):
+        """WORLD with rotation AND translation: T' = X @ T, X = [R | t]."""
+        pose = np.array([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+        transform = ApplyFrameTransform(
+            transforms=[
+                FrameTransformConfig(
+                    frame=Frame.WORLD,
+                    rotation=RollPitchYaw(yaw=np.pi / 2),
+                    translation=XYZ(x=1.0, y=2.0, z=3.0),
+                )
+            ]
+        )
+        out = transform(pose)
+        # R_z(90) @ [1,0,0] + [1,2,3] = [0,1,0] + [1,2,3] = [1,3,3].
+        np.testing.assert_array_almost_equal(out[:3], [1.0, 3.0, 3.0])
+        np.testing.assert_array_almost_equal(
+            out[3:7], R.from_euler("z", np.pi / 2).as_quat()
+        )
+
+    def test_apply_frame_transform_body_full_se3(self):
+        """BODY with rotation AND translation: T' = T @ X, X = [R | t].
+
+        The body translation is expressed in the pose's own frame, so it is
+        rotated by the pose orientation before being added.
+        """
+        quat = R.from_euler("z", np.pi / 2).as_quat()
+        pose = np.concatenate([[1.0, 2.0, 3.0], quat])
+        transform = ApplyFrameTransform(
+            transforms=[
+                FrameTransformConfig(
+                    frame=Frame.TOOL,
+                    rotation=RollPitchYaw(yaw=np.pi / 2),
+                    translation=XYZ(x=1.0),
+                )
+            ]
+        )
+        out = transform(pose)
+        # pos: R_z(90) @ [1,0,0] + [1,2,3] = [1,3,3]; orient: R_z(90) @ R_z(90).
+        np.testing.assert_array_almost_equal(out[:3], [1.0, 3.0, 3.0])
+        np.testing.assert_array_almost_equal(
+            out[3:7], R.from_euler("z", np.pi).as_quat()
+        )
+
+    def test_rotation_euler_extrinsic_xyz_matches_ros_static_axes(self):
+        """extrinsic_euler=True must produce extrinsic (ROS static-axes) quaternions.
+
+        For combined rotations, intrinsic XYZ and extrinsic XYZ diverge. This
+        verifies the opt-in flag actually switches conventions.
+        """
+        euler = np.array([0.5, -0.7, 1.2])  # well outside the small-angle regime
+        intrinsic = Rotation(
+            rotation_type=RotationConfig.EULER,
+            angle_type=AngleConfig.RADIANS,
+            seq=EulerOrderConfig.XYZ,
+        )
+        extrinsic = Rotation(
+            rotation_type=RotationConfig.EULER,
+            angle_type=AngleConfig.RADIANS,
+            seq=EulerOrderConfig.XYZ,
+            extrinsic_euler=True,
+        )
+        q_int = intrinsic(euler)
+        q_ext = extrinsic(euler)
+        # Intrinsic XYZ (current default) must still equal scipy lowercase 'xyz'.
+        np.testing.assert_array_almost_equal(
+            q_int, R.from_euler("xyz", euler).as_quat()
+        )
+        # Extrinsic XYZ (opt-in) must equal scipy uppercase 'XYZ'.
+        np.testing.assert_array_almost_equal(
+            q_ext, R.from_euler("XYZ", euler).as_quat()
+        )
+        # The two conventions must actually differ for these angles.
+        assert not np.allclose(q_int, q_ext)
 
     def test_rotation_euler_degrees(self):
         """Test Rotation with euler angles in degrees."""

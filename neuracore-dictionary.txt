@@ -19,6 +19,7 @@ pytest
 distilbert
 huggingface
 newaxis
+linalg
 xyzw
 wxyz
 rotvec
