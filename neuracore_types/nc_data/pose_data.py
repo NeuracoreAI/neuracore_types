@@ -171,7 +171,7 @@ class PoseData(NCData):
 
     Represents position and orientation information for tracking objects
     or robot components in 3D space. Poses are stored as dictionaries
-    mapping pose names to [x, y, z, rx, ry, rz] values.
+    mapping pose names to [x, y, z, qx, qy, qz, qw] values.
     """
 
     model_config = ConfigDict(
