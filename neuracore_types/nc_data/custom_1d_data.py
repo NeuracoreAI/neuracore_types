@@ -18,6 +18,7 @@ from neuracore_types.nc_data.nc_data import (
     NCDataImportConfig,
     NCDataStats,
 )
+from neuracore_types.utils.numpy_array import NumpyArray
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -64,7 +65,7 @@ class Custom1DData(NCData):
     type: Literal["Custom1DData"] = Field(
         default="Custom1DData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    data: np.ndarray  # 1D array of float32
+    data: NumpyArray  # 1D array of float32
 
     @classmethod
     def sample(cls) -> "Custom1DData":

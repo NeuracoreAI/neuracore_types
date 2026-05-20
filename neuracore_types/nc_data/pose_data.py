@@ -35,6 +35,7 @@ from neuracore_types.nc_data.nc_data import (
     NCDataImportConfig,
     NCDataStats,
 )
+from neuracore_types.utils.numpy_array import NumpyArray
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -237,7 +238,7 @@ class PoseData(NCData):
     type: Literal["PoseData"] = Field(
         default="PoseData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    pose: np.ndarray
+    pose: NumpyArray
 
     @field_validator("pose")
     @classmethod
