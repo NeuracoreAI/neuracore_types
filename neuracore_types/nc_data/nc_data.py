@@ -7,6 +7,7 @@ import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.utils.numpy_array import NumpyArray
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -87,31 +88,31 @@ class DataItemStats(BaseModel):
         arbitrary_types_allowed=True, json_schema_extra=fix_required_with_defaults
     )
 
-    mean: np.ndarray = Field(
+    mean: NumpyArray = Field(
         default_factory=lambda: np.array([]),
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
-    std: np.ndarray = Field(
+    std: NumpyArray = Field(
         default_factory=lambda: np.array([]),
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
-    count: np.ndarray = Field(
+    count: NumpyArray = Field(
         default_factory=lambda: np.array([]),
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
-    min: np.ndarray = Field(
+    min: NumpyArray = Field(
         default_factory=lambda: np.array([]),
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
-    max: np.ndarray = Field(
+    max: NumpyArray = Field(
         default_factory=lambda: np.array([]),
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
-    q01: np.ndarray = Field(
+    q01: NumpyArray = Field(
         default_factory=lambda: np.array([]),
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
-    q99: np.ndarray = Field(
+    q99: NumpyArray = Field(
         default_factory=lambda: np.array([]),
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )

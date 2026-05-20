@@ -36,6 +36,7 @@ from neuracore_types.nc_data.nc_data import (
     NCDataStats,
 )
 from neuracore_types.utils.depth_utils import depth_to_rgb, rgb_to_depth
+from neuracore_types.utils.numpy_array import NumpyArray
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -133,9 +134,9 @@ class CameraData(NCData):
         default=0,  # Needed so we can index video after sync
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
-    extrinsics: Optional[np.ndarray] = None
-    intrinsics: Optional[np.ndarray] = None
-    frame: Optional[Union[np.ndarray, str]] = (
+    extrinsics: Optional[NumpyArray] = None
+    intrinsics: Optional[NumpyArray] = None
+    frame: Optional[Union[NumpyArray, str]] = (
         None  # Only filled in when using dataset iter
     )
 
