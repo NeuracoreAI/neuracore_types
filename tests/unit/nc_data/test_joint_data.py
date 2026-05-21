@@ -20,7 +20,11 @@ from neuracore_types.importer.config import (
     TorqueUnitsConfig,
     VisualJointInputTypeConfig,
 )
-from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.importer.data_config import (
+    DataFormat,
+    MappingItem,
+    PoseDataMappingItem,
+)
 from neuracore_types.importer.transform import (
     Clip,
     DegreesToRadians,
@@ -426,6 +430,53 @@ class TestJointPositionsDataImportConfig:
             [np.array([1.0, 2.0, 3.0], dtype=np.float64), expected_quat]
         )
         assert np.allclose(transformed_data, expected)
+
+    def test_joint_positions_end_effector_split_pose_sources_and_indices(self):
+        """Test IK input accepts split position/orientation source and ranges."""
+        data_point = JointPositionsDataImportConfig(
+            source="ee",
+            mapping=[
+                PoseDataMappingItem(
+                    name="joint_0",
+                    pose_position_source_name="position",
+                    pose_orientation_source_name="orientation",
+                    pose_position_index_range=IndexRangeConfig(start=0, end=3),
+                    pose_orientation_index_range=IndexRangeConfig(start=0, end=4),
+                )
+            ],
+            format=DataFormat(
+                joint_position_input_type=JointPositionInputTypeConfig.END_EFFECTOR,
+                pose_type=PoseConfig.POSITION_ORIENTATION,
+                orientation=OrientationConfig(type=RotationConfig.QUATERNION),
+            ),
+        )
+        assert data_point.mapping[0].pose_position_source_name == "position"
+        assert data_point.mapping[0].pose_orientation_source_name == "orientation"
+
+    def test_joint_positions_end_effector_rejects_index_range_with_split_ranges(self):
+        """Split index ranges should not be mixed with index_range."""
+        with pytest.raises(
+            ValueError,
+            match="index_range cannot be provided when "
+            "pose_position_index_range and "
+            "pose_orientation_index_range are used",
+        ):
+            JointPositionsDataImportConfig(
+                source="ee",
+                mapping=[
+                    PoseDataMappingItem(
+                        name="joint_0",
+                        index_range=IndexRangeConfig(start=0, end=7),
+                        pose_position_index_range=IndexRangeConfig(start=0, end=3),
+                        pose_orientation_index_range=IndexRangeConfig(start=0, end=4),
+                    )
+                ],
+                format=DataFormat(
+                    joint_position_input_type=JointPositionInputTypeConfig.END_EFFECTOR,
+                    pose_type=PoseConfig.POSITION_ORIENTATION,
+                    orientation=OrientationConfig(type=RotationConfig.QUATERNION),
+                ),
+            )
 
 
 class TestJointVelocitiesDataImportConfig:

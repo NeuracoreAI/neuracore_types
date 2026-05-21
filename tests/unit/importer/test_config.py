@@ -23,7 +23,11 @@ from neuracore_types.importer.config import (
     RotationConfig,
     TorqueUnitsConfig,
 )
-from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.importer.data_config import (
+    DataFormat,
+    MappingItem,
+    PoseDataMappingItem,
+)
 from neuracore_types.importer.transform import (
     CastToNumpyDtype,
     Clip,
@@ -33,6 +37,7 @@ from neuracore_types.importer.transform import (
 from neuracore_types.nc_data import DatasetImportConfig, DataType
 from neuracore_types.nc_data.camera_data import RGBCameraDataImportConfig
 from neuracore_types.nc_data.joint_data import JointPositionsDataImportConfig
+from neuracore_types.nc_data.pose_data import PoseDataImportConfig
 
 
 class TestOutputDatasetConfig:
@@ -141,6 +146,23 @@ class TestMappingItem:
             ValueError, match="index and index_range cannot be provided together"
         ):
             MappingItem(name="pose", index=5, index_range=index_range)
+
+
+class TestPoseDataMappingItem:
+    """Tests for PoseDataMappingItem class."""
+
+    def test_pose_mapping_item_allows_split_position_and_orientation_sources(self):
+        """Split source names and ranges should be accepted."""
+        item = PoseDataMappingItem(
+            name="ee_pose",
+            source_name="state",
+            pose_position_source_name="position_stream",
+            pose_orientation_source_name="orientation_stream",
+            pose_position_index_range=IndexRangeConfig(start=0, end=3),
+            pose_orientation_index_range=IndexRangeConfig(start=0, end=4),
+        )
+        assert item.pose_position_source_name == "position_stream"
+        assert item.pose_orientation_source_name == "orientation_stream"
 
 
 class TestOrientationConfig:
@@ -428,3 +450,41 @@ class TestDatasetConfig:
         )
         assert config.data_import_config[DataType.RGB_IMAGES] == rgb_point
         assert config.data_import_config[DataType.JOINT_POSITIONS] == joint_point
+
+    def test_pose_import_config_preserves_pose_specific_mapping_fields(self, tmp_path):
+        """Pose mapping fields should be parsed as PoseDataMappingItem."""
+        config_path = tmp_path / "config.yaml"
+        config_data = {
+            "input_dataset_name": "input_dataset",
+            "output_dataset": {"name": "output_dataset"},
+            "robot": {"name": "test_robot"},
+            "data_import_config": {
+                "POSES": {
+                    "source": "observation",
+                    "format": {
+                        "pose_type": "POSITION_ORIENTATION",
+                        "orientation": {
+                            "type": "QUATERNION",
+                        },
+                    },
+                    "mapping": [{
+                        "name": "object_pose",
+                        "pose_position_source_name": "position_stream",
+                        "pose_orientation_source_name": "orientation_stream",
+                        "pose_position_index_range": {"start": 0, "end": 3},
+                        "pose_orientation_index_range": {"start": 0, "end": 4},
+                    }],
+                }
+            },
+        }
+        with config_path.open("w") as f:
+            yaml.dump(config_data, f)
+
+        config = DatasetImportConfig.from_file(config_path)
+        pose_config = config.data_import_config[DataType.POSES]
+        assert isinstance(pose_config, PoseDataImportConfig)
+        assert isinstance(pose_config.mapping[0], PoseDataMappingItem)
+        assert pose_config.mapping[0].pose_position_source_name == "position_stream"
+        assert (
+            pose_config.mapping[0].pose_orientation_source_name == "orientation_stream"
+        )

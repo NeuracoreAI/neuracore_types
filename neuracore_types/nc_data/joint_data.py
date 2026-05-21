@@ -17,7 +17,7 @@ from neuracore_types.importer.config import (
     TorqueUnitsConfig,
     VisualJointInputTypeConfig,
 )
-from neuracore_types.importer.data_config import MappingItem
+from neuracore_types.importer.data_config import MappingItem, PoseDataMappingItem
 from neuracore_types.importer.transform import (
     AlignActionReferenceFrame,
     Clip,
@@ -87,6 +87,8 @@ class JointDataStats(NCDataStats):
 class JointPositionsDataImportConfig(NCDataImportConfig):
     """Import configuration for JointPositionsData."""
 
+    mapping: list[MappingItem | PoseDataMappingItem] = Field(default_factory=list)
+
     @model_validator(mode="after")
     def validate_orientation_required(self) -> "JointPositionsDataImportConfig":
         """Validate orientation is when converting joint position type from TCP."""
@@ -135,47 +137,100 @@ class JointPositionsDataImportConfig(NCDataImportConfig):
                     "to joint positions"
                 )
 
-            if self.format.pose_type == PoseConfig.MATRIX:
-                return self
-            else:
-                if self.mapping[0].index_range is None:
-                    raise ValueError("index_range is required for pose data points")
-                index_length = (
-                    self.mapping[0].index_range.end - self.mapping[0].index_range.start
+            item = self.mapping[0]
+            has_pos_source = (
+                getattr(item, "pose_position_source_name", None) is not None
+            )
+            has_ori_source = (
+                getattr(item, "pose_orientation_source_name", None) is not None
+            )
+            if has_pos_source != has_ori_source:
+                raise ValueError(
+                    "pose_position_source_name and pose_orientation_source_name "
+                    "must be provided together"
+                )
+            if has_pos_source and item.source_name is not None:
+                raise ValueError(
+                    "source_name cannot be provided when pose_position_source_name "
+                    "and pose_orientation_source_name are used"
                 )
 
-                if self.format.pose_type == PoseConfig.MATRIX:
-                    if index_length != 16:
+            has_pos_range = getattr(item, "pose_position_index_range", None) is not None
+            has_ori_range = (
+                getattr(item, "pose_orientation_index_range", None) is not None
+            )
+            if has_pos_range != has_ori_range:
+                raise ValueError(
+                    "pose_position_index_range and pose_orientation_index_range "
+                    "must be provided together"
+                )
+            if has_pos_range and item.index_range is not None:
+                raise ValueError(
+                    "index_range cannot be provided when "
+                    "pose_position_index_range and "
+                    "pose_orientation_index_range are used"
+                )
+
+            if self.format.pose_type == PoseConfig.MATRIX:
+                return self
+            elif self.format.pose_type == PoseConfig.POSITION_ORIENTATION:
+                if self.format.orientation is None:
+                    raise ValueError(
+                        "orientation is required when pose_type is "
+                        "'position_orientation'"
+                    )
+                if self.format.orientation.type == RotationConfig.QUATERNION:
+                    expected_length = 7  # 3 position + 4 quaternion
+                elif self.format.orientation.type in [
+                    RotationConfig.EULER,
+                    RotationConfig.AXIS_ANGLE,
+                ]:  # euler or axis_angle
+                    expected_length = 6  # 3 position + 3 euler or axis_angle
+                elif self.format.orientation.type == RotationConfig.MATRIX:
+                    expected_length = 9  # 3 position + 3x3 matrix
+                else:
+                    raise ValueError(
+                        f"Unsupported orientation type: "
+                        f"{self.format.orientation.type}"
+                    )
+
+                if has_pos_range and has_ori_range:
+                    pos_range = item.pose_position_index_range
+                    ori_range = item.pose_orientation_index_range
+                    if pos_range is None or ori_range is None:
                         raise ValueError(
-                            "Index range length must be 16 for matrix format, "
-                            f"got {index_length}"
+                            "pose_position_index_range and "
+                            "pose_orientation_index_range must be "
+                            "provided together"
                         )
-                elif self.format.pose_type == PoseConfig.POSITION_ORIENTATION:
-                    if self.format.orientation is None:
+                    pos_length = pos_range.end - pos_range.start
+                    ori_length = ori_range.end - ori_range.start
+                    if pos_length != 3:
                         raise ValueError(
-                            "orientation is required when pose_type is "
-                            "'position_orientation'"
+                            "pose_position_index_range length must be 3 for "
+                            "position_orientation pose data"
                         )
-                    if self.format.orientation.type == RotationConfig.QUATERNION:
-                        expected_length = 7  # 3 position + 4 quaternion
-                    elif self.format.orientation.type in [
-                        RotationConfig.EULER,
-                        RotationConfig.AXIS_ANGLE,
-                    ]:  # euler or axis_angle
-                        expected_length = 6  # 3 position + 3 euler or axis_angle
-                    elif self.format.orientation.type == RotationConfig.MATRIX:
-                        expected_length = 9  # 3 position + 3x3 matrix
-                    else:
+                    if ori_length != expected_length - 3:
                         raise ValueError(
-                            f"Unsupported orientation type: "
-                            f"{self.format.orientation.type}"
+                            "pose_orientation_index_range length must be "
+                            f"{expected_length - 3} for orientation type "
+                            f"{self.format.orientation.type.value}"
                         )
-                    if index_length != expected_length:
-                        raise ValueError(
-                            f"Index range length must be {expected_length} for "
-                            f"orientation type {self.format.orientation.type}, "
-                            f"got {index_length}"
-                        )
+                    return self
+
+                if item.index_range is None:
+                    raise ValueError(
+                        "index_range is required for pose data points unless "
+                        "pose_position_index_range and "
+                        "pose_orientation_index_range are both provided"
+                    )
+                index_length = item.index_range.end - item.index_range.start
+                if index_length != expected_length:
+                    raise ValueError(
+                        f"Index range length must be {expected_length} for "
+                        f"orientation type {self.format.orientation.type}, "
+                        f"got {index_length}"
+                    )
         return self
 
     def _populate_transforms(self) -> None:

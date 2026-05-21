@@ -387,3 +387,33 @@ class BatchedUpdateTraceRequest(BaseModel):
     """
 
     updates: dict[str, TraceStatusUpdates]
+
+
+class RecordingStartRequest(BaseModel):
+    """Request body for starting a new recording session.
+
+    Attributes:
+        robot_id: Identifier of the robot to record.
+        instance: Instance number of the robot.
+        dataset_id: Identifier of the dataset to associate with the recording.
+        start_time: Client-side Unix timestamp captured when nc.start_recording()
+            was called.
+    """
+
+    robot_id: str
+    instance: int
+    dataset_id: str
+    start_time: float
+
+
+class RecordingStopRequest(BaseModel):
+    """Request body for stopping a recording session.
+
+    Attributes:
+        recording_id: ID of the recording to stop.
+        end_time: Client-side Unix timestamp captured when nc.stop_recording()
+            was called.
+    """
+
+    recording_id: str
+    end_time: float

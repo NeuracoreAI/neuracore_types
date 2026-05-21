@@ -6,6 +6,7 @@ import numpy as np
 from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData, NCDataStats
+from neuracore_types.utils.numpy_array import NumpyArray
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -37,7 +38,7 @@ class EndEffectorPoseData(NCData):
     type: Literal["EndEffectorPoseData"] = Field(
         default="EndEffectorPoseData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    pose: np.ndarray
+    pose: NumpyArray
 
     @field_validator("pose")
     @classmethod

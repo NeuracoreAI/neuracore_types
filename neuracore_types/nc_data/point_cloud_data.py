@@ -20,6 +20,7 @@ from neuracore_types.nc_data.nc_data import (
     NCDataImportConfig,
     NCDataStats,
 )
+from neuracore_types.utils.numpy_array import NumpyArray
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -72,10 +73,10 @@ class PointCloudData(NCData):
     type: Literal["PointCloudData"] = Field(
         default="PointCloudData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    points: Optional[np.ndarray] = None  # (N, 3) float16
-    rgb_points: Optional[np.ndarray] = None  # (N, 3) uint8
-    extrinsics: Optional[np.ndarray] = None  # (4, 4) float16
-    intrinsics: Optional[np.ndarray] = None  # (3, 3) float16
+    points: Optional[NumpyArray] = None  # (N, 3) float16
+    rgb_points: Optional[NumpyArray] = None  # (N, 3) uint8
+    extrinsics: Optional[NumpyArray] = None  # (4, 4) float16
+    intrinsics: Optional[NumpyArray] = None  # (3, 3) float16
 
     @field_validator("points", "rgb_points")
     @classmethod
