@@ -9,10 +9,13 @@ from neuracore_types import BatchedPoseData, PoseData
 from neuracore_types.importer.config import (
     AngleConfig,
     EulerOrderConfig,
+    Frame,
+    FrameTransformConfig,
     IndexRangeConfig,
     OrientationConfig,
     PoseConfig,
     QuaternionOrderConfig,
+    RollPitchYaw,
     RotationConfig,
 )
 from neuracore_types.importer.data_config import DataFormat, PoseDataMappingItem
@@ -225,7 +228,16 @@ class TestPoseDataImportConfig:
             type=RotationConfig.QUATERNION,
             quaternion_order=QuaternionOrderConfig.WXYZ,
             angle_units=AngleConfig.RADIANS,
-            align_frame_yaw=np.pi / 2,
+            frame_transforms=[
+                FrameTransformConfig(
+                    frame=Frame.WORLD,
+                    rotation=RollPitchYaw(yaw=np.pi / 2),
+                ),
+                FrameTransformConfig(
+                    frame=Frame.TOOL,
+                    rotation=RollPitchYaw(yaw=-np.pi / 2),
+                ),
+            ],
         )
         data_point = PoseDataImportConfig(
             source="pose",

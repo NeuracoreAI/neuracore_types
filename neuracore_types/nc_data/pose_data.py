@@ -22,7 +22,7 @@ from neuracore_types.importer.config import (
 )
 from neuracore_types.importer.data_config import PoseDataMappingItem
 from neuracore_types.importer.transform import (
-    AlignActionReferenceFrame,
+    ApplyFrameTransform,
     DataTransform,
     DataTransformSequence,
     Pose,
@@ -205,6 +205,7 @@ class PoseDataImportConfig(NCDataImportConfig):
                         rotation_type=RotationConfig(self.format.orientation.type),
                         angle_type=AngleConfig(self.format.orientation.angle_units),
                         seq=seq,
+                        extrinsic_euler=self.format.orientation.extrinsic_euler,
                     )
                 )
 
@@ -212,12 +213,13 @@ class PoseDataImportConfig(NCDataImportConfig):
             item_transforms.append(
                 ScaleOrientation(factor=self.format.scale_orientation)
             )
-            if self.format.orientation is not None:
+            if (
+                self.format.orientation is not None
+                and self.format.orientation.frame_transforms
+            ):
                 item_transforms.append(
-                    AlignActionReferenceFrame(
-                        roll=self.format.orientation.align_frame_roll,
-                        pitch=self.format.orientation.align_frame_pitch,
-                        yaw=self.format.orientation.align_frame_yaw,
+                    ApplyFrameTransform(
+                        transforms=self.format.orientation.frame_transforms
                     )
                 )
             item.transforms = DataTransformSequence(transforms=item_transforms)
@@ -228,7 +230,7 @@ class PoseData(NCData):
 
     Represents position and orientation information for tracking objects
     or robot components in 3D space. Poses are stored as dictionaries
-    mapping pose names to [x, y, z, rx, ry, rz] values.
+    mapping pose names to [x, y, z, qx, qy, qz, qw] values.
     """
 
     model_config = ConfigDict(

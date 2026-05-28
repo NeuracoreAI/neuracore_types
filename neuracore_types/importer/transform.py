@@ -12,6 +12,8 @@ from scipy.spatial.transform import Rotation as R
 from neuracore_types.importer.config import (
     AngleConfig,
     EulerOrderConfig,
+    Frame,
+    FrameTransformConfig,
     ImageChannelOrderConfig,
     ImageConventionConfig,
     IntrinsicsConfig,
@@ -50,6 +52,10 @@ class Rotation(DataTransform):
     rotation_type: RotationConfig = RotationConfig.QUATERNION
     angle_type: AngleConfig = AngleConfig.RADIANS
     seq: QuaternionOrderConfig | EulerOrderConfig = QuaternionOrderConfig.XYZW
+    # When True and rotation_type is EULER, treat `seq` as extrinsic (uppercase
+    # in scipy, static-axes in ROS tf). Default False preserves the historical
+    # intrinsic interpretation; flip via OrientationConfig.extrinsic_euler.
+    extrinsic_euler: bool = False
 
     @property
     def degrees(self) -> bool:
@@ -68,9 +74,12 @@ class Rotation(DataTransform):
         elif self.rotation_type == RotationConfig.MATRIX:
             return R.from_matrix(values).as_quat()
         elif self.rotation_type == RotationConfig.EULER:
-            return R.from_euler(
-                self.seq.value.lower(), values, degrees=self.degrees
-            ).as_quat()
+            seq_str = (
+                self.seq.value.upper()
+                if self.extrinsic_euler
+                else self.seq.value.lower()
+            )
+            return R.from_euler(seq_str, values, degrees=self.degrees).as_quat()
         elif self.rotation_type == RotationConfig.AXIS_ANGLE:
             return R.from_rotvec(values, degrees=self.degrees).as_quat()
         else:
@@ -84,6 +93,8 @@ class Pose(DataTransform):
     rotation_type: RotationConfig = RotationConfig.QUATERNION
     angle_type: AngleConfig = AngleConfig.RADIANS
     seq: QuaternionOrderConfig | EulerOrderConfig = QuaternionOrderConfig.XYZW
+    # Forwarded to the internal Rotation transform; see Rotation.extrinsic_euler.
+    extrinsic_euler: bool = False
 
     def model_post_init(self, __context: object) -> None:
         """Initialize rotation_transform after model initialization."""
@@ -95,6 +106,7 @@ class Pose(DataTransform):
                     rotation_type=self.rotation_type,
                     angle_type=self.angle_type,
                     seq=self.seq,
+                    extrinsic_euler=self.extrinsic_euler,
                 ),
             )
         elif self.pose_type == PoseConfig.MATRIX:
@@ -152,32 +164,47 @@ class ScaleOrientation(DataTransform):
         return pose
 
 
-class AlignActionReferenceFrame(DataTransform):
-    """Re-express an action pose in a rotated reference frame.
+class ApplyFrameTransform(DataTransform):
+    """Apply a sequence of constant SE(3) transforms to a pose.
 
-    The provided roll, pitch, and yaw define an offset rotation between the
-    source and target action frames. The pose is transformed as
-    ``T' = R_offset @ T @ R_offset.T`` where ``T`` is the input SE(3) pose.
+    Each entry is a ``FrameTransformConfig`` holding a rotation
+    (roll, pitch, yaw in radians, XYZ euler) and a translation (x, y, z) that
+    together form ``X = [R | t]``. ``frame`` selects how ``X`` composes with
+    the running pose ``T``:
+
+    * ``WORLD`` -- pre-multiply, ``T' = X @ T``. Re-express the pose in a new
+      reference/world frame.
+    * ``TOOL`` -- post-multiply, ``T' = T @ X``. Apply a fixed offset in the
+      body's own (tool) frame.
+
+    Transforms compose in list order, so a conjugation ``X @ T @ X^-1``
+    (re-expressing an action *delta* in another frame) is a ``WORLD`` entry
+    followed by a ``TOOL`` entry holding the inverse transform.
     """
 
-    roll: float = 0.0
-    pitch: float = 0.0
-    yaw: float = 0.0
+    transforms: list[FrameTransformConfig] = Field(default_factory=list)
+
+    @staticmethod
+    def _to_matrix(transform: FrameTransformConfig) -> np.ndarray:
+        """Build a 4x4 homogeneous matrix from a FrameTransformConfig."""
+        r, t = transform.rotation, transform.translation
+        X = np.eye(4)
+        X[:3, :3] = R.from_euler("xyz", [r.roll, r.pitch, r.yaw]).as_matrix()
+        X[:3, 3] = [t.x, t.y, t.z]
+        return X
 
     def __call__(self, pose: np.ndarray) -> np.ndarray:
-        """Align pose translation and orientation to the target action frame.
-
-        Expected input pose format is ``[x, y, z, qx, qy, qz, qw]``.
-        """
-        pose_T = np.eye(4)
-        pose_T[:3, 3] = pose[:3]
-        pose_T[:3, :3] = R.from_quat(pose[3:7]).as_matrix()
-        offset_T = np.eye(4)
-        offset_T[:3, :3] = R.from_euler(
-            "xyz", [self.roll, self.pitch, self.yaw]
-        ).as_matrix()
-        pose_T = offset_T @ pose_T @ offset_T.T
-        return np.concatenate([pose_T[:3, 3], R.from_matrix(pose_T[:3, :3]).as_quat()])
+        """Apply the transforms. Pose format: [x, y, z, qx, qy, qz, qw]."""
+        T = np.eye(4)
+        T[:3, 3] = pose[:3]
+        T[:3, :3] = R.from_quat(pose[3:7]).as_matrix()
+        for transform in self.transforms:
+            X = self._to_matrix(transform)
+            if transform.frame == Frame.WORLD:
+                T = X @ T
+            else:  # TOOL
+                T = T @ X
+        return np.concatenate([T[:3, 3], R.from_matrix(T[:3, :3]).as_quat()])
 
 
 class ImageFormat(DataTransform):

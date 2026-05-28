@@ -19,7 +19,7 @@ from neuracore_types.importer.config import (
 )
 from neuracore_types.importer.data_config import MappingItem, PoseDataMappingItem
 from neuracore_types.importer.transform import (
-    AlignActionReferenceFrame,
+    ApplyFrameTransform,
     Clip,
     DataTransform,
     DataTransformSequence,
@@ -267,18 +267,20 @@ class JointPositionsDataImportConfig(NCDataImportConfig):
                             rotation_type=RotationConfig(self.format.orientation.type),
                             angle_type=AngleConfig(self.format.orientation.angle_units),
                             seq=seq,
+                            extrinsic_euler=self.format.orientation.extrinsic_euler,
                         )
                     )
                 item_transforms.append(ScalePosition(factor=self.format.scale_position))
                 item_transforms.append(
                     ScaleOrientation(factor=self.format.scale_orientation)
                 )
-                if self.format.orientation is not None:
+                if (
+                    self.format.orientation is not None
+                    and self.format.orientation.frame_transforms
+                ):
                     item_transforms.append(
-                        AlignActionReferenceFrame(
-                            roll=self.format.orientation.align_frame_roll,
-                            pitch=self.format.orientation.align_frame_pitch,
-                            yaw=self.format.orientation.align_frame_yaw,
+                        ApplyFrameTransform(
+                            transforms=self.format.orientation.frame_transforms
                         )
                     )
                 item.transforms = DataTransformSequence(transforms=item_transforms)
