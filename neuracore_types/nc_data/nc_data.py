@@ -1,7 +1,7 @@
 """Base classes for Neuracore data types."""
 
 import time
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
@@ -133,90 +133,88 @@ class DataItemStats(BaseModel):
         )
 
     @classmethod
-    def _decode_field(
-        cls, v: Union[list, np.ndarray], dtype: Any
-    ) -> Optional[np.ndarray]:
+    def _decode_field(cls, v: list | np.ndarray, dtype: Any) -> np.ndarray | None:
         """Decode field to NumPy array with specified dtype."""
         return np.array(v, dtype=dtype) if isinstance(v, list) else v
 
     @staticmethod
-    def _serialize_field(v: Optional[np.ndarray]) -> Optional[list]:
+    def _serialize_field(v: np.ndarray | None) -> list | None:
         """Serialize NumPy array to list."""
         return v.tolist() if v is not None else None
 
     @field_validator("mean", mode="before")
     @classmethod
-    def decode_mean(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_mean(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode mean field to NumPy array."""
         return cls._decode_field(v, np.float32)
 
     @field_serializer("mean", when_used="json")
-    def serialize_mean(self, v: Optional[np.ndarray]) -> Optional[list]:
+    def serialize_mean(self, v: np.ndarray | None) -> list | None:
         """Serialize mean field to JSON list."""
         return self._serialize_field(v)
 
     @field_validator("std", mode="before")
     @classmethod
-    def decode_std(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_std(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode std field to NumPy array."""
         return cls._decode_field(v, np.float32)
 
     @field_serializer("std", when_used="json")
-    def serialize_std(self, v: Optional[np.ndarray]) -> Optional[list]:
+    def serialize_std(self, v: np.ndarray | None) -> list | None:
         """Serialize std field to JSON list."""
         return self._serialize_field(v)
 
     @field_validator("count", mode="before")
     @classmethod
-    def decode_count(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_count(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode count field to NumPy array."""
         return cls._decode_field(v, np.int64)
 
     @field_serializer("count", when_used="json")
-    def serialize_count(self, v: Optional[np.ndarray]) -> Optional[list]:
+    def serialize_count(self, v: np.ndarray | None) -> list | None:
         """Serialize count field to JSON list."""
         return self._serialize_field(v)
 
     @field_validator("min", mode="before")
     @classmethod
-    def decode_min(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_min(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode min field to NumPy array."""
         return cls._decode_field(v, np.float32)
 
     @field_serializer("min", when_used="json")
-    def serialize_min(self, v: Optional[np.ndarray]) -> Optional[list]:
+    def serialize_min(self, v: np.ndarray | None) -> list | None:
         """Serialize min field to JSON list."""
         return self._serialize_field(v)
 
     @field_validator("max", mode="before")
     @classmethod
-    def decode_max(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_max(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode max field to NumPy array."""
         return cls._decode_field(v, np.float32)
 
     @field_serializer("max", when_used="json")
-    def serialize_max(self, v: Optional[np.ndarray]) -> Optional[list]:
+    def serialize_max(self, v: np.ndarray | None) -> list | None:
         """Serialize max field to JSON list."""
         return self._serialize_field(v)
 
     @field_validator("q01", mode="before")
     @classmethod
-    def decode_q01(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_q01(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode q01 field to NumPy array."""
         return cls._decode_field(v, np.float32)
 
     @field_serializer("q01", when_used="json")
-    def serialize_q01(self, v: Optional[np.ndarray]) -> Optional[list]:
+    def serialize_q01(self, v: np.ndarray | None) -> list | None:
         """Serialize q01 field to JSON list."""
         return self._serialize_field(v)
 
     @field_validator("q99", mode="before")
     @classmethod
-    def decode_q99(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_q99(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode q99 field to NumPy array."""
         return cls._decode_field(v, np.float32)
 
     @field_serializer("q99", when_used="json")
-    def serialize_q99(self, v: Optional[np.ndarray]) -> Optional[list]:
+    def serialize_q99(self, v: np.ndarray | None) -> list | None:
         """Serialize q99 field to JSON list."""
         return self._serialize_field(v)

@@ -7,7 +7,7 @@ name = "neuracore-types"
 version = "8.0.0"
 description = "Shared type definitions for Neuracore."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
     {name = "Neuracore"}
@@ -29,8 +29,8 @@ dev = [
     "pytest"
 ]
 ml = [
-    "torch",
-    "transformers",
+    "torch==2.10.0",
+    "transformers==4.53.2",
     "huggingface-hub"
 ]
 
@@ -39,8 +39,8 @@ packages = ["neuracore_types"]
 
 [tool.black]
 line-length = 88
-target-version = ['py39']
+target-version = ['py310']
 
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py310"

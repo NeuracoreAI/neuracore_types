@@ -2,7 +2,7 @@
 
 import base64
 from io import BytesIO
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 from PIL import Image
@@ -134,11 +134,9 @@ class CameraData(NCData):
         default=0,  # Needed so we can index video after sync
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
-    extrinsics: Optional[NumpyArray] = None
-    intrinsics: Optional[NumpyArray] = None
-    frame: Optional[Union[NumpyArray, str]] = (
-        None  # Only filled in when using dataset iter
-    )
+    extrinsics: NumpyArray | None = None
+    intrinsics: NumpyArray | None = None
+    frame: NumpyArray | str | None = None  # Only filled in when using dataset iter
 
     def calculate_statistics(self) -> CameraDataStats:
         """Calculate the statistics for this data type.
@@ -203,7 +201,7 @@ class CameraData(NCData):
 
     @field_validator("frame", mode="before")
     @classmethod
-    def decode_frame(cls, v: Union[str, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_frame(cls, v: str | np.ndarray) -> np.ndarray | None:
         """Decode base64 string to NumPy array if needed.
 
         Args:
@@ -216,7 +214,7 @@ class CameraData(NCData):
 
     @field_validator("extrinsics", mode="before")
     @classmethod
-    def decode_extrinsics(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_extrinsics(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode extrinsics to NumPy array.
 
         Args:
@@ -229,7 +227,7 @@ class CameraData(NCData):
 
     @field_validator("intrinsics", mode="before")
     @classmethod
-    def decode_intrinsics(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_intrinsics(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode intrinsics to NumPy array.
 
         Args:
@@ -242,7 +240,7 @@ class CameraData(NCData):
 
     # --- Serializers (encode on dump) ---
     @field_serializer("frame", when_used="json")
-    def serialize_frame(self, v: Optional[np.ndarray]) -> Optional[str]:
+    def serialize_frame(self, v: np.ndarray | None) -> str | None:
         """Encode NumPy array to base64 string if needed.
 
         Args:
@@ -254,7 +252,7 @@ class CameraData(NCData):
         return self._encode_image(v) if v is not None else None
 
     @field_serializer("extrinsics", when_used="json")
-    def serialize_extrinsics(self, v: Optional[np.ndarray]) -> Optional[list]:
+    def serialize_extrinsics(self, v: np.ndarray | None) -> list | None:
         """Encode NumPy array to JSON list.
 
         Args:
@@ -266,7 +264,7 @@ class CameraData(NCData):
         return v.tolist() if v is not None else None
 
     @field_serializer("intrinsics", when_used="json")
-    def serialize_intrinsics(self, v: Optional[np.ndarray]) -> Optional[list]:
+    def serialize_intrinsics(self, v: np.ndarray | None) -> list | None:
         """Encode NumPy array to JSON list.
 
         Args:

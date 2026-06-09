@@ -1,7 +1,7 @@
 """3D point cloud data with optional RGB colouring and camera parameters."""
 
 import base64
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 
 import numpy as np
 from pydantic import ConfigDict, Field, field_serializer, field_validator
@@ -73,14 +73,14 @@ class PointCloudData(NCData):
     type: Literal["PointCloudData"] = Field(
         default="PointCloudData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    points: Optional[NumpyArray] = None  # (N, 3) float16
-    rgb_points: Optional[NumpyArray] = None  # (N, 3) uint8
-    extrinsics: Optional[NumpyArray] = None  # (4, 4) float16
-    intrinsics: Optional[NumpyArray] = None  # (3, 3) float16
+    points: NumpyArray | None = None  # (N, 3) float16
+    rgb_points: NumpyArray | None = None  # (N, 3) uint8
+    extrinsics: NumpyArray | None = None  # (4, 4) float16
+    intrinsics: NumpyArray | None = None  # (3, 3) float16
 
     @field_validator("points", "rgb_points")
     @classmethod
-    def validate_points(cls, v: Optional[np.ndarray]) -> Optional[np.ndarray]:
+    def validate_points(cls, v: np.ndarray | None) -> np.ndarray | None:
         """Validate that points have correct shape."""
         if v is not None and len(v) == 0:
             raise ValueError("Points array cannot be empty.")
@@ -103,7 +103,7 @@ class PointCloudData(NCData):
 
     @staticmethod
     def _compute_stats(
-        data: Optional[np.ndarray], default_shape: tuple[int, ...]
+        data: np.ndarray | None, default_shape: tuple[int, ...]
     ) -> DataItemStats:
         """Compute statistics for a data array."""
         if data is None:
@@ -144,7 +144,7 @@ class PointCloudData(NCData):
     # Validators for point data (base64)
     @field_validator("points", mode="before")
     @classmethod
-    def decode_points(cls, v: Union[str, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_points(cls, v: str | np.ndarray) -> np.ndarray | None:
         """Decode points to NumPy array."""
         if isinstance(v, str):
             return np.frombuffer(
@@ -154,7 +154,7 @@ class PointCloudData(NCData):
 
     @field_validator("rgb_points", mode="before")
     @classmethod
-    def decode_rgb_points(cls, v: Union[str, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_rgb_points(cls, v: str | np.ndarray) -> np.ndarray | None:
         """Decode rgb_points to NumPy array."""
         if isinstance(v, str):
             return np.frombuffer(
@@ -165,26 +165,26 @@ class PointCloudData(NCData):
     # Validators for camera matrices (tolist)
     @field_validator("extrinsics", mode="before")
     @classmethod
-    def decode_extrinsics(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_extrinsics(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode extrinsics to NumPy array."""
         return np.array(v, dtype=np.float16) if isinstance(v, list) else v
 
     @field_validator("intrinsics", mode="before")
     @classmethod
-    def decode_intrinsics(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_intrinsics(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode intrinsics to NumPy array."""
         return np.array(v, dtype=np.float16) if isinstance(v, list) else v
 
     # Serializers for point data (base64)
     @field_serializer("points", when_used="json")
-    def serialize_points(self, v: Optional[np.ndarray]) -> Optional[str]:
+    def serialize_points(self, v: np.ndarray | None) -> str | None:
         """Serialize points to base64 string."""
         if v is not None:
             return base64.b64encode(v.astype(np.float16).tobytes()).decode("utf-8")
         return None
 
     @field_serializer("rgb_points", when_used="json")
-    def serialize_rgb_points(self, v: Optional[np.ndarray]) -> Optional[str]:
+    def serialize_rgb_points(self, v: np.ndarray | None) -> str | None:
         """Serialize rgb_points to base64 string."""
         if v is not None:
             return base64.b64encode(v.astype(np.uint8).tobytes()).decode("utf-8")
@@ -192,11 +192,11 @@ class PointCloudData(NCData):
 
     # Serializers for camera matrices (tolist)
     @field_serializer("extrinsics", when_used="json")
-    def serialize_extrinsics(self, v: Optional[np.ndarray]) -> Optional[list]:
+    def serialize_extrinsics(self, v: np.ndarray | None) -> list | None:
         """Serialize extrinsics to JSON list."""
         return v.tolist() if v is not None else None
 
     @field_serializer("intrinsics", when_used="json")
-    def serialize_intrinsics(self, v: Optional[np.ndarray]) -> Optional[list]:
+    def serialize_intrinsics(self, v: np.ndarray | None) -> list | None:
         """Serialize intrinsics to JSON list."""
         return v.tolist() if v is not None else None

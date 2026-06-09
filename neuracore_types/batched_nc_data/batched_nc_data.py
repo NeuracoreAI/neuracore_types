@@ -1,6 +1,7 @@
 """Base classes for Neuracore data types."""
 
-from typing import Any, Callable, Union
+from collections.abc import Callable
+from typing import Any
 
 import torch
 from pydantic import BaseModel, ConfigDict
@@ -71,12 +72,12 @@ class BatchedNCData(BaseModel):
     def _create_tensor_handlers(
         field_name: str,
     ) -> tuple[
-        Callable[[Union[dict[str, Any], torch.Tensor]], torch.Tensor],
+        Callable[[dict[str, Any] | torch.Tensor], torch.Tensor],
         Callable[[torch.Tensor], dict[str, Any]],
     ]:
         """Create validator and serializer for a torch.Tensor field."""
 
-        def validator(v: Union[dict[str, Any], torch.Tensor]) -> torch.Tensor:
+        def validator(v: dict[str, Any] | torch.Tensor) -> torch.Tensor:
             if isinstance(v, torch.Tensor):
                 return v
             elif isinstance(v, dict) and v.get("_tensor_encoded"):

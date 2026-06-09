@@ -3,7 +3,6 @@
 import time
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
 
@@ -35,7 +34,7 @@ class SynchronizedPoint(BaseModel):
         default_factory=lambda: time.time(),
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
-    robot_id: Optional[str] = None
+    robot_id: str | None = None
     data: dict[DataType, dict[str, NCDataUnion]] = Field(
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
@@ -109,7 +108,7 @@ class SynchronizedPoint(BaseModel):
             },
         )
 
-    def __getitem__(self, key: Union[DataType, str]) -> dict[str, NCData]:
+    def __getitem__(self, key: DataType | str) -> dict[str, NCData]:
         """Get item by DataType or field name."""
         # If key is a DataType enum, access the nested data dict
         if isinstance(key, DataType):
@@ -117,7 +116,7 @@ class SynchronizedPoint(BaseModel):
         # Otherwise, fall back to default Pydantic behavior for field names
         return super().__getitem__(key)
 
-    def __setitem__(self, key: Union[DataType, str], value: dict[str, NCData]) -> None:
+    def __setitem__(self, key: DataType | str, value: dict[str, NCData]) -> None:
         """Set item by DataType or field name."""
         # Same for setting
         if isinstance(key, DataType):
@@ -230,7 +229,7 @@ class Recording(BaseModel):
     """
 
     id: str
-    robot_id: Optional[str] = None
+    robot_id: str | None = None
     instance: NonNegativeInt = Field(
         default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
@@ -277,7 +276,7 @@ class PendingRecording(Recording):
         total_bytes: Total bytes expected across all traces (for progress bar)
     """
 
-    saved_dataset_id: Optional[str] = None
+    saved_dataset_id: str | None = None
     status: PendingRecordingStatus = Field(
         default=PendingRecordingStatus.STARTED,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
