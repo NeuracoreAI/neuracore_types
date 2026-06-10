@@ -1,7 +1,7 @@
 """Pose data types for 6DOF poses."""
 
 import copy
-from typing import Literal, Union
+from typing import Literal
 
 import numpy as np
 from pydantic import (
@@ -255,7 +255,7 @@ class PoseData(NCData):
 
     @field_validator("pose", mode="before")
     @classmethod
-    def decode_pose(cls, v: Union[list, np.ndarray]) -> np.ndarray:
+    def decode_pose(cls, v: list | np.ndarray) -> np.ndarray:
         """Decode pose to NumPy array."""
         return np.array(v, dtype=np.float32) if isinstance(v, list) else v
 

@@ -1,7 +1,7 @@
 """Custom 1D numerical data for specialized applications."""
 
 import copy
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 from pydantic import ConfigDict, Field, field_serializer, field_validator
@@ -78,7 +78,7 @@ class Custom1DData(NCData):
 
     @field_validator("data", mode="before")
     @classmethod
-    def decode_data(cls, v: Union[list, np.ndarray]) -> Optional[np.ndarray]:
+    def decode_data(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode data to NumPy array.
 
         Args:
@@ -89,7 +89,7 @@ class Custom1DData(NCData):
         return np.array(v, dtype=np.float32) if isinstance(v, list) else v
 
     @field_serializer("data", when_used="json")
-    def serialize_data(self, v: Optional[np.ndarray]) -> Optional[list]:
+    def serialize_data(self, v: np.ndarray | None) -> list | None:
         """Encode NumPy array to JSON list.
 
         Args:

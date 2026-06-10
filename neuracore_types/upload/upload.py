@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import NamedTuple, Optional, Union
+from typing import NamedTuple
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
@@ -267,11 +267,9 @@ class RecordingNotification(BaseModel):
     """
 
     type: RecordingNotificationType
-    payload: Union[
-        RecordingStartPayload,
-        list[RecordingStartPayload],
-        BaseRecodingUpdatePayload,
-    ]
+    payload: (
+        RecordingStartPayload | list[RecordingStartPayload] | BaseRecodingUpdatePayload
+    )
     id: str = Field(
         default_factory=lambda: uuid4().hex,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
@@ -306,7 +304,7 @@ class RecordingDataTrace(BaseModel):
         default_factory=lambda: datetime.now().timestamp(),
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
-    uploaded_at: Optional[float]
+    uploaded_at: float | None
     uploaded_bytes: int = Field(
         default=0,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,

@@ -1,6 +1,6 @@
 """3D point cloud data with optional RGB colouring and camera parameters."""
 
-from typing import Any, Literal, Optional, Union, cast
+from typing import Any, Literal, cast
 
 import torch
 from pydantic import ConfigDict, Field, field_serializer, field_validator
@@ -20,9 +20,9 @@ class BatchedPointCloudData(BatchedNCData):
         default="BatchedPointCloudData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     points: torch.Tensor  # (B, T, N, 3) float32
-    rgb_points: Optional[torch.Tensor] = None  # (B, T, N, 3) uint8
-    extrinsics: Optional[torch.Tensor] = None  # (B, T, 4, 4) float32
-    intrinsics: Optional[torch.Tensor] = None  # (B, T, 3, 3) float32
+    rgb_points: torch.Tensor | None = None  # (B, T, N, 3) uint8
+    extrinsics: torch.Tensor | None = None  # (B, T, 4, 4) float32
+    intrinsics: torch.Tensor | None = None  # (B, T, 3, 3) float32
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
@@ -46,7 +46,7 @@ class BatchedPointCloudData(BatchedNCData):
         )
 
     @field_serializer("rgb_points", when_used="json")
-    def serialize_rgb_points(self, v: torch.Tensor) -> Union[dict[str, Any], None]:
+    def serialize_rgb_points(self, v: torch.Tensor) -> dict[str, Any] | None:
         """Serialize rgb_points field to base64 string."""
         return (
             self._create_tensor_handlers("rgb_points")[1](v) if v is not None else None
@@ -61,7 +61,7 @@ class BatchedPointCloudData(BatchedNCData):
         )
 
     @field_serializer("extrinsics", when_used="json")
-    def serialize_extrinsics(self, v: torch.Tensor) -> Union[dict[str, Any], None]:
+    def serialize_extrinsics(self, v: torch.Tensor) -> dict[str, Any] | None:
         """Serialize extrinsics field to base64 string."""
         return (
             self._create_tensor_handlers("extrinsics")[1](v) if v is not None else None
@@ -76,7 +76,7 @@ class BatchedPointCloudData(BatchedNCData):
         )
 
     @field_serializer("intrinsics", when_used="json")
-    def serialize_intrinsics(self, v: torch.Tensor) -> Union[dict[str, Any], None]:
+    def serialize_intrinsics(self, v: torch.Tensor) -> dict[str, Any] | None:
         """Serialize intrinsics field to base64 string."""
         return (
             self._create_tensor_handlers("intrinsics")[1](v) if v is not None else None
