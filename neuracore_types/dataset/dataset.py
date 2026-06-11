@@ -163,3 +163,37 @@ class DatasetUpdateRequest(BaseModel):
     name: str | None = None
     description: str | None = None
     tags: list[str] | None = None
+
+
+class DatasetCloneRequest(BaseModel):
+    """Request model for cloning a dataset.
+
+    Attributes:
+        name: Name for the new cloned dataset.
+        sourceDatasetId: ID of the dataset to clone.
+        description: Optional description for the new dataset.
+        tags: Optional tags for the new dataset.
+    """
+
+    name: str
+    sourceDatasetId: str
+    description: str | None = None
+    tags: list[str] | None = None
+
+
+class DatasetSplitRequest(BaseModel):
+    """Request model for splitting recordings from a dataset into a new one.
+
+    Attributes:
+        name: Name for the new dataset.
+        sourceDatasetId: ID of the dataset to split from.
+        recordingIds: IDs of the recordings to copy into the new dataset.
+        description: Optional description for the new dataset.
+        tags: Optional tags for the new dataset.
+    """
+
+    name: str
+    sourceDatasetId: str
+    recordingIds: list[str]
+    description: str | None = None
+    tags: list[str] | None = None
