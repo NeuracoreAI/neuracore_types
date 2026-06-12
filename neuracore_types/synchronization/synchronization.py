@@ -14,7 +14,7 @@ class SynchronizationDetails(BaseModel):
 
     Attributes:
         frequency: Synchronization frequency in Hz.
-        cross_embodiment_description: Specification of robot data to include
+        cross_embodiment_union: Union of embodiment data to include
             in the synchronization.
         max_delay_s: Maximum allowable delay (in seconds) for synchronization.
         allow_duplicates: Whether to allow duplicate data points in the synchronization.
@@ -53,11 +53,13 @@ class SynchronizationDetails(BaseModel):
                         tuple(
                             sorted(
                                 (data_type, tuple(fields))
-                                for data_type, fields in data_spec.items()
+                                for data_type, fields in embodiment_union.items()
                             )
                         ),
                     )
-                    for robot_name, data_spec in self.cross_embodiment_union.items()
+                    for robot_name, embodiment_union in (
+                        self.cross_embodiment_union.items()
+                    )
                 )
             )
 
