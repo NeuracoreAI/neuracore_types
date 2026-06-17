@@ -140,6 +140,14 @@ class DataType(str, Enum):
     LANGUAGE = "LANGUAGE"
     CUSTOM_1D = "CUSTOM_1D"
 
+    def __str__(self) -> str:
+        """Return the data type value for human-readable output."""
+        return self.value
+
+    def __repr__(self) -> str:
+        """Return the data type value for readable debug output."""
+        return self.value
+
 
 DATA_TYPE_TO_NC_DATA_CLASS: dict[DataType, type[NCData]] = {
     DataType.JOINT_POSITIONS: JointData,
