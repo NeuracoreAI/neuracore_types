@@ -1,4 +1,4 @@
-"""Tests for PointCloudData and BatchedPointCloudData."""
+"""Tests for PointCloudData, wire format, and BatchedPointCloudData."""
 
 import json
 from typing import cast
@@ -7,11 +7,25 @@ import numpy as np
 import pytest
 import torch
 
-from neuracore_types import BatchedPointCloudData, PointCloudData
+from neuracore_types import BatchedPointCloudData, DataType, PointCloudData
 from neuracore_types.importer.config import DistanceUnitsConfig
 from neuracore_types.importer.data_config import DataFormat, PointCloudDataMappingItem
 from neuracore_types.importer.transform import Scale
-from neuracore_types.nc_data.point_cloud_data import PointCloudDataImportConfig
+from neuracore_types.nc_data import DATA_TYPE_CONTENT_MAPPING
+from neuracore_types.nc_data.point_cloud_data import (
+    PointCloudDataImportConfig,
+    decode_point_cloud_frame,
+    decode_point_cloud_wire_metadata,
+    encode_point_cloud_frame_parts,
+)
+
+
+def encode_wire_frame(data: PointCloudData) -> bytes:
+    header, metadata_json, points_view, rgb_view = encode_point_cloud_frame_parts(data)
+    parts: list[bytes | memoryview] = [header, metadata_json, points_view]
+    if rgb_view is not None:
+        parts.append(rgb_view)
+    return b"".join(parts)
 
 
 class TestPointCloudData:
@@ -86,6 +100,102 @@ class TestPointCloudData:
         data = PointCloudData(points=single_point)
 
         assert data.points.shape == (1, 3)
+
+
+class TestPointCloudWire:
+    """Tests for binary wire encode/decode."""
+
+    def test_roundtrip_xyz_only(self):
+        points = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=np.float16)
+        original = PointCloudData(timestamp=1.5, points=points)
+        decoded = decode_point_cloud_frame(encode_wire_frame(original))
+        np.testing.assert_array_equal(decoded.points, original.points)
+        assert decoded.timestamp == original.timestamp
+        assert decoded.rgb_points is None
+
+    def test_roundtrip_xyz_rgb_calib(self):
+        n = 100
+        points = np.random.randn(n, 3).astype(np.float16)
+        rgb = np.random.randint(0, 256, (n, 3), dtype=np.uint8)
+        extrinsics = np.eye(4, dtype=np.float16)
+        intrinsics = np.eye(3, dtype=np.float16)
+        original = PointCloudData(
+            timestamp=2.0,
+            points=points,
+            rgb_points=rgb,
+            extrinsics=extrinsics,
+            intrinsics=intrinsics,
+        )
+        decoded = decode_point_cloud_frame(encode_wire_frame(original))
+        np.testing.assert_array_equal(decoded.points, original.points)
+        np.testing.assert_array_equal(decoded.rgb_points, original.rgb_points)
+        np.testing.assert_array_equal(decoded.extrinsics, original.extrinsics)
+        np.testing.assert_array_equal(decoded.intrinsics, original.intrinsics)
+
+    def test_max_size_307200_cloud(self):
+        n = 640 * 480
+        points = np.zeros((n, 3), dtype=np.float16)
+        rgb = np.zeros((n, 3), dtype=np.uint8)
+        original = PointCloudData(timestamp=3.0, points=points, rgb_points=rgb)
+        wire = encode_wire_frame(original)
+        decoded = decode_point_cloud_frame(wire)
+        assert decoded.points.shape == (n, 3)
+        assert decoded.rgb_points is not None
+        assert decoded.rgb_points.shape == (n, 3)
+
+    def test_decode_invalid_json_metadata_rejected(self):
+        payload = json.dumps({"type": "PointCloudData", "points": "abc"}).encode()
+        with pytest.raises(ValueError, match="metadata length"):
+            decode_point_cloud_frame(payload)
+
+    def test_decode_truncated_payload(self):
+        wire = encode_wire_frame(
+            PointCloudData(
+                points=np.zeros((10, 3), dtype=np.float16),
+                timestamp=1.0,
+            )
+        )
+        with pytest.raises(ValueError):
+            decode_point_cloud_frame(wire[:-10])
+
+    def test_encode_requires_points(self):
+        with pytest.raises(ValueError, match="points are required"):
+            encode_point_cloud_frame_parts(PointCloudData(timestamp=1.0, points=None))
+
+    def test_content_mapping_marks_point_cloud_binary(self):
+        assert DATA_TYPE_CONTENT_MAPPING[DataType.POINT_CLOUDS] == "POINT_CLOUD"
+        assert DATA_TYPE_CONTENT_MAPPING[DataType.JOINT_POSITIONS] == "JSON"
+
+    def test_decode_point_cloud_wire_metadata(self):
+        points = np.array([[1.0, 2.0, 3.0]], dtype=np.float16)
+        wire = encode_wire_frame(PointCloudData(timestamp=1.5, points=points))
+        metadata, metadata_end = decode_point_cloud_wire_metadata(wire)
+        assert metadata["timestamp"] == 1.5
+        assert metadata["num_points"] == 1
+        assert metadata_end > 4
+
+    def test_trace_json_metadata_validates_like_camera_trace(self):
+        trace_json = [
+            {
+                "type": "PointCloudData",
+                "timestamp": 1.0,
+                "frame_idx": 0,
+                "offset": 0,
+                "length": 10,
+            },
+            {
+                "type": "PointCloudData",
+                "timestamp": 2.0,
+                "frame_idx": 1,
+                "offset": 10,
+                "length": 12,
+            },
+        ]
+        frames = [PointCloudData.model_validate(item) for item in trace_json]
+        assert len(frames) == 2
+        assert frames[0].frame_idx == 0
+        assert frames[0].points is None
+        assert frames[1].frame_idx == 1
 
 
 class TestBatchedPointCloudData:
