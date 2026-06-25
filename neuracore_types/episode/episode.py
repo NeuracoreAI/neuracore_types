@@ -226,6 +226,10 @@ class Recording(BaseModel):
         total_bytes: Total size of all recorded data in bytes
         is_shared: Whether the recording is shared across organizations
         data_types: Set of data types recorded (e.g., joint positions, images)
+        sensor_manifest: Sensor names recorded for each data type, captured at
+            finalize. Lets synchronization locate every trace
+            (recordings/{id}/{data_type}/{sensor}/trace.json) without listing the
+            bucket. Empty for recordings finalized before this field existed.
     """
 
     id: str
@@ -247,6 +251,9 @@ class Recording(BaseModel):
     is_shared: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     data_types: set[DataType] = Field(
         default_factory=set, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    sensor_manifest: dict[DataType, list[str]] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
