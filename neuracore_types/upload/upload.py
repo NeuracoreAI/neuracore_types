@@ -296,6 +296,10 @@ class RecordingDataTrace(BaseModel):
     id: str
     recording_id: str
     data_type: DataType
+    sensor_name: str | None = Field(
+        default=None,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
     status: RecordingDataTraceStatus = Field(
         default=RecordingDataTraceStatus.QUEUED,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
