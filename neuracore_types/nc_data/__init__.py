@@ -141,6 +141,12 @@ class DataType(str, Enum):
     CUSTOM_1D = "CUSTOM_1D"
 
 
+TARGET_OUTPUT_DATA_TYPES = frozenset({
+    DataType.JOINT_TARGET_POSITIONS,
+    DataType.PARALLEL_GRIPPER_TARGET_OPEN_AMOUNTS,
+})
+
+
 DATA_TYPE_TO_NC_DATA_CLASS: dict[DataType, type[NCData]] = {
     DataType.JOINT_POSITIONS: JointData,
     DataType.JOINT_VELOCITIES: JointData,
