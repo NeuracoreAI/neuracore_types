@@ -1,6 +1,10 @@
 """3D point cloud data with optional RGB colouring and camera parameters."""
 
+from __future__ import annotations
+
 import base64
+import json
+import struct
 from typing import Any, Literal
 
 import numpy as np
@@ -66,12 +70,17 @@ class PointCloudData(NCData):
 
     Represents 3D spatial data from depth sensors or LiDAR systems with
     optional colour information and camera calibration for registration.
+    The points and rgb_points fields are populated during dataset iteration.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     type: Literal["PointCloudData"] = Field(
         default="PointCloudData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    frame_idx: int = Field(
+        default=0,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
     points: NumpyArray | None = None  # (N, 3) float16
     rgb_points: NumpyArray | None = None  # (N, 3) uint8
@@ -92,7 +101,7 @@ class PointCloudData(NCData):
         return v
 
     @classmethod
-    def sample(cls) -> "PointCloudData":
+    def sample(cls) -> PointCloudData:
         """Sample an example PointCloudData instance."""
         return cls(
             points=np.zeros((1000, 3), dtype=np.float16),
@@ -200,3 +209,145 @@ class PointCloudData(NCData):
     def serialize_intrinsics(self, v: np.ndarray | None) -> list | None:
         """Serialize intrinsics to JSON list."""
         return v.tolist() if v is not None else None
+
+
+POINT_CLOUD_WIRE_VERSION = 1
+POINT_CLOUD_TRACE_BIN_FILENAME = "trace.bin"
+
+_METADATA_LEN_FORMAT = "<I"
+
+
+def encode_point_cloud_frame_parts(
+    data: PointCloudData,
+) -> tuple[bytes, bytes, memoryview, memoryview | None]:
+    """Encode one frame into parts suitable for zero-copy transport.
+
+    Returns:
+        Tuple of (header, metadata_json, points_view, optional rgb_view).
+    """
+    if data.points is None:
+        raise ValueError("Point cloud points are required for wire encoding")
+
+    points = np.ascontiguousarray(data.points, dtype=np.float16)
+    if points.ndim != 2 or points.shape[1] != 3:
+        raise ValueError(f"Points must have shape (N, 3), got {points.shape}")
+
+    rgb: np.ndarray | None = None
+    if data.rgb_points is not None:
+        rgb = np.ascontiguousarray(data.rgb_points, dtype=np.uint8)
+        if rgb.shape != points.shape:
+            raise ValueError(
+                "RGB points must have the same shape as points, "
+                f"got {rgb.shape} vs {points.shape}"
+            )
+
+    metadata: dict[str, Any] = {
+        "type": "PointCloudData",
+        "version": POINT_CLOUD_WIRE_VERSION,
+        "timestamp": data.timestamp,
+        "num_points": int(points.shape[0]),
+        "points_dtype": "float16",
+        "points_nbytes": int(points.nbytes),
+        "rgb_nbytes": int(rgb.nbytes) if rgb is not None else 0,
+    }
+    if data.extrinsics is not None:
+        metadata["extrinsics"] = np.asarray(data.extrinsics, dtype=np.float16).tolist()
+    if data.intrinsics is not None:
+        metadata["intrinsics"] = np.asarray(data.intrinsics, dtype=np.float16).tolist()
+
+    metadata_json = json.dumps(metadata, separators=(",", ":")).encode("utf-8")
+    header = struct.pack(_METADATA_LEN_FORMAT, len(metadata_json))
+    points_view = memoryview(points).cast("B")
+    rgb_view = memoryview(rgb).cast("B") if rgb is not None else None
+    return header, metadata_json, points_view, rgb_view
+
+
+def decode_point_cloud_wire_metadata(payload: bytes) -> tuple[dict[str, Any], int]:
+    """Parse wire metadata and return metadata dict plus end offset."""
+    if len(payload) < struct.calcsize(_METADATA_LEN_FORMAT):
+        raise ValueError("Point cloud wire payload is too short")
+
+    metadata_len = struct.unpack(_METADATA_LEN_FORMAT, payload[:4])[0]
+    metadata_start = 4
+    metadata_end = metadata_start + metadata_len
+    if metadata_len <= 0 or metadata_end > len(payload):
+        raise ValueError("Invalid point cloud wire metadata length")
+
+    try:
+        metadata = json.loads(payload[metadata_start:metadata_end].decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Invalid point cloud wire metadata JSON") from exc
+
+    if not isinstance(metadata, dict):
+        raise ValueError("Point cloud wire metadata must be a JSON object")
+
+    version = metadata.get("version")
+    if version != POINT_CLOUD_WIRE_VERSION:
+        raise ValueError(f"Unsupported point cloud wire version: {version}")
+
+    return metadata, metadata_end
+
+
+def decode_point_cloud_frame(payload: bytes) -> PointCloudData:
+    """Decode one wire frame into PointCloudData."""
+    metadata, metadata_end = decode_point_cloud_wire_metadata(payload)
+
+    num_points = metadata.get("num_points")
+    points_nbytes = metadata.get("points_nbytes")
+    rgb_nbytes = metadata.get("rgb_nbytes", 0)
+    if not isinstance(num_points, int) or num_points <= 0:
+        raise ValueError("Invalid num_points in point cloud wire metadata")
+    if not isinstance(points_nbytes, int) or points_nbytes <= 0:
+        raise ValueError("Invalid points_nbytes in point cloud wire metadata")
+    if not isinstance(rgb_nbytes, int) or rgb_nbytes < 0:
+        raise ValueError("Invalid rgb_nbytes in point cloud wire metadata")
+
+    expected_points_nbytes = num_points * 3 * np.dtype(np.float16).itemsize
+    if points_nbytes != expected_points_nbytes:
+        raise ValueError("points_nbytes does not match num_points for float16 XYZ data")
+
+    offset = metadata_end
+    points_end = offset + points_nbytes
+    if points_end > len(payload):
+        raise ValueError("Point cloud wire payload truncated for points array")
+
+    points = np.frombuffer(
+        payload[offset:points_end], dtype=np.float16, count=num_points * 3
+    ).reshape(num_points, 3)
+    offset = points_end
+
+    rgb_points = None
+    if rgb_nbytes > 0:
+        expected_rgb_nbytes = num_points * 3 * np.dtype(np.uint8).itemsize
+        if rgb_nbytes != expected_rgb_nbytes:
+            raise ValueError("rgb_nbytes does not match num_points for uint8 RGB data")
+        rgb_end = offset + rgb_nbytes
+        if rgb_end > len(payload):
+            raise ValueError("Point cloud wire payload truncated for rgb array")
+        rgb_points = np.frombuffer(
+            payload[offset:rgb_end], dtype=np.uint8, count=num_points * 3
+        ).reshape(num_points, 3)
+        offset = rgb_end
+
+    if offset != len(payload):
+        raise ValueError("Point cloud wire payload has trailing bytes")
+
+    extrinsics = None
+    if "extrinsics" in metadata and metadata["extrinsics"] is not None:
+        extrinsics = np.asarray(metadata["extrinsics"], dtype=np.float16)
+
+    intrinsics = None
+    if "intrinsics" in metadata and metadata["intrinsics"] is not None:
+        intrinsics = np.asarray(metadata["intrinsics"], dtype=np.float16)
+
+    timestamp = metadata.get("timestamp")
+    if not isinstance(timestamp, (int, float)):
+        raise ValueError("Invalid timestamp in point cloud wire metadata")
+
+    return PointCloudData(
+        timestamp=float(timestamp),
+        points=points.copy(),
+        rgb_points=rgb_points.copy() if rgb_points is not None else None,
+        extrinsics=extrinsics,
+        intrinsics=intrinsics,
+    )
