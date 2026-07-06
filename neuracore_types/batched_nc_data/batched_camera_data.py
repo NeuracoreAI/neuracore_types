@@ -160,15 +160,15 @@ class BatchedRGBData(BatchedNCData):
                 intrinsics_list.append(np.zeros((3, 3), dtype=np.float32))
 
         # Shape: (1, T, 3, H, W)
-        frame_tensor = torch.tensor(np.stack(frames), dtype=torch.float32).unsqueeze(0)
+        frame_tensor = torch.from_numpy(np.stack(frames)).to(torch.float32).unsqueeze(0)
         # Shape: (1, T, 4, 4)
-        extrinsics_tensor = torch.tensor(
-            np.stack(extrinsics_list), dtype=torch.float32
-        ).unsqueeze(0)
+        extrinsics_tensor = (
+            torch.from_numpy(np.stack(extrinsics_list)).to(torch.float32).unsqueeze(0)
+        )
         # Shape: (1, T, 3, 3)
-        intrinsics_tensor = torch.tensor(
-            np.stack(intrinsics_list), dtype=torch.float32
-        ).unsqueeze(0)
+        intrinsics_tensor = (
+            torch.from_numpy(np.stack(intrinsics_list)).to(torch.float32).unsqueeze(0)
+        )
 
         return cls(
             frame=frame_tensor,
@@ -311,15 +311,15 @@ class BatchedDepthData(BatchedNCData):
                 intrinsics_list.append(np.zeros((3, 3), dtype=np.float32))
 
         # Shape: (1, T, 1, H, W)
-        frame_tensor = torch.tensor(np.stack(frames), dtype=torch.float32).unsqueeze(0)
+        frame_tensor = torch.from_numpy(np.stack(frames)).to(torch.float32).unsqueeze(0)
         # Shape: (1, T, 4, 4)
-        extrinsics_tensor = torch.tensor(
-            np.stack(extrinsics_list), dtype=torch.float32
-        ).unsqueeze(0)
+        extrinsics_tensor = (
+            torch.from_numpy(np.stack(extrinsics_list)).to(torch.float32).unsqueeze(0)
+        )
         # Shape: (1, T, 3, 3)
-        intrinsics_tensor = torch.tensor(
-            np.stack(intrinsics_list), dtype=torch.float32
-        ).unsqueeze(0)
+        intrinsics_tensor = (
+            torch.from_numpy(np.stack(intrinsics_list)).to(torch.float32).unsqueeze(0)
+        )
 
         return cls(
             frame=frame_tensor,

@@ -217,6 +217,9 @@ class TestBatchedRGBData:
         assert batched.frame.shape == (1, 1, 3, 100, 100)
         assert batched.intrinsics.shape == (1, 1, 3, 3)
         assert batched.extrinsics.shape == (1, 1, 4, 4)
+        assert batched.frame.dtype == torch.float32
+        assert batched.intrinsics.dtype == torch.float32
+        assert batched.extrinsics.dtype == torch.float32
 
     def test_from_nc_data_list_multiple_items(self):
         """Test from_nc_data_list with multiple RGB images."""
