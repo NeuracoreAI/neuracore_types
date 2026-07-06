@@ -125,6 +125,30 @@ class TestBatchedCustom1DData:
 
         assert torch.allclose(batched.data[0, 0], torch.from_numpy(arr), rtol=1e-5)
 
+    def test_from_nc_data_list_stacks_timesteps_in_order(self):
+        """Stack a list of Custom1DData into one (1, T, D) float32 tensor in order."""
+        arrays = [np.array([i, i + 0.5, i + 1.0], dtype=np.float32) for i in range(4)]
+        custom_data_list = [Custom1DData(data=arr) for arr in arrays]
+
+        batched = BatchedCustom1DData.from_nc_data_list(custom_data_list)
+
+        assert batched.data.shape == (1, len(arrays), 3)
+        assert batched.data.dtype == torch.float32
+        for timestep, arr in enumerate(arrays):
+            assert torch.allclose(batched.data[0, timestep], torch.from_numpy(arr))
+
+    def test_from_nc_data_list_single_item_matches_from_nc_data(self):
+        """A one-item list yields the same tensor as from_nc_data."""
+        custom_data = Custom1DData(
+            data=np.array([1.5, 2.5, 3.5, 4.5], dtype=np.float32)
+        )
+
+        from_list = BatchedCustom1DData.from_nc_data_list([custom_data])
+        from_single = BatchedCustom1DData.from_nc_data(custom_data)
+
+        assert from_list.data.shape == from_single.data.shape
+        assert torch.equal(from_list.data, from_single.data)
+
     def test_can_serialize_deserialize(self):
         """Test JSON serialization and deserialization of BatchedCustom1DData."""
         batched = BatchedCustom1DData.sample(batch_size=2, time_steps=2)

@@ -130,6 +130,46 @@ class TestBatchedPointCloudData:
             batched.points[0, 0].permute(-1, -2).numpy(), points, rtol=1e-5
         )
 
+    def test_from_nc_data_list_stacks_timesteps_in_order(self):
+        """Stack PointCloudData into (1, T, 3, N) float32 points, order preserved."""
+        clouds = [
+            np.arange(6).reshape(2, 3).astype(np.float16) + offset
+            for offset in (0.0, 10.0, 20.0)
+        ]
+        pc_data_list = [PointCloudData(points=points) for points in clouds]
+
+        batched = BatchedPointCloudData.from_nc_data_list(pc_data_list)
+
+        assert batched.points.shape == (1, len(clouds), 3, 2)
+        assert batched.points.dtype == torch.float32
+        for timestep, points in enumerate(clouds):
+            stored = batched.points[0, timestep].permute(-1, -2).numpy()
+            assert np.allclose(stored, points)
+
+    def test_from_nc_data_list_preserves_rgb_points_as_uint8(self):
+        """Keep rgb_points as (1, T, 3, N) uint8 without casting to float."""
+        points = np.random.randn(4, 3).astype(np.float16)
+        rgb = np.random.randint(0, 256, (4, 3), dtype=np.uint8)
+        pc_data_list = [PointCloudData(points=points, rgb_points=rgb) for _ in range(3)]
+
+        batched = BatchedPointCloudData.from_nc_data_list(pc_data_list)
+
+        assert batched.rgb_points is not None
+        assert batched.rgb_points.dtype == torch.uint8
+        assert batched.rgb_points.shape == (1, 3, 3, 4)
+        assert np.array_equal(batched.rgb_points[0, 0].permute(-1, -2).numpy(), rgb)
+
+    def test_from_nc_data_list_single_item_matches_from_nc_data(self):
+        """A one-item list yields the same points tensor as from_nc_data."""
+        points = np.array([[1.5, 2.5, 3.5], [4.5, 5.5, 6.5]], dtype=np.float16)
+        pc_data = PointCloudData(points=points)
+
+        from_list = BatchedPointCloudData.from_nc_data_list([pc_data])
+        from_single = BatchedPointCloudData.from_nc_data(pc_data)
+
+        assert from_list.points.shape == from_single.points.shape
+        assert torch.equal(from_list.points, from_single.points)
+
     def test_can_serialize_deserialize(self):
         """Test JSON serialization and deserialization of BatchedPointCloudData."""
         batched = BatchedPointCloudData.sample(batch_size=2, time_steps=2)

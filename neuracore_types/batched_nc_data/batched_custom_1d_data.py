@@ -2,6 +2,7 @@
 
 from typing import Any, Literal, cast
 
+import numpy as np
 import torch
 from pydantic import ConfigDict, Field, field_serializer, field_validator
 
@@ -68,7 +69,9 @@ class BatchedCustom1DData(BatchedNCData):
 
         data_list = [cast(Custom1DData, nc).data for nc in nc_data_list]
         # Shape: (1, T, N)
-        data_tensor = torch.tensor(data_list, dtype=torch.float32).unsqueeze(0)
+        data_tensor = (
+            torch.from_numpy(np.stack(data_list)).to(torch.float32).unsqueeze(0)
+        )
         return cls(data=data_tensor)
 
     @classmethod

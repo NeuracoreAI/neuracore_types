@@ -161,27 +161,31 @@ class BatchedPointCloudData(BatchedNCData):
                 intrinsics_list.append(pc_data.intrinsics)
 
         # Shape: (1, T, 3, N)
-        points_tensor = torch.tensor(
-            np.stack(points_list), dtype=torch.float32
-        ).unsqueeze(0)
+        points_tensor = (
+            torch.from_numpy(np.stack(points_list)).to(torch.float32).unsqueeze(0)
+        )
 
         rgb_points_tensor = None
         if has_rgb and len(rgb_points_list) == len(nc_data_list):
-            rgb_points_tensor = torch.tensor(
-                np.stack(rgb_points_list), dtype=torch.uint8
-            ).unsqueeze(0)
+            rgb_points_tensor = (
+                torch.from_numpy(np.stack(rgb_points_list)).to(torch.uint8).unsqueeze(0)
+            )
 
         extrinsics_tensor = None
         if has_extrinsics and len(extrinsics_list) == len(nc_data_list):
-            extrinsics_tensor = torch.tensor(
-                np.stack(extrinsics_list), dtype=torch.float32
-            ).unsqueeze(0)
+            extrinsics_tensor = (
+                torch.from_numpy(np.stack(extrinsics_list))
+                .to(torch.float32)
+                .unsqueeze(0)
+            )
 
         intrinsics_tensor = None
         if has_intrinsics and len(intrinsics_list) == len(nc_data_list):
-            intrinsics_tensor = torch.tensor(
-                np.stack(intrinsics_list), dtype=torch.float32
-            ).unsqueeze(0)
+            intrinsics_tensor = (
+                torch.from_numpy(np.stack(intrinsics_list))
+                .to(torch.float32)
+                .unsqueeze(0)
+            )
 
         return cls(
             points=points_tensor,

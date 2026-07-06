@@ -98,6 +98,33 @@ class TestBatchedEndEffectorPoseData:
         for i, val in enumerate(pose):
             assert torch.isclose(batched.pose[0, 0, i], torch.tensor(val), rtol=1e-5)
 
+    def test_from_nc_data_list_stacks_timesteps_in_order(self):
+        """Stack a list of EndEffectorPoseData into one (1, T, 7) float32 tensor."""
+        poses = [
+            np.array([i, i + 1, i + 2, 0.0, 0.0, 0.0, 1.0], dtype=np.float32)
+            for i in range(4)
+        ]
+        pose_data_list = [EndEffectorPoseData(pose=pose) for pose in poses]
+
+        batched = BatchedEndEffectorPoseData.from_nc_data_list(pose_data_list)
+
+        assert batched.pose.shape == (1, len(poses), 7)
+        assert batched.pose.dtype == torch.float32
+        for timestep, pose in enumerate(poses):
+            assert torch.allclose(batched.pose[0, timestep], torch.from_numpy(pose))
+
+    def test_from_nc_data_list_single_item_matches_from_nc_data(self):
+        """A one-item list yields the same tensor as from_nc_data."""
+        pose_data = EndEffectorPoseData(
+            pose=np.array([1.5, 2.5, 3.5, 0.1, 0.2, 0.3, 0.9], dtype=np.float32)
+        )
+
+        from_list = BatchedEndEffectorPoseData.from_nc_data_list([pose_data])
+        from_single = BatchedEndEffectorPoseData.from_nc_data(pose_data)
+
+        assert from_list.pose.shape == from_single.pose.shape
+        assert torch.equal(from_list.pose, from_single.pose)
+
     def test_can_serialize_deserialize(self):
         """Test JSON serialization and deserialization of BatchedEndEffectorPoseData."""
         batched = BatchedEndEffectorPoseData.sample(batch_size=2, time_steps=2)

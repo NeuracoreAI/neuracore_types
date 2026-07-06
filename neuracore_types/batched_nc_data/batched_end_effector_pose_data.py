@@ -2,6 +2,7 @@
 
 from typing import Any, Literal, cast
 
+import numpy as np
 import torch
 from pydantic import ConfigDict, Field, field_serializer, field_validator
 
@@ -71,7 +72,7 @@ class BatchedEndEffectorPoseData(BatchedNCData):
 
         poses = [cast(EndEffectorPoseData, nc).pose for nc in nc_data_list]
         # Shape: (1, T, 7)
-        pose_tensor = torch.tensor(poses, dtype=torch.float32).unsqueeze(0)
+        pose_tensor = torch.from_numpy(np.stack(poses)).to(torch.float32).unsqueeze(0)
         return cls(pose=pose_tensor)
 
     @classmethod
