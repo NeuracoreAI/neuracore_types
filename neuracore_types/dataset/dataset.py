@@ -43,7 +43,7 @@ class SynchronizedDataset(BaseModel):
     name: str
     created_at: float
     modified_at: float
-    description: str | None
+    description: str | None = None
     num_demonstrations: int
     total_duration_seconds: float
     is_shared: bool

@@ -23,7 +23,7 @@ class SynchronizationDetails(BaseModel):
     """
 
     frequency: int
-    cross_embodiment_union: CrossEmbodimentUnion | None
+    cross_embodiment_union: CrossEmbodimentUnion | None = None
     max_delay_s: float = Field(
         default=0.1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )

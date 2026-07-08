@@ -308,7 +308,7 @@ class RecordingDataTrace(BaseModel):
         default_factory=lambda: datetime.now().timestamp(),
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
-    uploaded_at: float | None
+    uploaded_at: float | None = None
     uploaded_bytes: int = Field(
         default=0,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
