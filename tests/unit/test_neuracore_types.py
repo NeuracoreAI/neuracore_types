@@ -207,3 +207,9 @@ def test_sync_point_ordering_errors_on_missing_sensor_name():
         ),
     ):
         sync_point.order(ORDER_SCHEMA)
+
+
+def test_data_type_str_is_human_readable():
+    """DataType str should be the value; repr keeps the default enum form."""
+    assert str(DataType.RGB_IMAGES) == "RGB_IMAGES"
+    assert repr(DataType.RGB_IMAGES) == "<DataType.RGB_IMAGES: 'RGB_IMAGES'>"

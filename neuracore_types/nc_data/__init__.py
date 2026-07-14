@@ -140,6 +140,10 @@ class DataType(str, Enum):
     LANGUAGE = "LANGUAGE"
     CUSTOM_1D = "CUSTOM_1D"
 
+    def __str__(self) -> str:
+        """Return the data type value for human-readable output."""
+        return self.value
+
 
 TARGET_OUTPUT_DATA_TYPES = frozenset({
     DataType.JOINT_TARGET_POSITIONS,
