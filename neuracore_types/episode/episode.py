@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 from enum import Enum
 
+from names_generator import generate_name
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
 
 from neuracore_types.nc_data import DataType, NCDataUnion
@@ -19,6 +20,7 @@ CrossEmbodimentDescription = dict[str, EmbodimentDescription]
 EmbodimentUnion = dict[DataType, list[str]]
 CrossEmbodimentUnion = dict[str, EmbodimentUnion]
 
+NAME_MAX_LENGTH = 60
 NOTES_MAX_LENGTH = 1000
 
 
@@ -194,10 +196,18 @@ class RecordingMetadata(BaseModel):
     """Metadata details for a recording.
 
     Attributes:
+        name: Name of the recording.
         notes: Optional notes about the recording.
         status: Current RecordingStatus of the recording
     """
 
+    name: str = Field(
+        default_factory=lambda: generate_name(style="capital"),
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+        max_length=NAME_MAX_LENGTH,
+        strip_whitespace=True,
+        min_length=1,
+    )
     notes: str = Field(
         default="",
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
