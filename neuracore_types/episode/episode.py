@@ -4,7 +4,6 @@ import time
 from datetime import datetime
 from enum import Enum
 
-from names_generator import generate_name
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
 
 from neuracore_types.nc_data import DataType, NCDataUnion
@@ -13,6 +12,7 @@ from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
 )
+from neuracore_types.utils.recording_name_generator import generate_recording_name
 
 EmbodimentDescription = dict[DataType, dict[int, str]]
 CrossEmbodimentDescription = dict[str, EmbodimentDescription]
@@ -202,7 +202,7 @@ class RecordingMetadata(BaseModel):
     """
 
     name: str = Field(
-        default_factory=lambda: generate_name(style="capital"),
+        default_factory=generate_recording_name,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
         max_length=NAME_MAX_LENGTH,
         strip_whitespace=True,
