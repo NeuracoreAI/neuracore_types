@@ -31,6 +31,7 @@ rtol
 scipy
 TFDS
 timestep
+timesteps
 tobytes
 urdf
 URDF
