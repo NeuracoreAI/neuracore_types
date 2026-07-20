@@ -139,7 +139,8 @@ jobs:
               title: pr.title,
               author: pr.user.login,
               url: pr.html_url,
-              bump_type: bumpType
+              bump_type: bumpType,
+              hotfix: pr.labels.some(label => label.name === 'type:hotfix')
             });
           }
 
@@ -260,7 +261,7 @@ jobs:
           if (majorChanges.length > 0) {
             changelog += `## Major Changes\n\n`;
             majorChanges.forEach(pr => {
-              changelog += `- **${pr.title}** ([#${pr.number}](${pr.url})) by @${pr.author}\n`;
+              changelog += `- **${pr.title}** ([#${pr.number}](${pr.url})) by @${pr.author}${pr.hotfix ? ' **(hotfix)**' : ''}\n`;
             });
             changelog += '\n';
           }
@@ -268,7 +269,7 @@ jobs:
           if (minorChanges.length > 0) {
             changelog += `## Minor Changes\n\n`;
             minorChanges.forEach(pr => {
-              changelog += `- **${pr.title}** ([#${pr.number}](${pr.url})) by @${pr.author}\n`;
+              changelog += `- **${pr.title}** ([#${pr.number}](${pr.url})) by @${pr.author}${pr.hotfix ? ' **(hotfix)**' : ''}\n`;
             });
             changelog += '\n';
           }
@@ -276,7 +277,7 @@ jobs:
           if (patchChanges.length > 0) {
             changelog += `## Patch Changes\n\n`;
             patchChanges.forEach(pr => {
-              changelog += `- **${pr.title}** ([#${pr.number}](${pr.url})) by @${pr.author}\n`;
+              changelog += `- **${pr.title}** ([#${pr.number}](${pr.url})) by @${pr.author}${pr.hotfix ? ' **(hotfix)**' : ''}\n`;
             });
             changelog += '\n';
           }
@@ -284,7 +285,7 @@ jobs:
           if (miscChanges.length > 0) {
             changelog += `## Misc and Chore Changes\n\n`;
             miscChanges.forEach(pr => {
-              changelog += `- **${pr.title}** ([#${pr.number}](${pr.url})) by @${pr.author}\n`;
+              changelog += `- **${pr.title}** ([#${pr.number}](${pr.url})) by @${pr.author}${pr.hotfix ? ' **(hotfix)**' : ''}\n`;
             });
             changelog += '\n';
           }
