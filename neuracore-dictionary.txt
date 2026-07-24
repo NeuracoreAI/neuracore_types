@@ -2,10 +2,12 @@ allclose
 ascontiguousarray
 calcsize
 calib
+cnnmlp
 distilbert
 extrinsics
 fromarray
 frombuffer
+groot
 grpcio
 huggingface
 itemsize
@@ -20,6 +22,8 @@ ndarray
 neuracore
 newaxis
 numpy
+pi0
+pi05
 pydantic
 PYPI
 pyproject
