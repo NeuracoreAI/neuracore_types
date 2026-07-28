@@ -1,0 +1,75 @@
+name: Build TS types on main
+
+# Regenerates the TypeScript package and commits the compiled dist/ back to
+# main so `npm install github:NeuracoreAI/neuracore_types#main` (used by staging
+# deploys and tests) always installs an up-to-date, prebuilt package.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "neuracore_types/**/*.py"
+      - "scripts/generate_types.py"
+      - "tsconfig.json"
+      - "package.json"
+      - ".github/workflows/build-types-on-main.yaml"
+  workflow_dispatch:
+
+concurrency:
+  group: build-types-on-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      # main is branch-protected; push with an App token (as release.yaml does).
+      - name: Generate GitHub App Token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.NC_VERSION_BUMPER_APP_ID }}
+          private-key: ${{ secrets.NC_VERSION_BUMPER_PRIVATE_KEY }}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install Python dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Generate TypeScript types
+        run: python scripts/generate_types.py
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Commit rebuilt dist if changed
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add dist
+          if git diff --cached --quiet; then
+            echo "dist is up to date; nothing to commit"
+          else
+            # [skip ci] so this commit does not re-trigger the workflow.
+            git commit -m "chore: rebuild @neuracore/types dist [skip ci]"
+            git push origin HEAD:main
+          fi
