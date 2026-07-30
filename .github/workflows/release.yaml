@@ -1,5 +1,21 @@
 name: Release
-run-name: ${{ inputs.dry_run && 'Release (Dry Run)' || 'Release' }}
+run-name: >-
+  ${{ (github.event_name == 'schedule' || inputs.prerelease_only) && 'Publish main prerelease' || 'Release' }}${{ inputs.dry_run && ' (Dry Run)' || '' }}
+
+# This workflow has two independent paths:
+#
+#   Release    -> analyze PRs, bump the version, publish @latest to PyPI and npm.
+#                 workflow_dispatch with prerelease_only = false.
+#   Prerelease -> build main as-is and publish a throwaway `-main.<run>` version
+#                 under the `main` dist-tag, so staging can
+#                 `npm install @neuracore/types@main`. Runs nightly on schedule,
+#                 or on demand via workflow_dispatch with prerelease_only = true.
+#
+# Schedule triggers take no path filter, so the nightly gates itself: it only
+# publishes when main has actually moved since the build `@main` points at. A
+# manual prerelease_only run skips that check and always publishes. Scheduled runs
+# also only ever use the copy of this file on main.
+
 
 on:
   workflow_dispatch:
@@ -9,6 +25,15 @@ on:
         required: false
         type: boolean
         default: false
+      prerelease_only:
+        description: 'Just publish a fresh main dist-tag prerelease to npm (skips performing an actual release)'
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # 23:00 UTC nightly. Cron is always UTC and GitHub delays scheduled runs
+    # under load, so treat the time as approximate.
+    - cron: '45 22 * * *'
 
 permissions:
   contents: write
@@ -17,6 +42,7 @@ permissions:
 
 jobs:
   analyze-changes:
+    if: github.event_name == 'workflow_dispatch' && inputs.prerelease_only == false
     runs-on: ubuntu-latest
     outputs:
       should_release: ${{ steps.analyze.outputs.should_release }}
@@ -378,9 +404,6 @@ jobs:
         ref: main
         fetch-depth: 0
 
-    - name: Pull latest changes
-      run: git pull --tags
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -406,41 +429,97 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # version-bump has already pushed, so `ref: main` resolves the bumped commit
+    # and package.json already carries the release version.
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         ref: main
         fetch-depth: 0
 
-    - name: Pull latest changes
-      run: git pull --tags
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '24'
-        registry-url: 'https://registry.npmjs.org'
-        scope: '@neuracore'
-
-    - name: Install Python dependencies
-      run: pip install -e ".[dev]"
-
-    - name: Install Node dependencies
-      run: npm install
-
-    - name: Generate TypeScript types
-      run: python scripts/generate_types.py
-
-    - name: Build TypeScript
-      run: npm run build
+    - name: Build types package
+      uses: ./.github/actions/build-types
 
     - name: Publish to NPM
       run: npm publish
+
+
+  check-prerelease-needed:
+    if: github.event_name == 'schedule' || inputs.prerelease_only == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      # Empty when nothing is published under `main` yet. prerelease-summary diffs
+      # against this to list what the new prerelease picks up.
+      previous_head: ${{ steps.check.outputs.previous_head }}
+
+    steps:
+    # No checkout needed - this compares github.sha against the registry.
+    - name: Compare main against the published prerelease
+      id: check
+      run: |
+        set -euo pipefail
+        PUBLISHED=$(curl -sf https://registry.npmjs.org/@neuracore/types \
+          | jq -r '.versions[.["dist-tags"].main // ""].gitHead // ""') || PUBLISHED=""
+
+        echo "previous_head=$PUBLISHED" >> "$GITHUB_OUTPUT"
+
+        if [ -z "$PUBLISHED" ]; then
+          # Nothing published under `main` yet, or the registry did not answer.
+          # A redundant publish is cheaper than silently skipping a real change.
+          echo "No published prerelease to compare against - publishing."
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        elif [ "$PUBLISHED" = "$GITHUB_SHA" ]; then
+          echo "main unchanged since $PUBLISHED - nothing to publish."
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "main moved: $PUBLISHED -> $GITHUB_SHA"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi
+
+  publish-main-prerelease:
+    needs: check-prerelease-needed
+    # A manual run publishes regardless - asking for a prerelease explicitly is
+    # reason enough, e.g. to replace a bad publish.
+    if: inputs.prerelease_only == true || needs.check-prerelease-needed.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    permissions:
+      contents: read
+      id-token: write  # Required for OIDC
+    concurrency:
+      group: publish-main-prerelease
+      cancel-in-progress: false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build types package
+      uses: ./.github/actions/build-types
+
+    - name: Set prerelease version
+      id: version
+      run: |
+        BASE=$(node -p "require('./package.json').version")
+        # run_attempt is included so re-running a failed run gets a fresh
+        # version instead of colliding with an immutable published one.
+        VERSION="${BASE}-main.${{ github.run_number }}.${{ github.run_attempt }}"
+        # Only edits the runner's checkout; never committed or tagged.
+        npm version --no-git-tag-version "$VERSION"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    # --tag main leaves `latest` pointing at the last real release. The
+    # prerelease also sorts below it, so it can never satisfy a consumer's
+    # ^10.5.0 range - only an explicit @main request resolves it.
+    # prerelease-summary reports the outcome, including a failure here, so nothing is
+    # written to the step summary from this job.
+    - name: Publish prerelease to NPM
+      if: inputs.dry_run != true
+      run: npm publish --tag main
 
   create-release:
     needs: [version-bump, generate-changelog, publish-python, publish-npm]
@@ -453,9 +532,6 @@ jobs:
       with:
         ref: main
         fetch-depth: 0
-
-    - name: Pull latest changes
-      run: git pull --tags
 
     - name: Create GitHub Release
       uses: actions/github-script@v7
@@ -479,9 +555,96 @@ jobs:
 
           console.log(`Created release v${version}`);
 
+  prerelease-summary:
+    needs: [check-prerelease-needed, publish-main-prerelease]
+    if: ${{ needs.publish-main-prerelease.result != 'skipped' && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read  # compareCommits
+
+    steps:
+    - name: Generate prerelease summary
+      uses: actions/github-script@v7
+      env:
+        PUBLISH_RESULT: ${{ needs.publish-main-prerelease.result }}
+        VERSION: ${{ needs.publish-main-prerelease.outputs.version }}
+        PREVIOUS_HEAD: ${{ needs.check-prerelease-needed.outputs.previous_head }}
+        DRY_RUN: ${{ inputs.dry_run }}
+      with:
+        script: |
+          const publishResult = process.env.PUBLISH_RESULT;
+          const version = process.env.VERSION;
+          const previousHead = process.env.PREVIOUS_HEAD;
+          const isDryRun = process.env.DRY_RUN === 'true';
+
+          const MAX_COMMITS = 20;
+
+          // What this prerelease picks up: the commit the previous `main` build was
+          // published from, up to the one this run built. Uses the compare API so the
+          // job needs no checkout.
+          async function commitsSincePrevious() {
+            if (!previousHead) {
+              return 'First build under the `main` dist-tag - no previous prerelease to diff against.\n';
+            }
+
+            let commits;
+            try {
+              const { data } = await github.rest.repos.compareCommits({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                base: previousHead,
+                head: context.sha
+              });
+              commits = data.commits;
+            } catch (e) {
+              // A force-push can leave the previously published commit unreachable.
+              return `Could not diff against the previous prerelease commit \`${previousHead}\`: ${e.message}\n`;
+            }
+
+            if (commits.length === 0) {
+              return 'No new commits since the last prerelease - this republishes the same tree.\n';
+            }
+
+            // compareCommits returns oldest-first and caps at 250.
+            const shown = commits.slice(-MAX_COMMITS).reverse();
+
+            let out = `## Commits since the last prerelease (${commits.length})\n\n`;
+            for (const c of shown) {
+              const title = c.commit.message.split('\n')[0];
+              out += `- [\`${c.sha.slice(0, 7)}\`](${c.html_url}) ${title}\n`;
+            }
+            if (commits.length > shown.length) {
+              out += `\n...and ${commits.length - shown.length} earlier commits.\n`;
+            }
+            return out;
+          }
+
+          let summary = '';
+
+          // This job only runs when publish-main-prerelease did, so there is no
+          // nothing-to-do case to report here.
+          if (publishResult !== 'success') {
+            summary += '# ❌ Prerelease Failed\n\n';
+            summary += 'The prerelease build or publish did not complete - see the `publish-main-prerelease` logs.\n';
+          } else if (isDryRun) {
+            summary += '# 🔍 Prerelease Dry Run\n\n';
+            summary += `Built \`@neuracore/types@${version}\` but published nothing.\n\n`;
+            summary += await commitsSincePrevious();
+          } else {
+            summary += '# ✅ Prerelease Published\n\n';
+            summary += `\`@neuracore/types@${version}\` is now the \`main\` dist-tag. \`latest\` is untouched.\n\n`;
+            summary += '```bash\n';
+            summary += 'npm install @neuracore/types@main\n';
+            summary += '```\n\n';
+            summary += await commitsSincePrevious();
+          }
+
+          await core.summary.addRaw(summary).write();
+
+  # Summarises the release path only; see prerelease-summary for the other one.
   final-summary:
     needs: [analyze-changes, generate-changelog, version-bump, publish-python, publish-npm, create-release]
-    if: always()
+    if: ${{ needs.analyze-changes.result != 'skipped' && !cancelled() }}
     runs-on: ubuntu-latest
 
     steps:

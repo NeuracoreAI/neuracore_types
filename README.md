@@ -25,6 +25,14 @@ yarn add @neuracore/types
 pnpm add @neuracore/types
 ```
 
+To track unreleased types from `main` (used by staging deploys and tests), install
+the `main` dist-tag instead. It is republished on every push to `main` that changes
+the generated types:
+
+```bash
+npm install @neuracore/types@main
+```
+
 ## Development
 
 ### Setup

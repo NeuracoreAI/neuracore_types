@@ -10,3 +10,7 @@ Example: "This release adds support for multi-GPU training and improves streamin
 ## Summary
 
 <!-- Append your summary here -->
+
+Unreleased TypeScript types are now published to npm under the `main` dist-tag on
+every push to `main`, so consumers that need to track unreleased types can
+`npm install @neuracore/types@main` instead of installing the repo from git.
