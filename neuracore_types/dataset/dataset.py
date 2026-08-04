@@ -1,5 +1,6 @@
 """Models for datasets and synchronized datasets."""
 
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -74,22 +75,76 @@ class SynchronizationProgress(BaseModel):
     failed_recording_ids: list[str] = Field(default_factory=list)
 
 
-class SynchronizedDatasetStatistics(BaseModel):
-    """Statistics for a synchronized dataset.
+class CalculateDatasetStatisticsRequest(BaseModel):
+    """Request to start (or join) a dataset statistics calculation.
 
     Attributes:
-        synchronized_dataset_id: Unique identifier for the synced dataset.
-        cross_embodiment_description: Mapping of robot IDs to data type names.
-        dataset_statistics: Statistics for each robot and data type.
+        synchronized_dataset_id: Synchronized dataset to compute statistics over.
+        input_cross_embodiment_description: Mapping of robot IDs to the canonical
+            index of each input data item.
+        output_cross_embodiment_description: Mapping of robot IDs to the canonical
+            index of each output data item.
     """
 
     synchronized_dataset_id: str
     input_cross_embodiment_description: CrossEmbodimentDescription
     output_cross_embodiment_description: CrossEmbodimentDescription
-    dataset_statistics: dict[str, dict[DataType, list[NCDataStatsUnion]]] = Field(
-        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
-    )
-    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+
+class DatasetStatisticsJobStatus(str, Enum):
+    """Lifecycle stage of an asynchronous dataset statistics calculation."""
+
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    AGGREGATING = "AGGREGATING"
+    COMPLETE = "COMPLETE"
+    FAILED = "FAILED"
+
+
+class DatasetStatisticsJob(BaseModel):
+    """State of an asynchronous dataset statistics calculation.
+
+    Returned both when starting a job and when polling it, so a caller reads the
+    total, the progress and the completion signal from one consistent snapshot.
+
+    Attributes:
+        job_id: Identifier derived from the dataset, its recording set and both
+            cross-embodiment descriptions. Stable across repeat requests, and
+            different whenever any of those change.
+        synchronized_dataset_id: Synchronized dataset the job covers.
+        status: Current lifecycle stage.
+        num_recordings: Recordings the job must process.
+        num_completed_recordings: Recordings whose statistics are done. Reaching
+            num_recordings does not mean the result is fetchable: the aggregate
+            stage runs afterwards, so completion is read from ``status``.
+        error: Failure message when status is FAILED.
+    """
+
+    job_id: str
+    synchronized_dataset_id: str
+    status: DatasetStatisticsJobStatus
+    num_recordings: int
+    num_completed_recordings: int
+    error: str | None = None
+
+
+class SynchronizedDatasetStatistics(BaseModel):
+    """Statistics for a synchronized dataset.
+
+    Attributes:
+        synchronized_dataset_id: Unique identifier for the synced dataset.
+        input_cross_embodiment_description: Mapping of robot IDs to the canonical
+            index of each input data item.
+        output_cross_embodiment_description: Mapping of robot IDs to the canonical
+            index of each output data item.
+        dataset_statistics: Statistics for each robot and data type, keyed by
+            "input" and "output" and dense by canonical index.
+    """
+
+    synchronized_dataset_id: str
+    input_cross_embodiment_description: CrossEmbodimentDescription
+    output_cross_embodiment_description: CrossEmbodimentDescription
+    dataset_statistics: dict[str, dict[DataType, list[NCDataStatsUnion]]]
 
 
 class Dataset(BaseModel):
