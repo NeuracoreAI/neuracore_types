@@ -1,5 +1,6 @@
 """Request and response models for training jobs."""
 
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -140,6 +141,9 @@ class TrainingJob(BaseModel):
         resume_points: List of timestamps where the job can be resumed.
         input_cross_embodiment_description: List of data types for the input data.
         output_cross_embodiment_description: List of data types for the output data.
+        deleted: True if the job is marked for deletion and its resources are
+            not yet removed.
+        deleted_at: The time the job was marked for deletion, if applicable.
     """
 
     id: str
@@ -179,5 +183,9 @@ class TrainingJob(BaseModel):
         default_factory=lambda: {}, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     synchronization_details: SynchronizationDetails
+    deleted: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    deleted_at: datetime | None = Field(
+        default=None, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
