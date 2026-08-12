@@ -208,17 +208,46 @@ class AvailableRobot(BaseModel):
     instances: dict[int, AvailableRobotInstance]
 
 
-class AvailableRobotCapacityUpdate(BaseModel):
-    """Represents an update on the available capacity of all robots.
+class RobotAvailabilityEventType(str, Enum):
+    """Types of robot availability SSE payloads."""
 
-    This model is used to broadcast the current state of all available
-    robots and their instances.
+    INIT = "init"
+    UPDATE = "update"
 
-    Attributes:
-        robots: A list of all available robots and their instances.
-    """
 
+class AvailableRobotConnectionUpdate(BaseModel):
+    """Updated viewer count for a robot instance."""
+
+    robot_id: str
+    robot_instance: NonNegativeInt
+    connections: int
+
+
+class AvailableRobotCapacityInit(BaseModel):
+    """Initial robot availability state for a new SSE connection."""
+
+    type: RobotAvailabilityEventType = RobotAvailabilityEventType.INIT
     robots: list[AvailableRobot]
+
+
+class RemovedTrack(BaseModel):
+    """A robot stream track that was removed from availability."""
+
+    robot_id: str
+    robot_instance: NonNegativeInt
+    stream_id: str
+    track_id: str
+
+
+class AvailableRobotCapacityUpdate(BaseModel):
+    """Delta robot availability update for an existing SSE connection."""
+
+    type: RobotAvailabilityEventType = RobotAvailabilityEventType.UPDATE
+    tracks_added: list[RobotStreamTrack] = Field(default_factory=list)
+    tracks_removed: list[RemovedTrack] = Field(default_factory=list)
+    connection_updates: list[AvailableRobotConnectionUpdate] = Field(
+        default_factory=list
+    )
 
 
 class BaseRecodingUpdatePayload(BaseModel):
