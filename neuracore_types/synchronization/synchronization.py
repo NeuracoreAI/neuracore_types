@@ -20,6 +20,10 @@ class SynchronizationDetails(BaseModel):
         allow_duplicates: Whether to allow duplicate data points in the synchronization.
         trim_start_end: Whether to trim the start and end of the episode
             when synchronizing.
+        trim_no_movement_at_start_threshold: If set, drop synchronized frames at
+            the start of the episode while every joint position stays within
+            this threshold of its value in the first frame. None disables the
+            trimming. Only applies when joint positions are synchronized.
     """
 
     frequency: int
@@ -32,6 +36,9 @@ class SynchronizationDetails(BaseModel):
     )
     trim_start_end: bool = Field(
         default=True, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    trim_no_movement_at_start_threshold: float | None = Field(
+        default=None, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
 
     model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
@@ -69,4 +76,5 @@ class SynchronizationDetails(BaseModel):
             self.max_delay_s,
             self.allow_duplicates,
             self.trim_start_end,
+            self.trim_no_movement_at_start_threshold,
         ))
