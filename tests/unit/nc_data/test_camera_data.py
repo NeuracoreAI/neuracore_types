@@ -217,9 +217,47 @@ class TestBatchedRGBData:
         assert batched.frame.shape == (1, 1, 3, 100, 100)
         assert batched.intrinsics.shape == (1, 1, 3, 3)
         assert batched.extrinsics.shape == (1, 1, 4, 4)
-        assert batched.frame.dtype == torch.float32
+        # Frames stay uint8 until to_compute_dtype runs at the device boundary.
+        assert batched.frame.dtype == torch.uint8
         assert batched.intrinsics.dtype == torch.float32
         assert batched.extrinsics.dtype == torch.float32
+
+        # The transposed source must survive the uint8 round trip unchanged.
+        assert torch.equal(
+            batched.frame[0, 0], torch.from_numpy(frame.transpose(2, 0, 1))
+        )
+
+    def test_to_compute_dtype_widens_frames_preserving_values(self):
+        """Frames widen to float32 on demand, keeping their 0-255 values."""
+        frame = np.random.randint(0, 256, (8, 8, 3), dtype=np.uint8)
+        rgb_data = RGBCameraData(
+            frame=frame,
+            intrinsics=np.ones((3, 3), dtype=np.float32),
+            extrinsics=np.ones((4, 4), dtype=np.float32),
+        )
+        batched = BatchedRGBData.from_nc_data_list([rgb_data])
+        stored = batched.frame.clone()
+
+        batched.to_compute_dtype()
+
+        assert batched.frame.dtype == torch.float32
+        assert torch.equal(batched.frame, stored.to(torch.float32))
+
+        # Idempotent: a second call must not alter already-widened frames.
+        batched.to_compute_dtype()
+        assert batched.frame.dtype == torch.float32
+        assert torch.equal(batched.frame, stored.to(torch.float32))
+
+    def test_sample_frames_match_real_frame_dtype(self):
+        """Padding slots must collate with real frames, so dtypes must agree."""
+        real = BatchedRGBData.from_nc_data_list([
+            RGBCameraData(
+                frame=np.zeros((4, 4, 3), dtype=np.uint8),
+                intrinsics=np.ones((3, 3), dtype=np.float32),
+                extrinsics=np.ones((4, 4), dtype=np.float32),
+            )
+        ])
+        assert BatchedRGBData.sample().frame.dtype == real.frame.dtype
 
     def test_from_nc_data_list_multiple_items(self):
         """Test from_nc_data_list with multiple RGB images."""

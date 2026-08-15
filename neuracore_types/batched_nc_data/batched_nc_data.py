@@ -23,6 +23,23 @@ class BatchedNCData(BaseModel):
         }
         return self.__class__(**moved_data)
 
+    def to_compute_dtype(self) -> None:
+        """Widen storage dtypes in place to the dtypes models consume.
+
+        Some payloads are carried in a compact storage dtype from the dataset
+        worker up to the device, because that stretch is dominated by memory
+        traffic: collation, the worker-to-parent shared memory hop, page
+        pinning, and the host-to-device copy all cost in proportion to bytes.
+        Widening is deferred until the data is on the device, where it is
+        cheap and parallel.
+
+        Called by ``BatchedTrainingSamples.to`` / ``BatchedInferenceInputs.to``
+        immediately after the device transfer, so every consumer that crosses
+        the device boundary gets it. Implementations must be idempotent.
+        No-op unless a subclass has a storage dtype to widen.
+        """
+        pass
+
     @classmethod
     def from_nc_data(cls, nc_data: NCData) -> "BatchedNCData":
         """Create BatchedNCData from NCData by adding time and batch dimensions."""

@@ -22,11 +22,20 @@ class BatchedRGBData(BatchedNCData):
     type: Literal["BatchedRGBData"] = Field(
         default="BatchedRGBData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
+    # Frames stay uint8 from the dataset worker until they reach the device,
+    # where to_compute_dtype widens them to float32. That keeps collation, the
+    # worker-to-parent hop, pinning and the host-to-device copy at a quarter of
+    # the bytes. Values are 0-255 in both dtypes; only the storage changes.
     frame: torch.Tensor  # (B, T, 3, H, W) uint8
-    extrinsics: torch.Tensor  # (B, T, 4, 4) float16
-    intrinsics: torch.Tensor  # (B, T, 3, 3) float16
+    extrinsics: torch.Tensor  # (B, T, 4, 4) float32
+    intrinsics: torch.Tensor  # (B, T, 3, 3) float32
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+    def to_compute_dtype(self) -> None:
+        """Widen uint8 frames to float32, keeping the 0-255 value range."""
+        if self.frame.dtype == torch.uint8:
+            self.frame = self.frame.to(torch.float32)
 
     @field_validator("frame", mode="before")
     @classmethod
@@ -74,13 +83,14 @@ class BatchedRGBData(BatchedNCData):
         from neuracore_types.nc_data.camera_data import RGBCameraData
 
         rgb_data: RGBCameraData = cast(RGBCameraData, nc_data)
-        # Need to change from (H, W, 3) to (3, H, W)
-        frame = np.array(rgb_data.frame)
-        frame = (
-            torch.tensor(frame.transpose(2, 0, 1), dtype=torch.float32)
-            .unsqueeze(0)
-            .unsqueeze(0)
+        # Need to change from (H, W, 3) to (3, H, W). Kept as uint8 -- see the
+        # note on the frame field; to_compute_dtype widens it on the device.
+        # ascontiguousarray makes the transposed view contiguous so from_numpy
+        # can wrap it without a second copy.
+        frame_array = np.ascontiguousarray(
+            np.asarray(rgb_data.frame).transpose(2, 0, 1)
         )
+        frame = torch.from_numpy(frame_array).unsqueeze(0).unsqueeze(0)
         if rgb_data.extrinsics is not None:
             extrinsics = (
                 torch.tensor(rgb_data.extrinsics, dtype=torch.float32)
@@ -122,9 +132,18 @@ class BatchedRGBData(BatchedNCData):
             reshaped = self.frame.reshape(
                 batch_size * time_steps, channels, *self.frame.shape[-2:]
             )
+            # interpolate has no uint8 bilinear kernel, so round-trip through
+            # float. The training path uses the ResizePad preprocessing method
+            # instead, which resizes uint8 natively.
+            source_dtype = reshaped.dtype
             resized = torch.nn.functional.interpolate(
-                reshaped, size=(224, 224), mode="bilinear", align_corners=False
+                reshaped.to(torch.float32),
+                size=(224, 224),
+                mode="bilinear",
+                align_corners=False,
             )
+            if source_dtype == torch.uint8:
+                resized = resized.round_().clamp_(0, 255).to(torch.uint8)
             self.frame = resized.reshape(batch_size, time_steps, channels, 224, 224)
 
     @classmethod
@@ -146,7 +165,7 @@ class BatchedRGBData(BatchedNCData):
         for nc in nc_data_list:
             rgb_data: RGBCameraData = cast(RGBCameraData, nc)
             # (H, W, 3) -> (3, H, W)
-            frame = np.array(rgb_data.frame).transpose(2, 0, 1)
+            frame = np.asarray(rgb_data.frame).transpose(2, 0, 1)
             frames.append(frame)
 
             if rgb_data.extrinsics is not None:
@@ -159,8 +178,8 @@ class BatchedRGBData(BatchedNCData):
             else:
                 intrinsics_list.append(np.zeros((3, 3), dtype=np.float32))
 
-        # Shape: (1, T, 3, H, W)
-        frame_tensor = torch.from_numpy(np.stack(frames)).to(torch.float32).unsqueeze(0)
+        # Shape: (1, T, 3, H, W), left as uint8 -- see the note on the field.
+        frame_tensor = torch.from_numpy(np.stack(frames)).unsqueeze(0)
         # Shape: (1, T, 4, 4)
         extrinsics_tensor = (
             torch.from_numpy(np.stack(extrinsics_list)).to(torch.float32).unsqueeze(0)
@@ -188,9 +207,8 @@ class BatchedRGBData(BatchedNCData):
             BatchedRGBData: Sampled instance
         """
         return cls(
-            frame=torch.zeros(
-                (batch_size, time_steps, 3, 224, 224), dtype=torch.float32
-            ),
+            # uint8 to match real frames, so padded slots collate with them.
+            frame=torch.zeros((batch_size, time_steps, 3, 224, 224), dtype=torch.uint8),
             extrinsics=torch.zeros((batch_size, time_steps, 4, 4), dtype=torch.float32),
             intrinsics=torch.zeros((batch_size, time_steps, 3, 3), dtype=torch.float32),
         )
@@ -202,9 +220,11 @@ class BatchedDepthData(BatchedNCData):
     type: Literal["BatchedDepthData"] = Field(
         default="BatchedDepthData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    frame: torch.Tensor  # (B, T, 1, H, W) uint8
-    extrinsics: torch.Tensor  # (B, T, 4, 4) float16
-    intrinsics: torch.Tensor  # (B, T, 3, 3) float16
+    # Depth frames are metres, not 0-255, so unlike RGB they cannot be carried
+    # as uint8 -- quantising them would discard real range.
+    frame: torch.Tensor  # (B, T, 1, H, W) float32 metres
+    extrinsics: torch.Tensor  # (B, T, 4, 4) float32
+    intrinsics: torch.Tensor  # (B, T, 3, 3) float32
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
