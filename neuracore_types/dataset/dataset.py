@@ -37,6 +37,9 @@ class SynchronizedDataset(BaseModel):
         allow_duplicates: Whether duplicate data points are allowed.
         trim_start_end: Whether to trim the start and end of the episode
             when synchronizing.
+        trim_no_movement_at_start_threshold: Threshold below which leading
+            frames without joint movement were dropped, or None if the
+            dataset was synchronized without that trimming.
     """
 
     id: str
@@ -55,6 +58,7 @@ class SynchronizedDataset(BaseModel):
     max_delay_s: float
     allow_duplicates: bool
     trim_start_end: bool = True
+    trim_no_movement_at_start_threshold: float | None = None
 
 
 class SynchronizationProgress(BaseModel):
