@@ -240,6 +240,7 @@ class Recording(BaseModel):
             finalize. Lets synchronization locate every trace
             (recordings/{id}/{data_type}/{sensor}/trace.json) without listing the
             bucket. Empty for recordings finalized before this field existed.
+        deleted: Whether the recording has been deleted
     """
 
     id: str
@@ -265,7 +266,7 @@ class Recording(BaseModel):
     sensor_manifest: dict[DataType, list[str]] = Field(
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-
+    deleted: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
