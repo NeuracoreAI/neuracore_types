@@ -131,6 +131,10 @@ class TrainingJob(BaseModel):
         gpu_type: The type of GPU used for the job.
         num_gpus: The number of GPUs used for the job.
         resumed_at: The time the job was resumed, if applicable.
+        resumed_from_job_id: The ID of the job whose checkpoint this job started
+            from, if applicable.
+        resumed_from_checkpoint: The name of the checkpoint this job started
+            from, if applicable.
         previous_training_time: The time spent on the previous training, if applicable.
         error: Any error message associated with the job, if applicable.
         resume_points: List of timestamps where the job can be resumed.
@@ -161,6 +165,8 @@ class TrainingJob(BaseModel):
     num_gpus: int = Field(default=1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     disk_size_gb: int = Field(default=500, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     resumed_at: float | None = None
+    resumed_from_job_id: str | None = None
+    resumed_from_checkpoint: str | None = None
     previous_training_time: float | None = None
     error: str | None = None
     resume_points: list[float] = Field(

@@ -24,6 +24,8 @@ class TrainingJobRequest(BaseModel):
             data types to names
         output_cross_embodiment_description: The robust mapping of robot to output
             data types to names
+        resume_from_job_id: Identifier of a completed training job whose latest
+            checkpoint this job continues from. None trains from scratch.
     """
 
     dataset_id: str
@@ -36,6 +38,7 @@ class TrainingJobRequest(BaseModel):
     synchronization_details: SynchronizationDetails
     input_cross_embodiment_description: CrossEmbodimentDescription
     output_cross_embodiment_description: CrossEmbodimentDescription
+    resume_from_job_id: str | None = None
 
 
 class InternalStartTrainingJobRequest(BaseModel):
@@ -56,6 +59,10 @@ class InternalStartTrainingJobRequest(BaseModel):
             types to names
         output_cross_embodiment_description: Mapping of robot to output data
             types to names
+        resume_from_job_id: Identifier of the training job whose checkpoint this
+            job continues from, if any.
+        resume_from_checkpoint: Name of the checkpoint file to continue from,
+            resolved when the job was requested.
     """
 
     org_id: str
@@ -71,3 +78,5 @@ class InternalStartTrainingJobRequest(BaseModel):
     synchronization_details: SynchronizationDetails
     input_cross_embodiment_description: CrossEmbodimentDescription
     output_cross_embodiment_description: CrossEmbodimentDescription
+    resume_from_job_id: str | None = None
+    resume_from_checkpoint: str | None = None
