@@ -10,8 +10,3 @@ Example: "This release adds support for multi-GPU training and improves streamin
 ## Summary
 
 <!-- Append your summary here -->
-
-Training jobs now carry a `deleted` flag and a `deleted_at` time. They mark a
-job that is removed from the user view while the backend removes its cloud
-resources in the background, so bulk deletion returns immediately and the job no
-longer shows in training job lists.
