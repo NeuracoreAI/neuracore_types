@@ -54,6 +54,11 @@ class ModelInitDescription(BaseModel):
     input/output data types, and prediction horizons for model initialization
     and training configuration.
 
+    The two horizons are the model's time extents. ``input_observation_horizon``
+    is how many consecutive observations ending at the current step the model
+    sees; ``output_prediction_horizon`` is how many steps it predicts. A model
+    that only needs the current observation leaves the former at 1.
+
     Example:
         ModelInitDescription(
             input_data_types=[DataType.RGB_IMAGES, DataType.JOINT_POSITIONS],
@@ -73,6 +78,9 @@ class ModelInitDescription(BaseModel):
 
     input_dataset_statistics: dict[DataType, list[NCDataStatsUnion]]
     output_dataset_statistics: dict[DataType, list[NCDataStatsUnion]]
+    input_observation_horizon: int = Field(
+        default=1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     output_prediction_horizon: int = Field(
         default=1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
