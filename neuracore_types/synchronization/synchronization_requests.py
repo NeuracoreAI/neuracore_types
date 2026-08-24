@@ -1,5 +1,7 @@
 """Synchronization request models."""
 
+from enum import Enum
+
 from pydantic import BaseModel
 
 from neuracore_types.synchronization.synchronization import SynchronizationDetails
@@ -17,6 +19,14 @@ class SynchronizeDatasetRequest(BaseModel):
     synchronization_details: SynchronizationDetails
 
 
+class SynchronizeRecordingStatus(str, Enum):
+    """Lifecycle stage of an asynchronous recording synchronization."""
+
+    PENDING = "PENDING"
+    READY = "READY"
+    FAILED = "FAILED"
+
+
 class SynchronizeRecordingRequest(BaseModel):
     """Request model for synchronizing a recording.
 
@@ -27,3 +37,21 @@ class SynchronizeRecordingRequest(BaseModel):
 
     recording_id: str
     synchronization_details: SynchronizationDetails
+
+
+class SynchronizeRecordingStartResponse(BaseModel):
+    """Tracking information returned when recording synchronization starts."""
+
+    recording_id: str
+    synchronized_recording_id: str
+    status: SynchronizeRecordingStatus = SynchronizeRecordingStatus.PENDING
+
+
+class SynchronizeRecordingProgress(BaseModel):
+    """Current preparation state returned by the polling endpoint."""
+
+    recording_id: str
+    synchronize_recording_id: str
+    status: SynchronizeRecordingStatus
+    download_url: str | None = None
+    error: str | None = None
