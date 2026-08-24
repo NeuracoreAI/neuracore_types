@@ -190,6 +190,7 @@ class RecordingStatus(str, Enum):
 
     NORMAL = "NORMAL"
     FLAGGED = "FLAGGED"
+    QA_FLAGGED = "QA_FLAGGED"
 
 
 class RecordingMetadata(BaseModel):
