@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
 
+from neuracore_types.episode.episode import Codec
 from neuracore_types.nc_data import DataType
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
@@ -329,6 +330,7 @@ class RecordingDataTrace(BaseModel):
         default=None,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
+    encoding: Codec | None = None
     status: RecordingDataTraceStatus = Field(
         default=RecordingDataTraceStatus.QUEUED,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,

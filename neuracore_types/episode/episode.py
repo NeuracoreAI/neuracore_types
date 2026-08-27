@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, model_validator
 
 from neuracore_types.nc_data import DataType, NCDataUnion
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData
@@ -227,6 +227,22 @@ class RecordingMetadata(BaseModel):
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
+class Codec(str, Enum):
+    """Codecs available for recorded camera video.
+
+    Attributes:
+        H264_LOSSLESS: Default. Lossless archive plus a small lossy preview.
+        H264_MEDIUM: Lossy-only single libx264 CRF 23 video, used for both
+            preview and training.
+    """
+
+    H264_LOSSLESS = "h264_lossless"
+    H264_MEDIUM = "h264_medium"
+
+
+VIDEO_DATA_TYPES = (DataType.RGB_IMAGES, DataType.DEPTH_IMAGES)
+
+
 class Recording(BaseModel):
     """Represents a robot recording with flat storage.
 
@@ -247,6 +263,13 @@ class Recording(BaseModel):
             (recordings/{id}/{data_type}/{sensor}/trace.json) without listing the
             bucket. Empty for recordings finalized before this field existed.
         deleted: Whether the recording has been deleted
+        encoding: Codec used per sensor, nested under DataType, captured at
+            finalize. Sensors under the same DataType may hold different
+            codecs (e.g. after a mid-recording encoding change), so each
+            camera's value is preserved rather than collapsed into one.
+            Empty means either no camera data types or a recording
+            predating the field. Non-empty must cover every camera data
+            type present in data_types.
     """
 
     id: str
@@ -273,7 +296,35 @@ class Recording(BaseModel):
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     deleted: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    encoding: dict[DataType, dict[str, Codec]] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+    @model_validator(mode="after")
+    def _validate_encoding_data_types(self) -> "Recording":
+        """Ensure encoding only references data types present and video-capable."""
+        unknown_data_types = set(self.encoding) - self.data_types
+        if unknown_data_types:
+            raise ValueError(
+                "Recording.encoding has entries for data types not present in "
+                f"data_types: {unknown_data_types}"
+            )
+        non_video_data_types = set(self.encoding) - set(VIDEO_DATA_TYPES)
+        if non_video_data_types:
+            raise ValueError(
+                "Recording.encoding has entries for data types that are not "
+                f"video: {non_video_data_types}"
+            )
+        if self.encoding:
+            camera_data_types = self.data_types & set(VIDEO_DATA_TYPES)
+            missing = camera_data_types - set(self.encoding)
+            if missing:
+                raise ValueError(
+                    "Recording.encoding is populated but missing entries for "
+                    f"camera data types: {missing}"
+                )
+        return self
 
 
 class PendingRecordingStatus(str, Enum):
