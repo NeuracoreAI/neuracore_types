@@ -175,6 +175,8 @@ class Dataset(BaseModel):
         common_data_types: Dictionary of common data types and their counts.
                            All datatypes common to every recording which
                            make up this dataset.
+        is_creating: Whether the dataset is still being created.
+        deleted: Whether the dataset has been deleted.
     """
 
     id: str
@@ -204,6 +206,9 @@ class Dataset(BaseModel):
     )
     common_data_types: dict[DataType, int] = Field(
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    is_creating: bool = Field(
+        default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     deleted: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
 
