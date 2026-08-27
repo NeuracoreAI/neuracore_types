@@ -21,4 +21,4 @@ except ImportError:
 if TORCH_AVAILABLE:
     from neuracore_types.batched_nc_data import *  # noqa: F403
 
-__version__ = "11.8.0"
+__version__ = "11.9.0"
