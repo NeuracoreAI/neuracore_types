@@ -345,6 +345,7 @@ class PendingRecording(Recording):
 
     Attributes:
         saved_dataset_id: ID of the dataset where the recording is saved
+        cancelled: Whether the pending recording has been soft-deleted
         status: Current status of the pending recording
         progress: Upload progress percentage (0-100)
         expected_trace_count: Number of traces expected (set by register_traces API)
@@ -352,6 +353,10 @@ class PendingRecording(Recording):
     """
 
     saved_dataset_id: str | None = None
+    cancelled: bool = Field(
+        default=False,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
     status: PendingRecordingStatus = Field(
         default=PendingRecordingStatus.STARTED,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
