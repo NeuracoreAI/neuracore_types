@@ -13,6 +13,18 @@ from neuracore_types.utils.pydantic_to_ts import (
 )
 
 
+class PaginationDirection(str, Enum):
+    """Direction to walk the keyset cursor when listing recordings.
+
+    Attributes:
+        FORWARD: Return the records immediately after the cursor.
+        BACKWARD: Return the records immediately before the cursor.
+    """
+
+    FORWARD = "FORWARD"
+    BACKWARD = "BACKWARD"
+
+
 class SynchronizedDataset(BaseModel):
     """Represents a synchronized dataset of episodes.
 
