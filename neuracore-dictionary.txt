@@ -8,6 +8,7 @@ extrinsics
 firestore
 fromarray
 frombuffer
+greenaug
 groot
 grpcio
 huggingface
