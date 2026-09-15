@@ -9,4 +9,4 @@ Example: "This release adds support for multi-GPU training and improves streamin
 
 ## Summary
 
-This release replaces QA pass/fail result unions with QAFinding (reason, optional interval, optional trace).
+This release replaces QA pass/fail result unions with QAFinding (reason, optional interval, optional trace), and adds stillness and tracking-error failure reasons.
