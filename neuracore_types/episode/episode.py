@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, model_validat
 
 from neuracore_types.nc_data import DataType, NCDataUnion
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData
-from neuracore_types.qa.qa import QAFailureResult
+from neuracore_types.qa.qa import QAFinding
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -201,7 +201,7 @@ class RecordingMetadata(BaseModel):
         name: Name of the recording.
         notes: Optional notes about the recording.
         status: Current RecordingStatus of the recording
-        qa_flag_reasons: QA check failures for the recording, if any.
+        qa_flag_reasons: QA findings for the recording, if any.
     """
 
     name: str = Field(
@@ -220,7 +220,7 @@ class RecordingMetadata(BaseModel):
     status: RecordingStatus = Field(
         default=RecordingStatus.NORMAL, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    qa_flag_reasons: list[QAFailureResult] = Field(
+    qa_flag_reasons: list[QAFinding] = Field(
         default_factory=list, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
 
