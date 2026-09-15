@@ -4,12 +4,11 @@ This module contains tests to verify that the data ordering utilities
 work correctly and ensure consistent ordering across sync points.
 """
 
-import time
-
 import numpy as np
 import pytest
 
 from neuracore_types import (
+    TICKS_PER_SECOND,
     Custom1DData,
     DataType,
     DepthCameraData,
@@ -20,10 +19,11 @@ from neuracore_types import (
     RGBCameraData,
     SynchronizedEpisode,
     SynchronizedPoint,
+    now_ticks,
 )
 
 SYNCHRONIZED_POINT_UNORDERED = SynchronizedPoint(
-    timestamp=time.time(),
+    timestamp=now_ticks(),
     data={
         DataType.JOINT_POSITIONS: {
             "joint_2": JointData(value=0.1),
@@ -131,13 +131,16 @@ def test_synced_data_ordering():
 
     # Modify timestamps to be different
     for i, sync_point in enumerate(sync_points):
-        sync_point.timestamp = time.time() + i
+        sync_point.timestamp = now_ticks() + i
 
     # Create synced data
     synced_data = SynchronizedEpisode(
         observations=sync_points,
-        start_time=sync_points[0].timestamp,
-        end_time=sync_points[-1].timestamp,
+        start_timestamp=sync_points[0].timestamp,
+        end_timestamp=sync_points[-1].timestamp,
+        ticks_per_second=TICKS_PER_SECOND,
+        start_time=sync_points[0].timestamp / TICKS_PER_SECOND,
+        end_time=sync_points[-1].timestamp / TICKS_PER_SECOND,
         robot_id="robot1",
     )
 

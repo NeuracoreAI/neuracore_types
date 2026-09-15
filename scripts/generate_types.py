@@ -159,6 +159,7 @@ def generate_typescript_types():
     index_file.write_text(
         """// Auto-generated index file
 export * from './neuracore_types';
+export * from './constants';
 """
     )
     print(f"✓ Created {index_file}")

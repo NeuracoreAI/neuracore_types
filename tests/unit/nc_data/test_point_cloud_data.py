@@ -1,6 +1,7 @@
 """Tests for PointCloudData, wire format, and BatchedPointCloudData."""
 
 import json
+import struct
 from typing import cast
 
 import numpy as np
@@ -107,7 +108,7 @@ class TestPointCloudWire:
 
     def test_roundtrip_xyz_only(self):
         points = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=np.float16)
-        original = PointCloudData(timestamp=1.5, points=points)
+        original = PointCloudData(timestamp=1_500_000, points=points)
         decoded = decode_point_cloud_frame(encode_wire_frame(original))
         np.testing.assert_array_equal(decoded.points, original.points)
         assert decoded.timestamp == original.timestamp
@@ -120,7 +121,7 @@ class TestPointCloudWire:
         extrinsics = np.eye(4, dtype=np.float16)
         intrinsics = np.eye(3, dtype=np.float16)
         original = PointCloudData(
-            timestamp=2.0,
+            timestamp=2_000_000,
             points=points,
             rgb_points=rgb,
             extrinsics=extrinsics,
@@ -136,7 +137,7 @@ class TestPointCloudWire:
         n = 640 * 480
         points = np.zeros((n, 3), dtype=np.float16)
         rgb = np.zeros((n, 3), dtype=np.uint8)
-        original = PointCloudData(timestamp=3.0, points=points, rgb_points=rgb)
+        original = PointCloudData(timestamp=3_000_000, points=points, rgb_points=rgb)
         wire = encode_wire_frame(original)
         decoded = decode_point_cloud_frame(wire)
         assert decoded.points.shape == (n, 3)
@@ -152,7 +153,7 @@ class TestPointCloudWire:
         wire = encode_wire_frame(
             PointCloudData(
                 points=np.zeros((10, 3), dtype=np.float16),
-                timestamp=1.0,
+                timestamp=1_000_000,
             )
         )
         with pytest.raises(ValueError):
@@ -160,7 +161,9 @@ class TestPointCloudWire:
 
     def test_encode_requires_points(self):
         with pytest.raises(ValueError, match="points are required"):
-            encode_point_cloud_frame_parts(PointCloudData(timestamp=1.0, points=None))
+            encode_point_cloud_frame_parts(
+                PointCloudData(timestamp=1_000_000, points=None)
+            )
 
     def test_content_mapping_marks_point_cloud_binary(self):
         assert DATA_TYPE_CONTENT_MAPPING[DataType.POINT_CLOUDS] == "POINT_CLOUD"
@@ -168,24 +171,39 @@ class TestPointCloudWire:
 
     def test_decode_point_cloud_wire_metadata(self):
         points = np.array([[1.0, 2.0, 3.0]], dtype=np.float16)
-        wire = encode_wire_frame(PointCloudData(timestamp=1.5, points=points))
+        wire = encode_wire_frame(PointCloudData(timestamp=1_500_000, points=points))
         metadata, metadata_end = decode_point_cloud_wire_metadata(wire)
-        assert metadata["timestamp"] == 1.5
+        assert metadata["timestamp"] == 1500000
         assert metadata["num_points"] == 1
         assert metadata_end > 4
+
+    def test_decode_float_seconds_header_converts_to_ticks(self):
+        points = np.array([[1.0, 2.0, 3.0]], dtype=np.float16)
+        _, metadata_json, points_view, _ = encode_point_cloud_frame_parts(
+            PointCloudData(timestamp=1_500_000, points=points)
+        )
+        metadata = json.loads(metadata_json)
+        metadata["timestamp"] = 1.5
+        seconds_metadata_json = json.dumps(metadata).encode("utf-8")
+        wire = (
+            struct.pack("<I", len(seconds_metadata_json))
+            + seconds_metadata_json
+            + bytes(points_view)
+        )
+        assert decode_point_cloud_frame(wire).timestamp == 1_500_000
 
     def test_trace_json_metadata_validates_like_camera_trace(self):
         trace_json = [
             {
                 "type": "PointCloudData",
-                "timestamp": 1.0,
+                "timestamp": 1_000_000,
                 "frame_idx": 0,
                 "offset": 0,
                 "length": 10,
             },
             {
                 "type": "PointCloudData",
-                "timestamp": 2.0,
+                "timestamp": 2_000_000,
                 "frame_idx": 1,
                 "offset": 10,
                 "length": 12,

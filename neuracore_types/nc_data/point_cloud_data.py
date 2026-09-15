@@ -337,7 +337,7 @@ def decode_point_cloud_frame(payload: bytes) -> PointCloudData:
         raise ValueError("Invalid timestamp in point cloud wire metadata")
 
     return PointCloudData(
-        timestamp=float(timestamp),
+        timestamp=timestamp,
         points=points.copy(),
         rgb_points=rgb_points.copy() if rgb_points is not None else None,
         extrinsics=extrinsics,

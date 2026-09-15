@@ -1,12 +1,12 @@
 """Base classes for Neuracore data types."""
 
-import time
 from typing import Any
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.importer.data_config import DataFormat, MappingItem
+from neuracore_types.timestamps import Ticks, now_ticks
 from neuracore_types.utils.numpy_array import NumpyArray
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
@@ -55,10 +55,11 @@ class NCData(BaseModel):
 
     Provides a common base for all data types in the system with automatic
     timestamp generation for temporal synchronization and data ordering.
+    The timestamp is in integer ticks; a float on input is seconds.
     """
 
-    timestamp: float = Field(
-        default_factory=lambda: time.time(),
+    timestamp: Ticks = Field(
+        default_factory=now_ticks,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
 
