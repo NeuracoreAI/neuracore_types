@@ -25,6 +25,44 @@ class PaginationDirection(str, Enum):
     BACKWARD = "BACKWARD"
 
 
+class RecordingSortField(str, Enum):
+    """Field the recordings of a dataset can be ordered by.
+
+    Attributes:
+        CREATED_AT: Order by the time the recording was created.
+        NAME: Order by the recording name.
+        DURATION: Order by how long the recording ran for.
+    """
+
+    CREATED_AT = "created_at"
+    NAME = "name"
+    DURATION = "duration"
+
+
+class SortDirection(str, Enum):
+    """Direction a list is ordered in.
+
+    Attributes:
+        ASCENDING: Smallest value first.
+        DESCENDING: Largest value first.
+    """
+
+    ASCENDING = "asc"
+    DESCENDING = "desc"
+
+
+class RecordingSort(BaseModel):
+    """Order to list the recordings of a dataset in.
+
+    Attributes:
+        field: Field to order by.
+        direction: Direction to order in.
+    """
+
+    field: RecordingSortField = RecordingSortField.CREATED_AT
+    direction: SortDirection = SortDirection.DESCENDING
+
+
 class SynchronizedDataset(BaseModel):
     """Represents a synchronized dataset of episodes.
 
