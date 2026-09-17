@@ -10,5 +10,3 @@ Example: "This release adds support for multi-GPU training and improves streamin
 ## Summary
 
 <!-- Append your summary here -->
-
-Adds shared sort types for dataset recording lists.
