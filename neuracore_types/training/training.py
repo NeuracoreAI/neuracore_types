@@ -137,6 +137,8 @@ class TrainingJob(BaseModel):
         resumed_from_checkpoint: The name of the checkpoint this job started
             from, if applicable.
         previous_training_time: The time spent on the previous training, if applicable.
+        seconds_per_epoch: Wall-clock seconds for the latest completed post-warmup
+            epoch, if measured. Used by clients to estimate remaining time.
         error: Any error message associated with the job, if applicable.
         resume_points: List of timestamps where the job can be resumed.
         input_cross_embodiment_description: List of data types for the input data.
@@ -172,6 +174,7 @@ class TrainingJob(BaseModel):
     resumed_from_job_id: str | None = None
     resumed_from_checkpoint: str | None = None
     previous_training_time: float | None = None
+    seconds_per_epoch: float | None = None
     error: str | None = None
     resume_points: list[float] = Field(
         default_factory=lambda: [], json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
