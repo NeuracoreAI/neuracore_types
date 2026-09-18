@@ -1,6 +1,5 @@
 """Models for episodes and synchronized data points."""
 
-import time
 from datetime import datetime
 from enum import Enum
 
@@ -9,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, model_validat
 from neuracore_types.nc_data import DataType, NCDataUnion
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData
 from neuracore_types.qa.qa import QAFailureResult
+from neuracore_types.timestamps import Ticks, now_ticks
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -31,10 +31,11 @@ class SynchronizedPoint(BaseModel):
     Represents a complete snapshot of robot state and sensor information
     at a specific timestamp. Used for creating temporally aligned datasets
     and ensuring consistent data relationships across different sensors.
+    The timestamp is in integer ticks; a float on input is seconds.
     """
 
-    timestamp: float = Field(
-        default_factory=lambda: time.time(),
+    timestamp: Ticks = Field(
+        default_factory=now_ticks,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
     robot_id: str | None = None
@@ -129,9 +130,22 @@ class SynchronizedPoint(BaseModel):
 
 
 class SynchronizedEpisode(BaseModel):
-    """Synchronized episode of time-ordered synchronized observations."""
+    """Synchronized episode of time-ordered synchronized observations.
+
+    Attributes:
+        observations: Synchronized points in time order.
+        start_timestamp: Start of the episode in ticks on the data clock.
+        end_timestamp: End of the episode in ticks on the data clock.
+        ticks_per_second: Tick rate of every timestamp in the episode.
+        start_time: Deprecated. start_timestamp in seconds.
+        end_time: Deprecated. end_timestamp in seconds.
+        robot_id: ID of the robot that recorded the episode.
+    """
 
     observations: list[SynchronizedPoint]
+    start_timestamp: Ticks
+    end_timestamp: Ticks
+    ticks_per_second: int
     start_time: float
     end_time: float
     robot_id: str
@@ -151,6 +165,9 @@ class SynchronizedEpisode(BaseModel):
             observations=[
                 observation.order(order_spec) for observation in self.observations
             ],
+            start_timestamp=self.start_timestamp,
+            end_timestamp=self.end_timestamp,
+            ticks_per_second=self.ticks_per_second,
             start_time=self.start_time,
             end_time=self.end_time,
             robot_id=self.robot_id,
@@ -270,6 +287,12 @@ class Recording(BaseModel):
             Empty means either no camera data types or a recording
             predating the field. Non-empty must cover every camera data
             type present in data_types.
+        ticks_per_second: Tick rate of the recording's timestamps. None means
+            the recording is not yet converted to ticks.
+        start_timestamp: Caller's start of the recording in ticks on the data
+            clock. None means not yet converted.
+        end_timestamp: Caller's end of the recording in ticks on the data
+            clock. None means not yet converted or not ended.
     """
 
     id: str
@@ -284,6 +307,9 @@ class Recording(BaseModel):
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
     end_time: float | None = None
+    ticks_per_second: int | None = None
+    start_timestamp: Ticks | None = None
+    end_timestamp: Ticks | None = None
     metadata: RecordingMetadata = Field(
         default_factory=RecordingMetadata, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )

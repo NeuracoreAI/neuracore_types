@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
 
 from neuracore_types.episode.episode import Codec
 from neuracore_types.nc_data import DataType
+from neuracore_types.timestamps import Ticks
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -431,12 +432,17 @@ class RecordingStartRequest(BaseModel):
         dataset_id: Identifier of the dataset to associate with the recording.
         start_time: Client-side Unix timestamp captured when nc.start_recording()
             was called.
+        ticks_per_second: Tick rate of start_timestamp.
+        start_timestamp: Caller's start of the recording in ticks on the data
+            clock.
     """
 
     robot_id: str
     instance: int
     dataset_id: str
     start_time: float
+    ticks_per_second: int | None = None
+    start_timestamp: Ticks | None = None
 
 
 class RecordingStopRequest(BaseModel):
@@ -446,7 +452,9 @@ class RecordingStopRequest(BaseModel):
         recording_id: ID of the recording to stop.
         end_time: Client-side Unix timestamp captured when nc.stop_recording()
             was called.
+        end_timestamp: Caller's end of the recording in ticks on the data clock.
     """
 
     recording_id: str
     end_time: float
+    end_timestamp: Ticks | None = None
