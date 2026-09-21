@@ -1,7 +1,6 @@
 """Result types for recording QA checks."""
 
 from enum import Enum
-from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -31,33 +30,24 @@ class TraceIdentifier(BaseModel):
     model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
 
 
-class QAPassResult(BaseModel):
-    """Result when a recording passes a QA check."""
+class QAFinding(BaseModel):
+    """One QA failure: why it failed, where in time, and optionally which trace.
 
-    passed: Literal[True] = Field(
-        default=True, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
-    )
-
-    model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
-
-
-class QAFailureResult(BaseModel):
-    """Result when a recording fails a QA check.
-
-    ``affected_traces`` names the specific traces the failure was found on.
-    An empty list means the failure applies to the recording as a whole,
-    rather than to any particular trace.
+    High-level pass/fail lives on the recording as ``QA_FLAGGED`` vs ``NORMAL``.
+    This is the evidence behind a flag. ``start_time`` / ``end_time`` are the
+    failing interval when the check has one. ``trace`` is unset for
+    recording-wide findings.
     """
 
-    passed: Literal[False] = Field(
-        default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
-    )
     reason: QAFailureReason
-    affected_traces: list[TraceIdentifier] = Field(default_factory=list)
+    start_time: float | None = Field(
+        default=None, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    end_time: float | None = Field(
+        default=None, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    trace: TraceIdentifier | None = Field(
+        default=None, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
 
     model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
-
-
-QACheckResult = Annotated[
-    Union[QAPassResult, QAFailureResult], Field(discriminator="passed")
-]
