@@ -182,6 +182,22 @@ class DatasetStatisticsJob(BaseModel):
     error: str | None = None
 
 
+class DatasetExportFormat(str, Enum):
+    """Format a dataset export can be produced in."""
+
+    MCAP = "mcap"
+    LEROBOT = "lerobot"
+
+
+class DatasetExportJobStatus(str, Enum):
+    """Lifecycle stage of a dataset export."""
+
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETE = "COMPLETE"
+    FAILED = "FAILED"
+
+
 class SynchronizedDatasetStatistics(BaseModel):
     """Statistics for a synchronized dataset.
 
