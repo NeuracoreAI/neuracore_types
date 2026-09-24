@@ -41,6 +41,21 @@ class TrainingJobRequest(BaseModel):
     resume_from_job_id: str | None = None
 
 
+class EstimateDiskSizeRequest(BaseModel):
+    """Request model for estimating training VM disk size."""
+
+    dataset_id: str
+    algorithm_id: str | None = None
+    input_cross_embodiment_description: CrossEmbodimentDescription | None = None
+    output_cross_embodiment_description: CrossEmbodimentDescription | None = None
+
+
+class EstimateDiskSizeResponse(BaseModel):
+    """Response model for training VM disk size estimation."""
+
+    disk_size_gb: int
+
+
 class InternalStartTrainingJobRequest(BaseModel):
     """Request model for starting a training job.
 
