@@ -234,10 +234,14 @@ class Codec(str, Enum):
         H264_LOSSLESS: Default. Lossless archive plus a small lossy preview.
         H264_MEDIUM: Lossy-only single libx264 CRF 23 video, used for both
             preview and training.
+        H264_FAST: Lossy-only single libx264 CRF 23 video like H264_MEDIUM, but
+            at the ``veryfast`` preset -- quicker to encode and smaller, at
+            some cost to image fidelity.
     """
 
     H264_LOSSLESS = "h264_lossless"
     H264_MEDIUM = "h264_medium"
+    H264_FAST = "h264_fast"
 
 
 VIDEO_DATA_TYPES = (DataType.RGB_IMAGES, DataType.DEPTH_IMAGES)
