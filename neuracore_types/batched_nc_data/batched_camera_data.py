@@ -28,6 +28,11 @@ class BatchedRGBData(BatchedNCData):
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
+    def to_compute_dtype(self) -> None:
+        """Convert uint8 frames to float32, keeping the 0 to 255 value range."""
+        if self.frame.dtype == torch.uint8:
+            self.frame = self.frame.to(torch.float32)
+
     @field_validator("frame", mode="before")
     @classmethod
     def decode_frame(cls, v: dict[str, Any]) -> torch.Tensor:
@@ -77,7 +82,7 @@ class BatchedRGBData(BatchedNCData):
         # Need to change from (H, W, 3) to (3, H, W)
         frame = np.array(rgb_data.frame)
         frame = (
-            torch.tensor(frame.transpose(2, 0, 1), dtype=torch.float32)
+            torch.tensor(frame.transpose(2, 0, 1), dtype=torch.uint8)
             .unsqueeze(0)
             .unsqueeze(0)
         )
@@ -123,8 +128,13 @@ class BatchedRGBData(BatchedNCData):
                 batch_size * time_steps, channels, *self.frame.shape[-2:]
             )
             resized = torch.nn.functional.interpolate(
-                reshaped, size=(224, 224), mode="bilinear", align_corners=False
+                reshaped.to(torch.float32),
+                size=(224, 224),
+                mode="bilinear",
+                align_corners=False,
             )
+            if self.frame.dtype == torch.uint8:
+                resized = resized.round().clamp(0, 255).to(torch.uint8)
             self.frame = resized.reshape(batch_size, time_steps, channels, 224, 224)
 
     @classmethod
@@ -160,7 +170,7 @@ class BatchedRGBData(BatchedNCData):
                 intrinsics_list.append(np.zeros((3, 3), dtype=np.float32))
 
         # Shape: (1, T, 3, H, W)
-        frame_tensor = torch.from_numpy(np.stack(frames)).to(torch.float32).unsqueeze(0)
+        frame_tensor = torch.from_numpy(np.stack(frames)).to(torch.uint8).unsqueeze(0)
         # Shape: (1, T, 4, 4)
         extrinsics_tensor = (
             torch.from_numpy(np.stack(extrinsics_list)).to(torch.float32).unsqueeze(0)
@@ -188,9 +198,7 @@ class BatchedRGBData(BatchedNCData):
             BatchedRGBData: Sampled instance
         """
         return cls(
-            frame=torch.zeros(
-                (batch_size, time_steps, 3, 224, 224), dtype=torch.float32
-            ),
+            frame=torch.zeros((batch_size, time_steps, 3, 224, 224), dtype=torch.uint8),
             extrinsics=torch.zeros((batch_size, time_steps, 4, 4), dtype=torch.float32),
             intrinsics=torch.zeros((batch_size, time_steps, 3, 3), dtype=torch.float32),
         )
