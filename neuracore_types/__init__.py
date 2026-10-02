@@ -1,5 +1,6 @@
 """Neuracore Types - Shared type definitions for Neuracore."""
 
+from neuracore_types.data_synthesis import *  # noqa: F403
 from neuracore_types.dataset import *  # noqa: F403
 from neuracore_types.endpoints import *  # noqa: F403
 from neuracore_types.episode import *  # noqa: F403
