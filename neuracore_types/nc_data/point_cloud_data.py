@@ -241,6 +241,7 @@ def encode_point_cloud_frame_parts(
     metadata: dict[str, Any] = {
         "type": "PointCloudData",
         "timestamp": data.timestamp,
+        "timestamp_us": data.timestamp_us,
         "num_points": int(points.shape[0]),
         "points_dtype": "float16",
         "points_nbytes": int(points.nbytes),
@@ -335,9 +336,12 @@ def decode_point_cloud_frame(payload: bytes) -> PointCloudData:
     timestamp = metadata.get("timestamp")
     if not isinstance(timestamp, (int, float)):
         raise ValueError("Invalid timestamp in point cloud wire metadata")
+    timestamps: dict[str, Any] = {"timestamp": float(timestamp)}
+    if "timestamp_us" in metadata:
+        timestamps["timestamp_us"] = metadata["timestamp_us"]
 
     return PointCloudData(
-        timestamp=float(timestamp),
+        **timestamps,
         points=points.copy(),
         rgb_points=rgb_points.copy() if rgb_points is not None else None,
         extrinsics=extrinsics,
