@@ -4,21 +4,9 @@ import time
 from typing import Any
 
 import numpy as np
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    field_serializer,
-    field_validator,
-    model_validator,
-)
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 from neuracore_types.importer.data_config import DataFormat, MappingItem
-from neuracore_types.timestamps import (
-    TimestampUs,
-    microseconds_field_from,
-    seconds_from_microseconds,
-)
 from neuracore_types.utils.numpy_array import NumpyArray
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
@@ -67,19 +55,11 @@ class NCData(BaseModel):
 
     Provides a common base for all data types in the system with automatic
     timestamp generation for temporal synchronization and data ordering.
-    `timestamp_us` is the timestamp in integer microseconds. `timestamp` is the
-    same instant in seconds, derived from `timestamp_us`.
     """
 
     timestamp: float = Field(
         default_factory=lambda: time.time(),
-        allow_inf_nan=False,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
-    )
-    timestamp_us: TimestampUs = microseconds_field_from("timestamp")
-
-    _derive_timestamp = model_validator(mode="after")(
-        seconds_from_microseconds(("timestamp", "timestamp_us"))
     )
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)

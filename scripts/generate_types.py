@@ -22,7 +22,6 @@ from pydantic2ts.cli.script import (
 )
 
 MODULE_PATH = "neuracore_types/__init__.py"
-OUTPUT_DIR = Path(__file__).parent.parent / "neuracore_types"
 JSON2TS_CMD = "npx json2ts --inferStringEnumKeysFromValues --enableConstEnums false"
 
 
@@ -123,8 +122,9 @@ def add_standalone_enums(
         schema["required"].append(prop_key)
 
 
-def generate_typescript_types(output_dir: Path = OUTPUT_DIR) -> None:
+def generate_typescript_types():
     """Generate TypeScript types from the Pydantic models and standalone enums."""
+    output_dir = Path(__file__).parent.parent / "neuracore_types"
     output_dir.mkdir(exist_ok=True)
     output_file = output_dir / "neuracore_types.ts"
 
@@ -159,7 +159,6 @@ def generate_typescript_types(output_dir: Path = OUTPUT_DIR) -> None:
     index_file.write_text(
         """// Auto-generated index file
 export * from './neuracore_types';
-export * from './constants';
 """
     )
     print(f"✓ Created {index_file}")

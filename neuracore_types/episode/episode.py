@@ -9,11 +9,6 @@ from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, model_validat
 from neuracore_types.nc_data import DataType, NCDataUnion
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData
 from neuracore_types.qa.qa import QAFinding
-from neuracore_types.timestamps import (
-    TimestampUs,
-    microseconds_field_from,
-    seconds_from_microseconds,
-)
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -36,26 +31,18 @@ class SynchronizedPoint(BaseModel):
     Represents a complete snapshot of robot state and sensor information
     at a specific timestamp. Used for creating temporally aligned datasets
     and ensuring consistent data relationships across different sensors.
-    `timestamp_us` is the timestamp in integer microseconds. `timestamp` is the
-    same instant in seconds, derived from `timestamp_us`.
     """
 
     timestamp: float = Field(
         default_factory=lambda: time.time(),
-        allow_inf_nan=False,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
-    timestamp_us: TimestampUs = microseconds_field_from("timestamp")
     robot_id: str | None = None
     data: dict[DataType, dict[str, NCDataUnion]] = Field(
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
-
-    _derive_timestamp = model_validator(mode="after")(
-        seconds_from_microseconds(("timestamp", "timestamp_us"))
-    )
 
     def order(
         self, embodiment_description: EmbodimentDescription
@@ -142,30 +129,12 @@ class SynchronizedPoint(BaseModel):
 
 
 class SynchronizedEpisode(BaseModel):
-    """Synchronized episode of time-ordered synchronized observations.
-
-    Attributes:
-        observations: Synchronized points in time order.
-        start_time: Start of the episode in seconds, derived from
-            start_timestamp_us.
-        end_time: End of the episode in seconds, derived from end_timestamp_us.
-        start_timestamp_us: Start of the episode in integer microseconds.
-        end_timestamp_us: End of the episode in integer microseconds.
-        robot_id: ID of the robot that recorded the episode.
-    """
+    """Synchronized episode of time-ordered synchronized observations."""
 
     observations: list[SynchronizedPoint]
-    start_time: float = Field(allow_inf_nan=False)
-    end_time: float = Field(allow_inf_nan=False)
-    start_timestamp_us: TimestampUs = microseconds_field_from("start_time")
-    end_timestamp_us: TimestampUs = microseconds_field_from("end_time")
+    start_time: float
+    end_time: float
     robot_id: str
-
-    _derive_window = model_validator(mode="after")(
-        seconds_from_microseconds(
-            ("start_time", "start_timestamp_us"), ("end_time", "end_timestamp_us")
-        )
-    )
 
     def order(self, order_spec: EmbodimentDescription) -> "SynchronizedEpisode":
         """Return a new episode with observations ordered by index specification.
@@ -184,8 +153,6 @@ class SynchronizedEpisode(BaseModel):
             ],
             start_time=self.start_time,
             end_time=self.end_time,
-            start_timestamp_us=self.start_timestamp_us,
-            end_timestamp_us=self.end_timestamp_us,
             robot_id=self.robot_id,
         )
 
@@ -307,10 +274,6 @@ class Recording(BaseModel):
             Empty means either no camera data types or a recording
             predating the field. Non-empty must cover every camera data
             type present in data_types.
-        start_timestamp_us: Start of the recording in integer microseconds on
-            the data clock. None for recordings stored without it.
-        end_timestamp_us: End of the recording in integer microseconds on the
-            data clock. None for recordings stored without it or not ended.
     """
 
     id: str
@@ -325,8 +288,6 @@ class Recording(BaseModel):
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
     )
     end_time: float | None = None
-    start_timestamp_us: TimestampUs | None = None
-    end_timestamp_us: TimestampUs | None = None
     metadata: RecordingMetadata = Field(
         default_factory=RecordingMetadata, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )

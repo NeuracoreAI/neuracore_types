@@ -30,7 +30,6 @@ pydantic
 PYPI
 pyproject
 pytest
-pyyaml
 randn
 RLDS
 rotvec
