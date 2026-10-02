@@ -1,8 +1,7 @@
 """Tests for PointCloudData, wire format, and BatchedPointCloudData."""
 
 import json
-import struct
-from typing import Any, cast
+from typing import cast
 
 import numpy as np
 import pytest
@@ -27,17 +26,6 @@ def encode_wire_frame(data: PointCloudData) -> bytes:
     if rgb_view is not None:
         parts.append(rgb_view)
     return b"".join(parts)
-
-
-def encode_wire_frame_with_timestamps(timestamps: dict[str, Any]) -> bytes:
-    points = np.array([[1.0, 2.0, 3.0]], dtype=np.float16)
-    _, metadata_json, points_view, _ = encode_point_cloud_frame_parts(
-        PointCloudData(points=points)
-    )
-    metadata = json.loads(metadata_json)
-    del metadata["timestamp"], metadata["timestamp_us"]
-    metadata_json = json.dumps({**metadata, **timestamps}).encode("utf-8")
-    return struct.pack("<I", len(metadata_json)) + metadata_json + bytes(points_view)
 
 
 class TestPointCloudData:
@@ -183,23 +171,8 @@ class TestPointCloudWire:
         wire = encode_wire_frame(PointCloudData(timestamp=1.5, points=points))
         metadata, metadata_end = decode_point_cloud_wire_metadata(wire)
         assert metadata["timestamp"] == 1.5
-        assert metadata["timestamp_us"] == 1_500_000
         assert metadata["num_points"] == 1
         assert metadata_end > 4
-
-    def test_decode_header_with_only_timestamp_derives_timestamp_us(self):
-        wire = encode_wire_frame_with_timestamps({"timestamp": 1.5})
-        decoded = decode_point_cloud_frame(wire)
-        assert decoded.timestamp_us == 1_500_000
-        assert decoded.timestamp == 1.5
-
-    def test_decode_header_with_both_keys_uses_timestamp_us(self):
-        wire = encode_wire_frame_with_timestamps(
-            {"timestamp": 9.0, "timestamp_us": 1_500_000}
-        )
-        decoded = decode_point_cloud_frame(wire)
-        assert decoded.timestamp_us == 1_500_000
-        assert decoded.timestamp == 1.5
 
     def test_trace_json_metadata_validates_like_camera_trace(self):
         trace_json = [

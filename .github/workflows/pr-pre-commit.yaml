@@ -34,12 +34,12 @@ jobs:
         pip install --upgrade pip
         pip install -e ".[dev,ml]"
   
-    - name: Install Node dependencies
-      run: npm install
-
     - name: Run tests with pytest
       run: |
         pytest tests/unit
+
+    - name: Install Node dependencies
+      run: npm install
 
     - name: Validate that we can generate TypeScript types
       run: python scripts/generate_types.py
