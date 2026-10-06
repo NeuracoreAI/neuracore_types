@@ -10,3 +10,6 @@ Example: "This release adds support for multi-GPU training and improves streamin
 ## Summary
 
 <!-- Append your summary here -->
+
+Recording STOP notifications carry the recording's `end_time` in a new
+`RecordingStopPayload`.

@@ -278,6 +278,12 @@ class RecordingStartPayload(BaseRecodingUpdatePayload):
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
 
+class RecordingStopPayload(BaseRecodingUpdatePayload):
+    """Payload for recording stop notifications."""
+
+    end_time: float
+
+
 class RecordingNotificationType(str, Enum):
     """Types of recording lifecycle notifications."""
 
@@ -298,7 +304,10 @@ class RecordingNotification(BaseModel):
 
     type: RecordingNotificationType
     payload: (
-        RecordingStartPayload | list[RecordingStartPayload] | BaseRecodingUpdatePayload
+        RecordingStartPayload
+        | list[RecordingStartPayload]
+        | RecordingStopPayload
+        | BaseRecodingUpdatePayload
     )
     id: str = Field(
         default_factory=lambda: uuid4().hex,
