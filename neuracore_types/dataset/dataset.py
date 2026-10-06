@@ -12,6 +12,13 @@ from neuracore_types.utils.pydantic_to_ts import (
     fix_required_with_defaults,
 )
 
+# Large-modality uploaded bytes aggregated across a dataset, nested as
+# DataType -> sensor_name -> codec_key -> nbytes.
+# ``codec_key`` is ``Codec.value`` for video sensors, or ``""`` for
+# non-video large modalities (e.g. point clouds). Used for training disk
+# estimates without loading every recording.
+DatasetTraceBytes = dict[DataType, dict[str, dict[str, int]]]
+
 
 class PaginationDirection(str, Enum):
     """Direction to walk the keyset cursor when listing recordings.
@@ -230,6 +237,11 @@ class Dataset(BaseModel):
         num_demonstrations: Total number of demonstrations.
         total_duration_seconds: Total duration of all demonstrations.
         size_bytes: Total size of all demonstrations.
+        trace_bytes: Aggregated uploaded bytes for large-modality sensors
+            across the dataset, nested as DataType -> sensor -> codec_key ->
+            nbytes. Maintained like ``size_bytes`` on add/remove. Empty means
+            either no large modalities or a dataset that has not been
+            aggregated yet (legacy); training disk estimate rebuilds it then.
         is_shared: Whether the dataset is shared with other users.
         metadata: Additional arbitrary metadata.
         synced_dataset_ids: List of synced dataset IDs in this dataset.
@@ -260,6 +272,9 @@ class Dataset(BaseModel):
         default=0.0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     size_bytes: int = Field(default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    trace_bytes: DatasetTraceBytes = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     is_shared: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     metadata: dict[str, Any] = Field(
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
