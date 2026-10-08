@@ -100,13 +100,70 @@ class ModelInitDescription(BaseModel):
 class TrainingJobStatus(str, Enum):
     """Training job status."""
 
-    PREPARING_DATA = "PREPARING_DATA"
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
+    QUEUED = "QUEUED"
+    PROVISIONING = "PROVISIONING"
+    STARTING = "STARTING"
+    SYNCING_DATA = "SYNCING_DATA"
+    FETCHING_DATA = "FETCHING_DATA"
+    CALCULATING_STATISTICS = "CALCULATING_STATISTICS"
+    TUNING_BATCH_SIZE = "TUNING_BATCH_SIZE"
+    TRAINING = "TRAINING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
     CANCELLING = "CANCELLING"
+
+    # Legacy values kept for deserializing in-flight jobs. Those jobs keep
+    # these statuses until they finish; they are not rewritten to the new
+    # lifecycle values.
+    PREPARING_DATA = "PREPARING_DATA"
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+
+
+# Statuses the training process owns (including legacy RUNNING). The cloud
+# poller must not overwrite these with a coarser GCE-derived status.
+VM_REPORTED_TRAINING_STATUSES = frozenset({
+    TrainingJobStatus.SYNCING_DATA,
+    TrainingJobStatus.FETCHING_DATA,
+    TrainingJobStatus.CALCULATING_STATISTICS,
+    TrainingJobStatus.TUNING_BATCH_SIZE,
+    TrainingJobStatus.TRAINING,
+    # Legacy in-flight jobs stay on RUNNING until they complete.
+    TrainingJobStatus.RUNNING,
+})
+
+
+class TrainingPhaseProgress(BaseModel):
+    """Progress within the current pre-training phase.
+
+    Attributes:
+        num_completed_items: Completed units for the current phase
+            (e.g. synced or downloaded recordings).
+        num_total_items: Total units for the current phase.
+    """
+
+    num_completed_items: int | None = None
+    num_total_items: int | None = None
+
+
+class TrainingProgress(BaseModel):
+    """Progress / phase update reported by the training process.
+
+    Attributes:
+        epoch: Current training epoch.
+        step: Current training step.
+        seconds_per_epoch: Wall-clock seconds for the latest completed
+            post-warmup epoch, if measured.
+        status: Optional lifecycle phase (e.g. SYNCING_DATA, TRAINING).
+        phase_progress: Optional progress within the current phase.
+    """
+
+    epoch: int | None = None
+    step: int | None = None
+    seconds_per_epoch: float | None = None
+    status: TrainingJobStatus | None = None
+    phase_progress: TrainingPhaseProgress | None = None
 
 
 class TrainingJob(BaseModel):
@@ -139,6 +196,10 @@ class TrainingJob(BaseModel):
         previous_training_time: The time spent on the previous training, if applicable.
         seconds_per_epoch: Wall-clock seconds for the latest completed post-warmup
             epoch, if measured. Used by clients to estimate remaining time.
+        phase_progress_done: Completed units for the current pre-training phase
+            (synced recordings or downloaded videos), if applicable.
+        phase_progress_total: Total units for the current pre-training phase,
+            if applicable.
         error: Any error message associated with the job, if applicable.
         resume_points: List of timestamps where the job can be resumed.
         input_cross_embodiment_description: List of data types for the input data.
@@ -175,6 +236,8 @@ class TrainingJob(BaseModel):
     resumed_from_checkpoint: str | None = None
     previous_training_time: float | None = None
     seconds_per_epoch: float | None = None
+    phase_progress_done: int | None = None
+    phase_progress_total: int | None = None
     error: str | None = None
     resume_points: list[float] = Field(
         default_factory=lambda: [], json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
