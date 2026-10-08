@@ -5,7 +5,14 @@ from enum import Enum
 from typing import Any
 
 from ordered_set import OrderedSet
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from neuracore_types.episode.episode import CrossEmbodimentDescription
 from neuracore_types.hardware import GPUType
@@ -286,3 +293,84 @@ class TrainingCheckpoint(BaseModel):
     epoch: int
     size_bytes: int | None = None
     updated_at: datetime | None = None
+
+
+class PolicyRolloutStatus(str, Enum):
+    """Whether the validation rollouts of an epoch have saved."""
+
+    UPLOADING = "UPLOADING"
+    READY = "READY"
+    FAILED = "FAILED"
+
+
+class PolicyRolloutEpoch(BaseModel):
+    """An epoch of a training job that saves validation rollouts.
+
+    Attributes:
+        epoch: The epoch the rollouts are saved at.
+        status: Whether the epoch's rollouts have saved.
+        updated_at: When the rollouts were last written, if saved.
+    """
+
+    epoch: int
+    status: PolicyRolloutStatus
+    updated_at: datetime | None = None
+
+
+class PolicyRolloutSeries(BaseModel):
+    """Predicted and ground-truth values of one joint or gripper over the horizon.
+
+    Attributes:
+        predicted: The values the policy predicted.
+        ground_truth: The values in the recording.
+    """
+
+    predicted: list[float]
+    ground_truth: list[float]
+
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def _validate_lengths(self) -> "PolicyRolloutSeries":
+        """Ensure predicted and ground truth have the same length."""
+        if len(self.predicted) != len(self.ground_truth):
+            raise ValueError("predicted and ground_truth must have the same length")
+        return self
+
+
+class PolicyRollout(BaseModel):
+    """An epoch's prediction from one validation sync point.
+
+    Attributes:
+        recording_id: The recording the sync point is in.
+        recording_name: The recording's name, or ``""`` when it has none.
+        frame: The sync point's frame in the synced recording.
+        robot_id: The robot the recording is of.
+        series: Series keyed by data type, then by joint or gripper name.
+        images: Download URL of the RGB frame the policy saw, keyed by camera name.
+    """
+
+    recording_id: str
+    recording_name: str = Field(
+        default="", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    frame: int
+    robot_id: str
+    series: dict[DataType, dict[str, PolicyRolloutSeries]]
+    images: dict[str, str] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+
+class PolicyRolloutsResponse(BaseModel):
+    """One epoch's policy rollouts.
+
+    Attributes:
+        epoch: The epoch the rollouts are saved at.
+        rollouts: The rollouts, one per validation sync point.
+    """
+
+    epoch: int
+    rollouts: list[PolicyRollout]
