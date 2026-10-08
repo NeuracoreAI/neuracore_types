@@ -17,6 +17,7 @@ dependencies = [
     "numpy>=2.0.0",
     "scipy",
     "pillow",
+    "imagecodecs>=2025.3.30",
     "names_generator",
     "pydantic-to-typescript2>=1.0.0",
     "grpcio-tools",
