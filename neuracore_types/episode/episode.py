@@ -245,6 +245,12 @@ class Codec(str, Enum):
 
 
 VIDEO_DATA_TYPES = (DataType.RGB_IMAGES, DataType.DEPTH_IMAGES)
+# Modalities whose uploaded bytes are persisted on ``Recording.trace_bytes``.
+LARGE_TRACE_DATA_TYPES = frozenset({
+    DataType.RGB_IMAGES,
+    DataType.DEPTH_IMAGES,
+    DataType.POINT_CLOUDS,
+})
 
 
 class Recording(BaseModel):
@@ -266,6 +272,11 @@ class Recording(BaseModel):
             finalize. Lets synchronization locate every trace
             (recordings/{id}/{data_type}/{sensor}/trace.json) without listing the
             bucket. Empty for recordings finalized before this field existed.
+        trace_bytes: Uploaded byte count per large-modality sensor (RGB, depth,
+            point cloud), nested under DataType, copied from
+            ``RecordingDataTrace.uploaded_bytes`` at finalize. Used for training
+            disk estimates. Empty for recordings finalized before this field
+            existed or recordings with no large modalities.
         deleted: Whether the recording has been deleted
         encoding: Codec used per sensor, nested under DataType, captured at
             finalize. Sensors under the same DataType may hold different
@@ -299,6 +310,9 @@ class Recording(BaseModel):
     sensor_manifest: dict[DataType, list[str]] = Field(
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
+    trace_bytes: dict[DataType, dict[str, int]] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     deleted: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     encoding: dict[DataType, dict[str, Codec]] = Field(
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
@@ -306,8 +320,8 @@ class Recording(BaseModel):
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     @model_validator(mode="after")
-    def _validate_encoding_data_types(self) -> "Recording":
-        """Ensure encoding only references data types present and video-capable."""
+    def _validate_sensor_maps(self) -> "Recording":
+        """Ensure encoding and trace_bytes only reference valid sensor data types."""
         unknown_data_types = set(self.encoding) - self.data_types
         if unknown_data_types:
             raise ValueError(
@@ -328,6 +342,18 @@ class Recording(BaseModel):
                     "Recording.encoding is populated but missing entries for "
                     f"camera data types: {missing}"
                 )
+        unknown_trace_bytes = set(self.trace_bytes) - self.data_types
+        if unknown_trace_bytes:
+            raise ValueError(
+                "Recording.trace_bytes has entries for data types not present in "
+                f"data_types: {unknown_trace_bytes}"
+            )
+        non_large_trace_bytes = set(self.trace_bytes) - LARGE_TRACE_DATA_TYPES
+        if non_large_trace_bytes:
+            raise ValueError(
+                "Recording.trace_bytes has entries for data types that are not "
+                f"large modalities: {non_large_trace_bytes}"
+            )
         return self
 
 
