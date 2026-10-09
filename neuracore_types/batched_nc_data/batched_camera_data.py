@@ -202,11 +202,37 @@ class BatchedDepthData(BatchedNCData):
     type: Literal["BatchedDepthData"] = Field(
         default="BatchedDepthData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    frame: torch.Tensor  # (B, T, 1, H, W) uint8
+    frame: torch.Tensor  # (B, T, 1, H, W) uint16 units
+    depth_scale: torch.Tensor  # (B, T) float32 metres per unit
     extrinsics: torch.Tensor  # (B, T, 4, 4) float16
     intrinsics: torch.Tensor  # (B, T, 3, 3) float16
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+    def to_compute_dtype(self) -> None:
+        """Convert frames to float32 meters, with 0 for no return.
+
+        Zero, negative and non-finite depth map to 0, and the depth scale
+        becomes 1.0, so the conversion is idempotent.
+        """
+        depth_scale_m = self.depth_scale.to(
+            device=self.frame.device, dtype=torch.float32
+        )
+        depth_m = self.frame.to(torch.float32) * depth_scale_m[..., None, None, None]
+        depth_m = torch.nan_to_num(depth_m, nan=0.0, posinf=0.0, neginf=0.0)
+        self.frame = depth_m.clamp_min(0.0)
+        self.depth_scale = torch.ones_like(depth_scale_m)
+
+    @field_validator("depth_scale", mode="before")
+    @classmethod
+    def decode_depth_scale(cls, encoded: dict[str, Any]) -> torch.Tensor:
+        """Decode depth_scale field to torch.Tensor."""
+        return cls._create_tensor_handlers("depth_scale")[0](encoded)
+
+    @field_serializer("depth_scale", when_used="json")
+    def serialize_depth_scale(self, depth_scale: torch.Tensor) -> dict[str, Any]:
+        """Serialize depth_scale field to a JSON tensor encoding."""
+        return self._create_tensor_handlers("depth_scale")[1](depth_scale)
 
     @field_validator("frame", mode="before")
     @classmethod
@@ -257,11 +283,12 @@ class BatchedDepthData(BatchedNCData):
         # Need to change from (H, W) to (1, H, W)
         frame = np.array(depth_data.frame)
         frame = (
-            torch.tensor(frame, dtype=torch.float32)
+            torch.tensor(frame, dtype=torch.uint16)
             .unsqueeze(0)
             .unsqueeze(0)
             .unsqueeze(0)
         )
+        depth_scale = torch.tensor([[depth_data.depth_scale_m]], dtype=torch.float32)
         if depth_data.extrinsics is not None:
             extrinsics = (
                 torch.tensor(depth_data.extrinsics, dtype=torch.float32)
@@ -278,7 +305,12 @@ class BatchedDepthData(BatchedNCData):
             )
         else:
             intrinsics = torch.zeros((1, 1, 3, 3), dtype=torch.float32)
-        return cls(frame=frame, extrinsics=extrinsics, intrinsics=intrinsics)
+        return cls(
+            frame=frame,
+            depth_scale=depth_scale,
+            extrinsics=extrinsics,
+            intrinsics=intrinsics,
+        )
 
     @classmethod
     def from_nc_data_list(cls, nc_data_list: list[NCData]) -> "BatchedDepthData":
@@ -293,6 +325,7 @@ class BatchedDepthData(BatchedNCData):
         from neuracore_types.nc_data.camera_data import DepthCameraData
 
         frames = []
+        depth_scales = []
         extrinsics_list = []
         intrinsics_list = []
 
@@ -301,6 +334,7 @@ class BatchedDepthData(BatchedNCData):
             # (H, W) -> (1, H, W)
             frame = np.array(depth_data.frame)
             frames.append(frame[np.newaxis, ...])
+            depth_scales.append(depth_data.depth_scale_m)
             if depth_data.extrinsics is not None:
                 extrinsics_list.append(depth_data.extrinsics)
             else:
@@ -311,7 +345,9 @@ class BatchedDepthData(BatchedNCData):
                 intrinsics_list.append(np.zeros((3, 3), dtype=np.float32))
 
         # Shape: (1, T, 1, H, W)
-        frame_tensor = torch.from_numpy(np.stack(frames)).to(torch.float32).unsqueeze(0)
+        frame_tensor = torch.from_numpy(np.stack(frames)).unsqueeze(0)
+        # Shape: (1, T)
+        depth_scale_tensor = torch.tensor([depth_scales], dtype=torch.float32)
         # Shape: (1, T, 4, 4)
         extrinsics_tensor = (
             torch.from_numpy(np.stack(extrinsics_list)).to(torch.float32).unsqueeze(0)
@@ -323,6 +359,7 @@ class BatchedDepthData(BatchedNCData):
 
         return cls(
             frame=frame_tensor,
+            depth_scale=depth_scale_tensor,
             extrinsics=extrinsics_tensor,
             intrinsics=intrinsics_tensor,
         )
@@ -340,8 +377,9 @@ class BatchedDepthData(BatchedNCData):
         """
         return cls(
             frame=torch.zeros(
-                (batch_size, time_steps, 1, 224, 224), dtype=torch.float32
+                (batch_size, time_steps, 1, 224, 224), dtype=torch.uint16
             ),
+            depth_scale=torch.full((batch_size, time_steps), 1e-4, dtype=torch.float32),
             extrinsics=torch.zeros((batch_size, time_steps, 4, 4), dtype=torch.float32),
             intrinsics=torch.zeros((batch_size, time_steps, 3, 3), dtype=torch.float32),
         )
@@ -364,6 +402,6 @@ class BatchedDepthData(BatchedNCData):
                 batch_size * time_steps, channels, *self.frame.shape[-2:]
             )
             resized = torch.nn.functional.interpolate(
-                reshaped, size=(224, 224), mode="bilinear", align_corners=False
-            )
+                reshaped.to(torch.float32), size=(224, 224), mode="nearest"
+            ).to(self.frame.dtype)
             self.frame = resized.reshape(batch_size, time_steps, channels, 224, 224)

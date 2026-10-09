@@ -23,6 +23,13 @@ class BatchedNCData(BaseModel):
         }
         return self.__class__(**moved_data)
 
+    def to_compute_dtype(self) -> None:
+        """Convert tensors stored in a compact dtype to the dtype models consume.
+
+        Subclasses with a compact storage dtype override this. The conversion
+        happens in place and is idempotent.
+        """
+
     @classmethod
     def from_nc_data(cls, nc_data: NCData) -> "BatchedNCData":
         """Create BatchedNCData from NCData by adding time and batch dimensions."""
@@ -93,6 +100,7 @@ class BatchedNCData(BaseModel):
                     "int16": torch.int16,
                     "int8": torch.int8,
                     "uint8": torch.uint8,
+                    "uint16": torch.uint16,
                     "bool": torch.bool,
                 }
                 torch_dtype = dtype_map.get(dtype_str, torch.float32)

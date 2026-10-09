@@ -45,8 +45,12 @@ SYNCHRONIZED_POINT_UNORDERED = SynchronizedPoint(
             "camera_2": RGBCameraData(frame=np.zeros((224, 224, 3))),
         },
         DataType.DEPTH_IMAGES: {
-            "depth_2": DepthCameraData(frame=np.zeros((224, 224))),
-            "depth_1": DepthCameraData(frame=np.zeros((224, 224))),
+            "depth_2": DepthCameraData(
+                frame=np.zeros((224, 224), dtype=np.uint16), depth_scale_m=0.001
+            ),
+            "depth_1": DepthCameraData(
+                frame=np.zeros((224, 224), dtype=np.uint16), depth_scale_m=0.001
+            ),
         },
         DataType.POINT_CLOUDS: {
             "lidar_2": PointCloudData(

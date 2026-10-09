@@ -1,7 +1,9 @@
 """Tests for CameraData and their batched variants."""
 
 import numpy as np
+import pytest
 import torch
+from pydantic import ValidationError
 
 from neuracore_types import (
     BatchedDepthData,
@@ -10,7 +12,6 @@ from neuracore_types import (
     RGBCameraData,
 )
 from neuracore_types.importer.config import (
-    DistanceUnitsConfig,
     ImageChannelOrderConfig,
     ImageConventionConfig,
 )
@@ -19,10 +20,15 @@ from neuracore_types.importer.data_config import (
     DepthCameraDataMappingItem,
     RGBCameraDataMappingItem,
 )
+from neuracore_types.importer.transform import DataTransformSequence
 from neuracore_types.nc_data.camera_data import (
     DepthCameraDataImportConfig,
     RGBCameraDataImportConfig,
 )
+
+
+def _depth_frame(shape: tuple[int, int], seed: int = 0) -> np.ndarray:
+    return np.random.default_rng(seed).integers(0, 65536, shape, dtype=np.uint16)
 
 
 class TestRGBCameraData:
@@ -102,13 +108,16 @@ class TestDepthCameraData:
         assert isinstance(data, DepthCameraData)
         assert isinstance(data.frame, np.ndarray)
         assert data.frame.shape == (480, 640)
-        assert data.frame.dtype == np.float32
+        assert data.frame.dtype == np.uint16
+        assert data.depth_scale_m == 1e-4
 
-    def test_serialization(self):
-        """Test JSON serialization of depth data."""
-        frame = np.random.randn(50, 50).astype(np.float32)
+    def test_serialization_is_bit_exact_jpegxl(self):
+        """Round trip uint16 depth through JPEG-XL JSON without changing a value."""
+        frame = _depth_frame((50, 70))
+        frame[:5, :5] = 0
         data = DepthCameraData(
             frame=frame,
+            depth_scale_m=1e-4,
             intrinsics=np.ones((3, 3), dtype=np.float32),
             extrinsics=np.ones((4, 4), dtype=np.float32),
         )
@@ -116,30 +125,29 @@ class TestDepthCameraData:
         json_str = data.model_dump_json()
         loaded = DepthCameraData.model_validate_json(json_str)
 
-        assert loaded.frame.shape == frame.shape
+        assert '"data:image/jxl;base64,' in json_str
+        assert loaded.frame.dtype == np.uint16
+        assert np.array_equal(loaded.frame, frame)
+        assert loaded.depth_scale_m == 1e-4
         assert np.allclose(loaded.intrinsics, data.intrinsics)
 
-    def test_depth_with_zeros(self):
-        """Test depth data with zero values."""
-        frame = np.zeros((100, 100), dtype=np.float32)
+    @pytest.mark.parametrize(
+        "dtype", [np.float16, np.float32, np.float64, np.int32, np.uint8]
+    )
+    def test_rejects_other_dtypes(self, dtype):
+        """Reject frames that are not uint16."""
+        with pytest.raises(ValidationError):
+            DepthCameraData(frame=np.ones((4, 4), dtype=dtype), depth_scale_m=1e-3)
+
+    def test_statistics_are_in_metres(self):
+        """Compute depth statistics on metres, not sensor units."""
         data = DepthCameraData(
-            frame=frame,
-            intrinsics=np.ones((3, 3), dtype=np.float32),
-            extrinsics=np.ones((4, 4), dtype=np.float32),
+            frame=np.full((2, 2), 2000, dtype=np.uint16), depth_scale_m=1e-3
         )
 
-        assert np.allclose(data.frame, 0.0)
+        stats = data.calculate_statistics()
 
-    def test_depth_with_negative_values(self):
-        """Test depth data with negative values."""
-        frame = np.random.randn(100, 100).astype(np.float32)
-        data = DepthCameraData(
-            frame=frame,
-            intrinsics=np.ones((3, 3), dtype=np.float32),
-            extrinsics=np.ones((4, 4), dtype=np.float32),
-        )
-
-        assert data.frame.shape == (100, 100)
+        assert np.allclose(stats.frame.mean, 2.0)
 
 
 class TestBatchedRGBData:
@@ -317,10 +325,11 @@ class TestBatchedDepthData:
     """Tests for BatchedDepthData functionality."""
 
     def test_from_nc_data(self):
-        """Test BatchedDepthData.from_nc_data() conversion."""
-        frame = np.random.randn(100, 100).astype(np.float32)
+        """Build uint16 frames and the scale from one DepthCameraData."""
+        frame = _depth_frame((100, 100))
         depth_data = DepthCameraData(
             frame=frame,
+            depth_scale_m=1e-4,
             intrinsics=np.ones((3, 3), dtype=np.float32),
             extrinsics=np.ones((4, 4), dtype=np.float32),
         )
@@ -328,12 +337,17 @@ class TestBatchedDepthData:
 
         assert isinstance(batched, BatchedDepthData)
         assert batched.frame.shape == (1, 1, 1, 100, 100)
+        assert batched.frame.dtype == torch.uint16
+        assert torch.equal(batched.frame[0, 0, 0], torch.from_numpy(frame))
+        assert batched.depth_scale.shape == (1, 1)
+        assert batched.depth_scale.dtype == torch.float32
         assert batched.intrinsics.shape == (1, 1, 3, 3)
 
     def test_from_nc_data_handles_none_extrinsics(self):
         """Test BatchedDepthData.from_nc_data() handles None extrinsics."""
         depth_data = DepthCameraData(
-            frame=np.random.randn(100, 100).astype(np.float32),
+            frame=_depth_frame((100, 100)),
+            depth_scale_m=1e-3,
             intrinsics=None,
             extrinsics=None,
         )
@@ -341,23 +355,25 @@ class TestBatchedDepthData:
         assert batched.extrinsics.shape == (1, 1, 4, 4)
         assert batched.intrinsics.shape == (1, 1, 3, 3)
 
-    def test_transform_nc_data(self):
-        """Test that transform_nc_data can be called without error."""
-        frame = np.random.randn(100, 100).astype(np.float32)
-        depth_data = DepthCameraData(
-            frame=frame,
-            intrinsics=np.ones((3, 3), dtype=np.float32),
-            extrinsics=np.ones((4, 4), dtype=np.float32),
+    def test_transform_nc_data_resizes_with_nearest_and_keeps_dtype(self):
+        """Resize to 224 by 224 with nearest neighbour, so values and holes survive."""
+        frame = np.array([[0, 500], [1000, 0]], dtype=np.uint16)
+        batched = BatchedDepthData.from_nc_data(
+            DepthCameraData(frame=frame, depth_scale_m=1e-3)
         )
-        batched = BatchedDepthData.from_nc_data(depth_data)
+
         batched.transform_nc_data()
-        # Check that frame is now of size (224, 224) after transformation
+
         assert batched.frame.shape == (1, 1, 1, 224, 224)
+        assert batched.frame.dtype == torch.uint16
+        assert set(batched.frame.flatten().tolist()) == {0, 500, 1000}
 
     def test_sample(self):
         """Test BatchedDepthData.sample() with different dimensions."""
         batched = BatchedDepthData.sample(batch_size=3, time_steps=2)
         assert batched.frame.shape == (3, 2, 1, 224, 224)
+        assert batched.frame.dtype == torch.uint16
+        assert batched.depth_scale.shape == (3, 2)
         assert batched.intrinsics.shape == (3, 2, 3, 3)
 
     def test_to_device(self):
@@ -366,97 +382,103 @@ class TestBatchedDepthData:
         batched_cpu = batched.to(torch.device("cpu"))
 
         assert batched_cpu.frame.device.type == "cpu"
+        assert batched_cpu.depth_scale.device.type == "cpu"
         assert batched_cpu.intrinsics.device.type == "cpu"
 
     def test_can_serialize_deserialize(self):
-        """Test JSON serialization and deserialization."""
-        batched = BatchedDepthData.sample(batch_size=2, time_steps=2)
+        """Round trip uint16 frames and the scale through JSON."""
+        batched = BatchedDepthData.from_nc_data_list([
+            DepthCameraData(frame=_depth_frame((8, 9), seed=i), depth_scale_m=1e-3)
+            for i in range(2)
+        ])
         json_str = batched.model_dump_json()
         loaded = BatchedDepthData.model_validate_json(json_str)
 
+        assert loaded.frame.dtype == torch.uint16
         assert torch.equal(loaded.frame, batched.frame)
-        assert loaded.frame.shape == batched.frame.shape
+        assert torch.equal(loaded.depth_scale, batched.depth_scale)
 
-    def test_from_nc_data_list_single_item(self):
-        """Test from_nc_data_list with single depth image."""
-        frame = np.random.randn(100, 100).astype(np.float32)
-        depth_data = DepthCameraData(
-            frame=frame,
-            intrinsics=np.ones((3, 3), dtype=np.float32),
-            extrinsics=np.ones((4, 4), dtype=np.float32),
+    def test_to_compute_dtype_gives_metres_and_is_idempotent(self):
+        """Convert each frame to float32 metres with its own scale, once."""
+        batched = BatchedDepthData.from_nc_data_list([
+            DepthCameraData(
+                frame=np.array([[0, 1000]], dtype=np.uint16), depth_scale_m=1e-3
+            ),
+            DepthCameraData(
+                frame=np.array([[0, 1000]], dtype=np.uint16), depth_scale_m=1e-4
+            ),
+        ])
+
+        batched.to_compute_dtype()
+        batched.to_compute_dtype()
+
+        assert batched.frame.dtype == torch.float32
+        assert torch.allclose(batched.frame[0, 0, 0], torch.tensor([[0.0, 1.0]]))
+        assert torch.allclose(batched.frame[0, 1, 0], torch.tensor([[0.0, 0.1]]))
+
+    def test_batches_concatenate_frames_and_scales(self):
+        """Concatenate uint16 frames and scales along the batch dimension."""
+        first = BatchedDepthData.from_nc_data(
+            DepthCameraData(frame=_depth_frame((4, 4)), depth_scale_m=1e-3)
         )
-        batched = BatchedDepthData.from_nc_data_list([depth_data])
+        second = BatchedDepthData.sample(batch_size=1, time_steps=1)
+        second.frame = second.frame[..., :4, :4]
 
-        assert isinstance(batched, BatchedDepthData)
-        assert batched.frame.shape == (1, 1, 1, 100, 100)
-        assert batched.intrinsics.shape == (1, 1, 3, 3)
-        assert batched.extrinsics.shape == (1, 1, 4, 4)
+        batched = BatchedDepthData(
+            frame=torch.cat([first.frame, second.frame], dim=0),
+            depth_scale=torch.cat([first.depth_scale, second.depth_scale], dim=0),
+            extrinsics=torch.cat([first.extrinsics, second.extrinsics], dim=0),
+            intrinsics=torch.cat([first.intrinsics, second.intrinsics], dim=0),
+        )
+        batched.to_compute_dtype()
+
+        assert batched.frame.shape == (2, 1, 1, 4, 4)
+        assert torch.equal(batched.frame[1], torch.zeros(1, 1, 4, 4))
+        assert torch.allclose(
+            batched.frame[0, 0, 0], first.frame[0, 0, 0].to(torch.float32) * 1e-3
+        )
 
     def test_from_nc_data_list_multiple_items(self):
-        """Test from_nc_data_list with multiple depth images."""
-        frames = [np.random.randn(100, 100).astype(np.float32) for _ in range(10)]
+        """Stack frames and scales along the time dimension."""
         depth_data_list = [
             DepthCameraData(
-                frame=frame,
+                frame=_depth_frame((100, 100), seed=i),
+                depth_scale_m=1e-4 * (i + 1),
                 intrinsics=np.ones((3, 3), dtype=np.float32),
                 extrinsics=np.ones((4, 4), dtype=np.float32),
             )
-            for frame in frames
+            for i in range(10)
         ]
         batched = BatchedDepthData.from_nc_data_list(depth_data_list)
 
         assert batched.frame.shape == (1, 10, 1, 100, 100)
+        assert batched.frame.dtype == torch.uint16
+        assert batched.depth_scale.shape == (1, 10)
+        assert torch.allclose(batched.depth_scale[0, 9], torch.tensor(1e-3))
         assert batched.intrinsics.shape == (1, 10, 3, 3)
         assert batched.extrinsics.shape == (1, 10, 4, 4)
 
-    def test_from_nc_data_list_large_batch(self):
-        """Test from_nc_data_list with large number of depth images."""
-        num_images = 100
-        depth_data_list = [DepthCameraData.sample() for _ in range(num_images)]
-        batched = BatchedDepthData.from_nc_data_list(depth_data_list)
-        assert batched.frame.shape[0] == 1  # Batch dimension
-        assert batched.frame.shape[1] == num_images  # Time dimension
-        assert batched.frame.shape[2] == 1  # Channels
-
     def test_from_nc_data_list_preserves_depth_values(self):
-        """Test that from_nc_data_list preserves exact depth values."""
-        frame1 = np.ones((50, 50), dtype=np.float32) * 1.5
-        frame2 = np.ones((50, 50), dtype=np.float32) * 2.5
+        """Keep exact uint16 values for every frame."""
+        frames = [np.full((50, 50), v, dtype=np.uint16) for v in (1500, 2500)]
+        batched = BatchedDepthData.from_nc_data_list(
+            [DepthCameraData(frame=f, depth_scale_m=1e-3) for f in frames]
+        )
 
-        depth_data_list = [
-            DepthCameraData(
-                frame=frame1,
-                intrinsics=np.eye(3, dtype=np.float32),
-                extrinsics=np.eye(4, dtype=np.float32),
-            ),
-            DepthCameraData(
-                frame=frame2,
-                intrinsics=np.eye(3, dtype=np.float32),
-                extrinsics=np.eye(4, dtype=np.float32),
-            ),
-        ]
-        batched = BatchedDepthData.from_nc_data_list(depth_data_list)
-
-        assert torch.allclose(batched.frame[0, 0, 0], torch.ones(50, 50) * 1.5)
-        assert torch.allclose(batched.frame[0, 1, 0], torch.ones(50, 50) * 2.5)
+        assert torch.equal(batched.frame[0, 0, 0], torch.from_numpy(frames[0]))
+        assert torch.equal(batched.frame[0, 1, 0], torch.from_numpy(frames[1]))
 
     def test_from_nc_data_list_handles_none_extrinsics(self):
         """Test from_nc_data_list with None extrinsics/intrinsics."""
         depth_data = DepthCameraData(
-            frame=np.random.randn(100, 100).astype(np.float32),
+            frame=_depth_frame((100, 100)),
+            depth_scale_m=1e-3,
             intrinsics=None,
             extrinsics=None,
         )
         batched = BatchedDepthData.from_nc_data_list([depth_data])
         assert batched.extrinsics.shape == (1, 1, 4, 4)
         assert batched.intrinsics.shape == (1, 1, 3, 3)
-
-    def test_from_nc_data_list_followed_by_transform(self):
-        """Test that from_nc_data_list can be followed by transform_nc_data."""
-        depth_data_list = [DepthCameraData.sample() for _ in range(5)]
-        batched = BatchedDepthData.from_nc_data_list(depth_data_list)
-        batched.transform_nc_data()
-        assert batched.frame.shape == (1, 5, 1, 224, 224)
 
 
 class TestRGBCameraDataImportConfig:
@@ -541,62 +563,32 @@ class TestRGBCameraDataImportConfig:
 class TestDepthCameraDataImportConfig:
     """Tests for DepthCameraDataImportConfig class."""
 
-    def test_depth_camera_data_import_config_meters(self):
-        """Test DepthCameraDataImportConfig with meters."""
+    @staticmethod
+    def _transforms(**format_fields: object) -> DataTransformSequence:
         data_point = DepthCameraDataImportConfig(
             source="depth",
             mapping=[DepthCameraDataMappingItem(name="depth_image")],
-            format=DataFormat(distance_units=DistanceUnitsConfig.M),
+            format=DataFormat(**format_fields),
         )
-        transforms = data_point.mapping[0].transforms
-        frame = np.ones((100, 100), dtype=np.float32) * 1000.0
-        transformed_data = transforms(frame)
-        assert transformed_data.shape == (100, 100)
-        assert transformed_data.dtype == np.float32
-        assert transformed_data.max() == 1000.0
+        return data_point.mapping[0].transforms
 
-    def test_depth_camera_data_import_config_millimeters(self):
-        """Test DepthCameraDataImportConfig with millimeters."""
-        data_point = DepthCameraDataImportConfig(
-            source="depth",
-            mapping=[DepthCameraDataMappingItem(name="depth_image")],
-            format=DataFormat(distance_units=DistanceUnitsConfig.MM),
-        )
-        frame = np.ones((100, 100), dtype=np.float32) * 1000.0
-        transforms = data_point.mapping[0].transforms
-        transformed_data = transforms(frame)
-        assert transformed_data.shape == (100, 100)
-        assert transformed_data.dtype == np.float32
-        assert transformed_data.max() == 1.0
+    def test_integer_source_keeps_values(self):
+        """Keep D405 tenth of a millimetre units as uint16, 65535 included."""
+        frame = np.array([[0, 5000], [65535, 1]], dtype=np.int32)
 
-    def test_depth_camera_data_import_default(self):
-        """Test DepthCameraDataImportConfig with default format."""
-        data_point = DepthCameraDataImportConfig(
-            source="depth", mapping=[DepthCameraDataMappingItem(name="depth_image")]
-        )
-        transforms = data_point.mapping[0].transforms
-        frame = np.random.randn(100, 100).astype(np.float32)
-        transformed_data = transforms(frame)
-        assert transformed_data.shape == (100, 100)
+        result = self._transforms(depth_scale_m=0.0001)(frame)
 
-    def test_depth_camera_data_import_3_dimensions(self):
-        """Test DepthCameraDataImportConfig with 3 dimensions."""
-        data_point = DepthCameraDataImportConfig(
-            source="depth",
-            mapping=[DepthCameraDataMappingItem(name="depth_image")],
-        )
-        transforms = data_point.mapping[0].transforms
-        frame = np.random.randn(100, 100, 1).astype(np.float32)
-        transformed_data = transforms(frame)
-        assert transformed_data.shape == (100, 100)
+        assert result.dtype == np.uint16
+        assert np.array_equal(result, frame)
 
-    def test_depth_camera_data_import_3_dimensions_channels_first(self):
-        """Test DepthCameraDataImportConfig with 3 dimensions and channels first."""
-        data_point = DepthCameraDataImportConfig(
-            source="depth",
-            mapping=[DepthCameraDataMappingItem(name="depth_image")],
-        )
-        transforms = data_point.mapping[0].transforms
-        frame = np.random.randn(1, 100, 100).astype(np.float32)
-        transformed_data = transforms(frame)
-        assert transformed_data.shape == (100, 100)
+    def test_missing_scale_raises(self):
+        """Refuse a depth config without depth_scale_m."""
+        with pytest.raises(ValueError, match="depth_scale_m"):
+            self._transforms()
+
+    def test_squeezes_singleton_channel(self):
+        """Accept HxWx1 and 1xHxW images."""
+        transforms = self._transforms(depth_scale_m=0.001)
+
+        assert transforms(np.ones((10, 12, 1), dtype=np.uint16)).shape == (10, 12)
+        assert transforms(np.ones((1, 10, 12), dtype=np.uint16)).shape == (10, 12)
