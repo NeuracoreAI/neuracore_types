@@ -193,6 +193,10 @@ class TrainingJob(BaseModel):
             from, if applicable.
         resumed_from_checkpoint: The name of the checkpoint this job started
             from, if applicable.
+        root_job_id: The ID of the first job in this job's family of runs, or
+            None if this job is the root.
+        start_epoch: The epoch this run started from, taken from the checkpoint
+            it resumed from. 0 for runs trained from scratch.
         previous_training_time: The time spent on the previous training, if applicable.
         seconds_per_epoch: Wall-clock seconds for the latest completed post-warmup
             epoch, if measured. Used by clients to estimate remaining time.
@@ -201,7 +205,7 @@ class TrainingJob(BaseModel):
         phase_progress_total: Total units for the current pre-training phase,
             if applicable.
         error: Any error message associated with the job, if applicable.
-        resume_points: List of timestamps where the job can be resumed.
+        resume_points: Epochs at which the job was resumed in place.
         input_cross_embodiment_description: List of data types for the input data.
         output_cross_embodiment_description: List of data types for the output data.
         deleted: True if the job is marked for deletion and its resources are
@@ -234,6 +238,8 @@ class TrainingJob(BaseModel):
     resumed_at: float | None = None
     resumed_from_job_id: str | None = None
     resumed_from_checkpoint: str | None = None
+    root_job_id: str | None = None
+    start_epoch: int = Field(default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     previous_training_time: float | None = None
     seconds_per_epoch: float | None = None
     phase_progress_done: int | None = None
