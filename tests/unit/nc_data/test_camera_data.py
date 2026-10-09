@@ -159,6 +159,10 @@ class TestBatchedRGBData:
         assert batched.frame.shape == (1, 1, 3, 100, 100)
         assert batched.intrinsics.shape == (1, 1, 3, 3)
         assert batched.extrinsics.shape == (1, 1, 4, 4)
+        assert batched.frame.dtype == torch.uint8
+        assert torch.equal(
+            batched.frame[0, 0], torch.from_numpy(frame).permute(2, 0, 1)
+        )
 
     def test_transform_nc_data(self):
         """Test that transform_nc_data can be called without error."""
@@ -173,10 +177,34 @@ class TestBatchedRGBData:
         # Check that frame is now of size (224, 224) after transformation
         assert batched.frame.shape == (1, 1, 3, 224, 224)
 
+    def test_transform_nc_data_keeps_uint8_rounded_from_float_resize(self):
+        """The resized uint8 frame equals the float32 resize rounded to uint8."""
+        frame = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        rgb_data = RGBCameraData(
+            frame=frame,
+            intrinsics=np.ones((3, 3), dtype=np.float32),
+            extrinsics=np.ones((4, 4), dtype=np.float32),
+        )
+        batched = BatchedRGBData.from_nc_data(rgb_data)
+        expected = torch.nn.functional.interpolate(
+            batched.frame[0].to(torch.float32),
+            size=(224, 224),
+            mode="bilinear",
+            align_corners=False,
+        )
+
+        batched.transform_nc_data()
+
+        assert batched.frame.dtype == torch.uint8
+        assert torch.equal(
+            batched.frame[0], expected.round().clamp(0, 255).to(torch.uint8)
+        )
+
     def test_sample(self):
         """Test BatchedRGBData.sample() with different dimensions."""
         batched = BatchedRGBData.sample(batch_size=2, time_steps=3)
         assert batched.frame.shape == (2, 3, 3, 224, 224)
+        assert batched.frame.dtype == torch.uint8
         assert batched.intrinsics.shape == (2, 3, 3, 3)
         assert batched.extrinsics.shape == (2, 3, 4, 4)
 
@@ -193,6 +221,21 @@ class TestBatchedRGBData:
         assert batched_cpu.frame.device.type == "cpu"
         assert batched_cpu.intrinsics.device.type == "cpu"
         assert batched_cpu.extrinsics.device.type == "cpu"
+
+    def test_to_compute_dtype_converts_uint8_frames_to_float32(self):
+        """Convert uint8 frames to float32 with the same pixel values."""
+        frame = torch.arange(24, dtype=torch.uint8).reshape(1, 1, 3, 2, 4)
+        batched = BatchedRGBData(
+            frame=frame.clone(),
+            extrinsics=torch.zeros((1, 1, 4, 4)),
+            intrinsics=torch.zeros((1, 1, 3, 3)),
+        )
+
+        batched.to_compute_dtype()
+        batched.to_compute_dtype()
+
+        assert batched.frame.dtype == torch.float32
+        assert torch.equal(batched.frame, frame.to(torch.float32))
 
     def test_can_serialize_deserialize(self):
         """Test JSON serialization and deserialization."""
@@ -217,7 +260,7 @@ class TestBatchedRGBData:
         assert batched.frame.shape == (1, 1, 3, 100, 100)
         assert batched.intrinsics.shape == (1, 1, 3, 3)
         assert batched.extrinsics.shape == (1, 1, 4, 4)
-        assert batched.frame.dtype == torch.float32
+        assert batched.frame.dtype == torch.uint8
         assert batched.intrinsics.dtype == torch.float32
         assert batched.extrinsics.dtype == torch.float32
 
