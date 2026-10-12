@@ -11,7 +11,9 @@ frombuffer
 groot
 grpcio
 huggingface
+imagecodecs
 itemsize
+jpegxl
 LEROBOT
 libx
 linalg
