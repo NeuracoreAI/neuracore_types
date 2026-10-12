@@ -93,6 +93,7 @@ class BatchedNCData(BaseModel):
                     "int16": torch.int16,
                     "int8": torch.int8,
                     "uint8": torch.uint8,
+                    "uint16": torch.uint16,
                     "bool": torch.bool,
                 }
                 torch_dtype = dtype_map.get(dtype_str, torch.float32)
