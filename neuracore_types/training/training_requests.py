@@ -26,6 +26,8 @@ class TrainingJobRequest(BaseModel):
             data types to names
         resume_from_job_id: Identifier of a completed training job whose latest
             checkpoint this job continues from. None trains from scratch.
+        wait_for_gpu: If True, queue the job even when no GPUs are free and keep
+            retrying provisioning until capacity is available.
     """
 
     dataset_id: str
@@ -39,6 +41,7 @@ class TrainingJobRequest(BaseModel):
     input_cross_embodiment_description: CrossEmbodimentDescription
     output_cross_embodiment_description: CrossEmbodimentDescription
     resume_from_job_id: str | None = None
+    wait_for_gpu: bool = True
 
 
 class EstimateDiskSizeRequest(BaseModel):
@@ -78,6 +81,8 @@ class InternalStartTrainingJobRequest(BaseModel):
             job continues from, if any.
         resume_from_checkpoint: Name of the checkpoint file to continue from,
             resolved when the job was requested.
+        wait_for_gpu: If True, keep re-queuing provisioning until GPUs are
+            available instead of failing the job.
     """
 
     org_id: str
@@ -95,3 +100,4 @@ class InternalStartTrainingJobRequest(BaseModel):
     output_cross_embodiment_description: CrossEmbodimentDescription
     resume_from_job_id: str | None = None
     resume_from_checkpoint: str | None = None
+    wait_for_gpu: bool = True

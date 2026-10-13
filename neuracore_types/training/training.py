@@ -204,6 +204,8 @@ class TrainingJob(BaseModel):
         resume_points: List of timestamps where the job can be resumed.
         input_cross_embodiment_description: List of data types for the input data.
         output_cross_embodiment_description: List of data types for the output data.
+        wait_for_gpu: If True, provisioning is retried until GPUs are available
+            instead of failing immediately when capacity is short.
         deleted: True if the job is marked for deletion and its resources are
             not yet removed.
         deleted_at: The time the job was marked for deletion, if applicable.
@@ -249,6 +251,9 @@ class TrainingJob(BaseModel):
         default_factory=lambda: {}, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     synchronization_details: SynchronizationDetails
+    wait_for_gpu: bool = Field(
+        default=True, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     deleted: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     deleted_at: datetime | None = Field(
         default=None, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
