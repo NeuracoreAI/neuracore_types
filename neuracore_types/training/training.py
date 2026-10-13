@@ -255,3 +255,21 @@ class TrainingJob(BaseModel):
     )
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+
+class TrainingCheckpoint(BaseModel):
+    """A checkpoint saved by a training job.
+
+    Attributes:
+        job_id: The ID of the training job that saved the checkpoint.
+        name: The checkpoint file name, e.g. ``checkpoint_25.pt``.
+        epoch: The epoch the checkpoint was saved at.
+        size_bytes: The checkpoint size in bytes, if known.
+        updated_at: When the checkpoint was last written, if known.
+    """
+
+    job_id: str
+    name: str
+    epoch: int
+    size_bytes: int | None = None
+    updated_at: datetime | None = None
