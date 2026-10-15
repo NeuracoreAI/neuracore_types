@@ -274,6 +274,27 @@ class TestJointPositionsDataImportConfig:
         assert data_point.mapping[1].index == 1
         assert data_point.mapping[2].index == 2
 
+    def test_joint_positions_per_item_source_not_auto_indexed(self):
+        """Test items that name their own source keep no index."""
+        data_point = JointPositionsDataImportConfig(
+            mapping=[
+                MappingItem(name="joint_0", source_name="/joint_0.value"),
+                MappingItem(name="joint_1", source_name="/joint_1.value"),
+            ],
+        )
+        assert [item.index for item in data_point.mapping] == [None, None]
+
+    def test_joint_positions_shared_source_auto_indexed(self):
+        """Test items sharing one source array are still auto-indexed."""
+        data_point = JointPositionsDataImportConfig(
+            source="observation",
+            mapping=[
+                MappingItem(name="joint_0", source_name="state"),
+                MappingItem(name="joint_1", source_name="state"),
+            ],
+        )
+        assert [item.index for item in data_point.mapping] == [0, 1]
+
     def test_joint_positions_all_indexes_provided(self):
         """Test JointPositionsDataImportConfig with all indexes provided."""
         data_point = JointPositionsDataImportConfig(
