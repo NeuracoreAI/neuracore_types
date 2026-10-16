@@ -12,5 +12,3 @@ Example: "This release adds support for multi-GPU training and improves streamin
 <!-- Append your summary here -->
 
 `TrainingCheckpoint` model describes a checkpoint a training job has available for download. `size_bytes` and `updated_at` are optional and may be unset.
-
-Training jobs now carry `completed_epochs` (epochs with a saved checkpoint) and `target_epochs` (the epoch the job trains up to). Trainers can report `completed_epochs` in a progress update.
