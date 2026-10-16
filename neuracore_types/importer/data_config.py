@@ -117,6 +117,7 @@ class DataFormat(BaseModel):
     angle_units: AngleConfig = AngleConfig.RADIANS
     torque_units: TorqueUnitsConfig = TorqueUnitsConfig.NM
     distance_units: DistanceUnitsConfig = DistanceUnitsConfig.M
+    depth_scale_m: float | None = None
 
     # Pose format fields
     pose_type: PoseConfig = PoseConfig.MATRIX
