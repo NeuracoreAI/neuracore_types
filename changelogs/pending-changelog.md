@@ -14,3 +14,5 @@ Example: "This release adds support for multi-GPU training and improves streamin
 - `TrainingCheckpoint` model describes a checkpoint a training job has available for download. `size_bytes` and `updated_at` are optional and may be unset.
 - Pending recordings now expose their cancellation state, defaulting to false for existing recordings.
 - Add `wait_for_gpu` to training job requests and records so jobs can stay queued until GPU capacity is available.
+
+- Added the END_EFFECTOR_TARGET_POSES data type for commanded end-effector poses. It uses the same pose format as END_EFFECTOR_POSES.

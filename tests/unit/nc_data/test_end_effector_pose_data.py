@@ -5,6 +5,12 @@ import pytest
 import torch
 
 from neuracore_types import BatchedEndEffectorPoseData, EndEffectorPoseData
+from neuracore_types.batched_nc_data import DATA_TYPE_TO_BATCHED_NC_DATA_CLASS
+from neuracore_types.nc_data import (
+    DATA_TYPE_TO_NC_DATA_CLASS,
+    TARGET_OUTPUT_DATA_TYPES,
+    DataType,
+)
 
 
 class TestEndEffectorPoseData:
@@ -183,3 +189,14 @@ class TestEndEffectorPoseDataStatistics:
         assert len(concatenated.mean) == 14  # 7 + 7
         assert len(concatenated.q01) == 14
         assert len(concatenated.q99) == 14
+
+
+class TestEndEffectorTargetPoseDataType:
+    """Tests for END_EFFECTOR_TARGET_POSES DataType mapping."""
+
+    def test_target_uses_same_data_classes_as_state(self):
+        """Map the target type to the end-effector pose data classes."""
+        target = DataType.END_EFFECTOR_TARGET_POSES
+        assert DATA_TYPE_TO_NC_DATA_CLASS[target] == EndEffectorPoseData
+        assert DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[target] == BatchedEndEffectorPoseData
+        assert target in TARGET_OUTPUT_DATA_TYPES
