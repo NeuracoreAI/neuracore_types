@@ -54,8 +54,11 @@ def _validate_index_provided(mapping: list[MappingItem], class_name: str) -> Non
             f"All or none of the mapping items in {class_name} must have an "
             "'index' specified"
         )
-    # If no indexes are provided, assign them sequentially
-    if not any(idx is not None for idx in indexes):
+    # If no indexes are provided, assign them sequentially, unless every item
+    # names a distinct source, which already resolves to that item's value
+    source_names = [item.source_name for item in mapping]
+    has_own_sources = all(source_names) and len(set(source_names)) == len(mapping)
+    if not any(idx is not None for idx in indexes) and not has_own_sources:
         for i, item in enumerate(mapping):
             item.index = i
 
