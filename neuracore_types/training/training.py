@@ -152,6 +152,7 @@ class TrainingProgress(BaseModel):
 
     Attributes:
         epoch: Current training epoch.
+        completed_epochs: Number of epochs whose checkpoint is saved.
         step: Current training step.
         seconds_per_epoch: Wall-clock seconds for the latest completed
             post-warmup epoch, if measured.
@@ -160,6 +161,7 @@ class TrainingProgress(BaseModel):
     """
 
     epoch: int | None = None
+    completed_epochs: int | None = None
     step: int | None = None
     seconds_per_epoch: float | None = None
     status: TrainingJobStatus | None = None
@@ -184,6 +186,8 @@ class TrainingJob(BaseModel):
         start_time: The time the job started, if applicable.
         end_time: The time the job ended, if applicable.
         epoch: The current epoch of the training job.
+        completed_epochs: The number of epochs whose checkpoint is saved.
+        target_epochs: The epoch the job trains up to.
         step: The current step of the training job.
         algorithm_config: Configuration parameters for the algorithm.
         gpu_type: The type of GPU used for the job.
@@ -224,6 +228,10 @@ class TrainingJob(BaseModel):
     start_time: float | None = None
     end_time: float | None = None
     epoch: int = Field(default=-1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
+    completed_epochs: int = Field(
+        default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    target_epochs: int = Field(default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     step: int = Field(default=-1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     algorithm_config: dict[str, Any] = Field(
         default_factory=lambda: {}, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
