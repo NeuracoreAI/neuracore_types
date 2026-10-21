@@ -15,3 +15,4 @@ Example: "This release adds support for multi-GPU training and improves streamin
 - Pending recordings now expose their cancellation state, defaulting to false for existing recordings.
 - Add `wait_for_gpu` to training job requests and records so jobs can stay queued until GPU capacity is available.
 - Training jobs now carry `completed_epochs` (epochs with a saved checkpoint) and `target_epochs` (the epoch the job trains up to). Trainers can report `completed_epochs` in a progress update.
+- Training jobs can run on the user's own machine: `LocalTrainingJobRequest` creates a job with no cloud VM, `TrainingJob.runs_locally` marks it, and `LOCAL_REPORTED_FINAL_STATUSES` lists the final statuses its training process reports itself.

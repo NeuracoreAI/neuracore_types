@@ -133,6 +133,14 @@ VM_REPORTED_TRAINING_STATUSES = frozenset({
     TrainingJobStatus.RUNNING,
 })
 
+# Final statuses a local job's training process reports itself, since no
+# cloud poller watches it.
+LOCAL_REPORTED_FINAL_STATUSES = frozenset({
+    TrainingJobStatus.COMPLETED,
+    TrainingJobStatus.FAILED,
+    TrainingJobStatus.CANCELLED,
+})
+
 
 class TrainingPhaseProgress(BaseModel):
     """Progress within the current pre-training phase.
@@ -213,6 +221,8 @@ class TrainingJob(BaseModel):
         deleted: True if the job is marked for deletion and its resources are
             not yet removed.
         deleted_at: The time the job was marked for deletion, if applicable.
+        runs_locally: True if the job trains on the user's own machine, so
+            there is no cloud VM and the training process reports when it ends.
     """
 
     id: str
@@ -265,6 +275,9 @@ class TrainingJob(BaseModel):
     deleted: bool = Field(default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     deleted_at: datetime | None = Field(
         default=None, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
+    runs_locally: bool = Field(
+        default=False, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)

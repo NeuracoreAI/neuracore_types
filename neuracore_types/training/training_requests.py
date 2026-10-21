@@ -44,6 +44,34 @@ class TrainingJobRequest(BaseModel):
     wait_for_gpu: bool = True
 
 
+class LocalTrainingJobRequest(BaseModel):
+    """Request model for a training job that runs on the user's own machine.
+
+    The job is only a record: no cloud VM starts and no compute is billed. The
+    training process started with its ID reports progress, checkpoints and
+    the model to it.
+
+    Attributes:
+        dataset_id: Identifier of the dataset to use for training.
+        name: Name for the training job.
+        algorithm_id: Identifier of the training algorithm to use.
+        algorithm_config: Configuration parameters for the training algorithm.
+        synchronization_details: Details for dataset synchronization.
+        input_cross_embodiment_description: The robust mapping of robot to input
+            data types to names
+        output_cross_embodiment_description: The robust mapping of robot to output
+            data types to names
+    """
+
+    dataset_id: str
+    name: str
+    algorithm_id: str
+    algorithm_config: dict[str, Any]
+    synchronization_details: SynchronizationDetails
+    input_cross_embodiment_description: CrossEmbodimentDescription
+    output_cross_embodiment_description: CrossEmbodimentDescription
+
+
 class EstimateDiskSizeRequest(BaseModel):
     """Request model for estimating training VM disk size."""
 
