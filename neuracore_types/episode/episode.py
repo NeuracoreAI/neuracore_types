@@ -274,6 +274,10 @@ class Recording(BaseModel):
             Empty means either no camera data types or a recording
             predating the field. Non-empty must cover every camera data
             type present in data_types.
+        trace_bytes: Size in bytes of each sensor's trace.json, nested under
+            DataType, captured at finalize. Lets synchronization size its
+            work without listing the bucket. Empty for recordings finalized
+            before this field existed.
     """
 
     id: str
@@ -303,7 +307,21 @@ class Recording(BaseModel):
     encoding: dict[DataType, dict[str, Codec]] = Field(
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
+    trace_bytes: dict[DataType, dict[str, NonNegativeInt]] = Field(
+        default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+    @model_validator(mode="after")
+    def _validate_trace_bytes_data_types(self) -> "Recording":
+        """Ensure trace_bytes only references data types present."""
+        unknown_data_types = set(self.trace_bytes) - self.data_types
+        if unknown_data_types:
+            raise ValueError(
+                "Recording.trace_bytes has entries for data types not present in "
+                f"data_types: {unknown_data_types}"
+            )
+        return self
 
     @model_validator(mode="after")
     def _validate_encoding_data_types(self) -> "Recording":
