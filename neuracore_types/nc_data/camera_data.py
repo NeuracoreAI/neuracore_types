@@ -2,14 +2,20 @@
 
 import base64
 from io import BytesIO
-from typing import Literal
+from typing import Any, Literal
 
+import imagecodecs
 import numpy as np
 from PIL import Image
-from pydantic import ConfigDict, Field, field_serializer, field_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from neuracore_types.importer.config import (
-    DistanceUnitsConfig,
     ImageChannelOrderConfig,
     ImageConventionConfig,
 )
@@ -24,8 +30,6 @@ from neuracore_types.importer.transform import (
     DataTransformSequence,
     ImageChannelOrder,
     ImageFormat,
-    NanToNum,
-    Scale,
     Squeeze,
     Unnormalize,
 )
@@ -35,7 +39,6 @@ from neuracore_types.nc_data.nc_data import (
     NCDataImportConfig,
     NCDataStats,
 )
-from neuracore_types.utils.depth_utils import depth_to_rgb, rgb_to_depth
 from neuracore_types.utils.numpy_array import NumpyArray
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
@@ -43,6 +46,11 @@ from neuracore_types.utils.pydantic_to_ts import (
 )
 
 RGB_URI_PREFIX = "data:image/png;base64,"
+JXL_URI_PREFIX = "data:image/jxl;base64,"
+DEPTH_JXL_EFFORT = 2
+DEPTH_FRAME_DTYPE = np.dtype(np.uint16)
+LEGACY_DEPTH_SCALE_M = 10.0 / 65535
+"""Metres per unit of depth recorded as packed 24-bit RGB video."""
 
 
 class CameraDataStats(NCDataStats):
@@ -97,22 +105,19 @@ class DepthCameraDataImportConfig(NCDataImportConfig):
 
     mapping: list[DepthCameraDataMappingItem] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def validate_depth_scale(self) -> "DepthCameraDataImportConfig":
+        """Validate that the format provides depth_scale_m."""
+        if self.format.depth_scale_m is None:
+            raise ValueError("Depth image imports need format.depth_scale_m")
+        return self
+
     def _populate_transforms(self) -> None:
         """Populate transforms based on configuration."""
-        transform_list: list[DataTransform] = []
-
-        # Add NanToNum transform to convert NaN to 0
-        transform_list.append(NanToNum())
-
-        # Add Scale transform to convert mm to m
-        if self.format.distance_units == DistanceUnitsConfig.MM:
-            transform_list.append(Scale(factor=0.001))
-
-        # Convert to float32
-        transform_list.append(CastToNumpyDtype(dtype=np.float32))
-
-        # Squeeze any singleton dimensions
-        transform_list.append(Squeeze())
+        transform_list: list[DataTransform] = [
+            Squeeze(),
+            CastToNumpyDtype(dtype=np.uint16),
+        ]
 
         for item in self.mapping:
             item.transforms = DataTransformSequence(transforms=transform_list)
@@ -303,32 +308,106 @@ class RGBCameraData(CameraData):
 
 
 class DepthCameraData(CameraData):
-    """Depth camera data subclass.
+    """Depth camera data in sensor units.
 
-    Specialization of CameraData for depth images.
+    The frame is uint16 and holds sensor units, with 0 meaning no return.
+    Multiplying by depth_scale_m gives metres. A recorded frame lives in the
+    trace's lossless.bin at offset, length bytes long.
     """
 
     type: Literal["DepthCameraData"] = Field(
         default="DepthCameraData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
+    depth_scale_m: float
+    offset: int | None = None
+    length: int | None = None
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
+    @model_validator(mode="before")
+    @classmethod
+    def fill_legacy_depth_scale(cls, data: Any) -> Any:
+        """Fill the legacy scale of a depth entry recorded as packed RGB video.
+
+        A legacy entry is a synced trace entry with no depth_scale_m, no offset
+        and no frame. Depth data with a frame or an offset needs its own scale.
+
+        Args:
+            data: Raw input of the model
+
+        Returns:
+            The input, with LEGACY_DEPTH_SCALE_M as depth_scale_m for a legacy
+            entry.
+        """
+        if (
+            isinstance(data, dict)
+            and "depth_scale_m" not in data
+            and data.get("offset") is None
+            and data.get("frame") is None
+        ):
+            return {**data, "depth_scale_m": LEGACY_DEPTH_SCALE_M}
+        return data
+
+    @field_validator("frame", mode="after")
+    @classmethod
+    def validate_depth_frame(cls, frame: np.ndarray | None) -> np.ndarray | None:
+        """Reject depth frames that are not 2D arrays of a depth frame dtype.
+
+        Args:
+            frame: Decoded frame or None
+
+        Returns:
+            The frame unchanged
+
+        Raises:
+            ValueError: If the frame has another dtype or is not 2D.
+        """
+        if isinstance(frame, np.ndarray) and (
+            frame.dtype != DEPTH_FRAME_DTYPE or frame.ndim != 2
+        ):
+            raise ValueError(
+                f"DepthCameraData frames must be 2D {DEPTH_FRAME_DTYPE} "
+                f"arrays, got {frame.dtype} with shape {frame.shape}"
+            )
+        return frame
+
+    def calculate_statistics(self) -> CameraDataStats:
+        """Calculate the statistics for this data type in metres.
+
+        Returns:
+            Statistics of the frame in metres and of the calibration.
+        """
+        stats = super().calculate_statistics()
+        if isinstance(self.frame, np.ndarray):
+            depth = self.frame.astype(np.float32) * np.float32(self.depth_scale_m)
+            stats.frame = DataItemStats(
+                mean=depth.copy(),
+                std=np.zeros_like(depth),
+                count=np.array([1], dtype=np.int32),
+                min=depth.copy(),
+                max=depth.copy(),
+            )
+        return stats
+
     @staticmethod
     def _encode_image(arr: np.ndarray) -> str:
-        arr = depth_to_rgb(arr)
-        pil_image = Image.fromarray(arr)
-        buffer = BytesIO()
-        pil_image.save(buffer, format="PNG")
-        return RGB_URI_PREFIX + base64.b64encode(buffer.getvalue()).decode("utf-8")
+        if arr.dtype != DEPTH_FRAME_DTYPE:
+            raise ValueError(
+                f"Depth frames must be {DEPTH_FRAME_DTYPE}, got {arr.dtype}"
+            )
+        encoded = imagecodecs.jpegxl_encode(arr, lossless=True, effort=DEPTH_JXL_EFFORT)
+        return JXL_URI_PREFIX + base64.b64encode(encoded).decode("utf-8")
 
     @staticmethod
     def _decode_image(data: str) -> np.ndarray:
-        img_bytes = base64.b64decode(data.removeprefix(RGB_URI_PREFIX))
-        buffer = BytesIO(img_bytes)
-        pil_image = Image.open(buffer)
-        depth = rgb_to_depth(np.array(pil_image))
-        assert depth.ndim == 2
+        encoded = base64.b64decode(data.removeprefix(JXL_URI_PREFIX))
+        depth = np.asarray(imagecodecs.jpegxl_decode(encoded))
+        if depth.dtype != DEPTH_FRAME_DTYPE:
+            raise ValueError(
+                f"Depth frames must be {DEPTH_FRAME_DTYPE}, got {depth.dtype}"
+            )
+        if depth.ndim != 2:
+            raise ValueError(f"Depth frames must be 2D, got shape {depth.shape}")
         return depth
 
     @classmethod
@@ -341,5 +420,6 @@ class DepthCameraData(CameraData):
         return cls(
             extrinsics=np.eye(4, dtype=np.float32),
             intrinsics=np.eye(3, dtype=np.float32),
-            frame=np.zeros((480, 640), dtype=np.float32),
+            frame=np.zeros((480, 640), dtype=np.uint16),
+            depth_scale_m=1e-4,
         )
