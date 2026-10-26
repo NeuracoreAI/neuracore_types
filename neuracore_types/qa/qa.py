@@ -12,18 +12,21 @@ from neuracore_types.utils.pydantic_to_ts import (
 
 
 class QAFailureReason(str, Enum):
-    """Reasons why a recording can fail QA."""
+    """Reasons why a recording can fail QA.
 
-    LARGE_GAPS = "LARGE_GAPS"
-    INCONSISTENT_START_TIME = "INCONSISTENT_START_TIME"
-    INCONSISTENT_END_TIME = "INCONSISTENT_END_TIME"
-    TOO_FEW_POINTS = "TOO_FEW_POINTS"
-    LOW_COVERAGE = "LOW_COVERAGE"
-    STILL_LEADING = "STILL_LEADING"
-    STILL_MID = "STILL_MID"
-    STILL_TRAILING = "STILL_TRAILING"
+    The declaration order is the display order, most important first.
+    """
+
     NEVER_MOVED = "NEVER_MOVED"
     TRACKING_ERROR = "TRACKING_ERROR"
+    LARGE_GAPS = "LARGE_GAPS"
+    LOW_COVERAGE = "LOW_COVERAGE"
+    TOO_FEW_POINTS = "TOO_FEW_POINTS"
+    INCONSISTENT_START_TIME = "INCONSISTENT_START_TIME"
+    INCONSISTENT_END_TIME = "INCONSISTENT_END_TIME"
+    STILL_MID = "STILL_MID"
+    STILL_LEADING = "STILL_LEADING"
+    STILL_TRAILING = "STILL_TRAILING"
 
 
 QA_FAILURE_REASON_DESCRIPTIONS: dict[QAFailureReason, str] = {
@@ -52,9 +55,9 @@ class TraceIdentifier(BaseModel):
 class QAFinding(BaseModel):
     """One QA failure: why it failed, where in time, and optionally which trace.
 
-    High-level pass/fail lives on the recording as ``QA_FLAGGED`` vs ``NORMAL``.
-    This is the evidence behind a flag. ``start_time`` / ``end_time`` are the
-    failing interval when the check has one. ``trace`` is unset for
+    A recording that fails QA has one QA tag per failure reason. The findings
+    of that reason are the evidence in the tag. ``start_time`` / ``end_time``
+    are the failing interval when the check has one. ``trace`` is unset for
     recording-wide findings.
     """
 
