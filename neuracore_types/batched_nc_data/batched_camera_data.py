@@ -23,8 +23,8 @@ class BatchedRGBData(BatchedNCData):
         default="BatchedRGBData", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     frame: torch.Tensor  # (B, T, 3, H, W) uint8
-    extrinsics: torch.Tensor  # (B, T, 4, 4) float16
-    intrinsics: torch.Tensor  # (B, T, 3, 3) float16
+    extrinsics: torch.Tensor  # (B, T, 4, 4) float32
+    intrinsics: torch.Tensor  # (B, T, 3, 3) float32
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
@@ -217,8 +217,8 @@ class BatchedDepthData(BatchedNCData):
     )
     frame: torch.Tensor  # (B, T, 1, H, W) uint16 units
     depth_scale: torch.Tensor  # (B, T) float32 metres per unit
-    extrinsics: torch.Tensor  # (B, T, 4, 4) float16
-    intrinsics: torch.Tensor  # (B, T, 3, 3) float16
+    extrinsics: torch.Tensor  # (B, T, 4, 4) float32
+    intrinsics: torch.Tensor  # (B, T, 3, 3) float32
 
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 

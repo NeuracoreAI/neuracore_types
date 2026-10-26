@@ -84,8 +84,8 @@ class PointCloudData(NCData):
     )
     points: NumpyArray | None = None  # (N, 3) float16
     rgb_points: NumpyArray | None = None  # (N, 3) uint8
-    extrinsics: NumpyArray | None = None  # (4, 4) float16
-    intrinsics: NumpyArray | None = None  # (3, 3) float16
+    extrinsics: NumpyArray | None = None  # (4, 4) float32
+    intrinsics: NumpyArray | None = None  # (3, 3) float32
 
     @field_validator("points", "rgb_points")
     @classmethod
@@ -106,8 +106,8 @@ class PointCloudData(NCData):
         return cls(
             points=np.zeros((1000, 3), dtype=np.float16),
             rgb_points=np.zeros((1000, 3), dtype=np.uint8),
-            extrinsics=np.eye(4, dtype=np.float16),
-            intrinsics=np.eye(3, dtype=np.float16),
+            extrinsics=np.eye(4, dtype=np.float32),
+            intrinsics=np.eye(3, dtype=np.float32),
         )
 
     @staticmethod
@@ -146,8 +146,8 @@ class PointCloudData(NCData):
         return PointCloudDataStats(
             points=self._compute_stats(self.points, (3,)),
             rgb_points=self._compute_stats(self.rgb_points, (3,)),
-            extrinsics=self._matrix_stats((4, 4), np.float16),
-            intrinsics=self._matrix_stats((3, 3), np.float16),
+            extrinsics=self._matrix_stats((4, 4), np.float32),
+            intrinsics=self._matrix_stats((3, 3), np.float32),
         )
 
     # Validators for point data (base64)
@@ -176,13 +176,13 @@ class PointCloudData(NCData):
     @classmethod
     def decode_extrinsics(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode extrinsics to NumPy array."""
-        return np.array(v, dtype=np.float16) if isinstance(v, list) else v
+        return np.array(v, dtype=np.float32) if isinstance(v, list) else v
 
     @field_validator("intrinsics", mode="before")
     @classmethod
     def decode_intrinsics(cls, v: list | np.ndarray) -> np.ndarray | None:
         """Decode intrinsics to NumPy array."""
-        return np.array(v, dtype=np.float16) if isinstance(v, list) else v
+        return np.array(v, dtype=np.float32) if isinstance(v, list) else v
 
     # Serializers for point data (base64)
     @field_serializer("points", when_used="json")
@@ -247,9 +247,9 @@ def encode_point_cloud_frame_parts(
         "rgb_nbytes": int(rgb.nbytes) if rgb is not None else 0,
     }
     if data.extrinsics is not None:
-        metadata["extrinsics"] = np.asarray(data.extrinsics, dtype=np.float16).tolist()
+        metadata["extrinsics"] = np.asarray(data.extrinsics, dtype=np.float32).tolist()
     if data.intrinsics is not None:
-        metadata["intrinsics"] = np.asarray(data.intrinsics, dtype=np.float16).tolist()
+        metadata["intrinsics"] = np.asarray(data.intrinsics, dtype=np.float32).tolist()
 
     metadata_json = json.dumps(metadata, separators=(",", ":")).encode("utf-8")
     header = struct.pack(_METADATA_LEN_FORMAT, len(metadata_json))
@@ -326,11 +326,11 @@ def decode_point_cloud_frame(payload: bytes) -> PointCloudData:
 
     extrinsics = None
     if "extrinsics" in metadata and metadata["extrinsics"] is not None:
-        extrinsics = np.asarray(metadata["extrinsics"], dtype=np.float16)
+        extrinsics = np.asarray(metadata["extrinsics"], dtype=np.float32)
 
     intrinsics = None
     if "intrinsics" in metadata and metadata["intrinsics"] is not None:
-        intrinsics = np.asarray(metadata["intrinsics"], dtype=np.float16)
+        intrinsics = np.asarray(metadata["intrinsics"], dtype=np.float32)
 
     timestamp = metadata.get("timestamp")
     if not isinstance(timestamp, (int, float)):
