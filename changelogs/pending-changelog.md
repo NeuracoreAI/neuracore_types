@@ -12,3 +12,5 @@ Example: "This release adds support for multi-GPU training and improves streamin
 <!-- Append your summary here -->
 
 - `RecordingStopRequest.tags` is an optional list of user tag names. The names are normalized and a repeated name is kept once.
+- Removes `RecordingStatus` and the `status` and `qa_flag_reasons` fields of `RecordingMetadata`. Use `RecordingMetadata.tags`, which is now required, together with `tag_names`. Input that still holds `status` or `qa_flag_reasons` is accepted and these keys are ignored. Also removes `tags_from_legacy` and `legacy_from_tags`. This is a breaking change.
+- `RecordingMetadata` now validates each field assignment, so assigning an invalid value raises a `ValidationError`.
