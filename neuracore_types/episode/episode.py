@@ -3,7 +3,6 @@
 import time
 from datetime import datetime
 from enum import Enum
-from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -11,24 +10,15 @@ from pydantic import (
     Field,
     NonNegativeInt,
     computed_field,
+    field_validator,
     model_validator,
 )
-from pydantic.config import JsonDict
 
-from neuracore_types.episode.recording_tags import (
-    FLAGGED_TAG_NAME,
-    RecordingTag,
-    RecordingTagSource,
-    qa_tags_from_findings,
-    to_stored_tags,
-)
+from neuracore_types.episode.recording_tags import RecordingTag, to_stored_tags
 from neuracore_types.nc_data import DataType, NCDataUnion
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData
-from neuracore_types.qa.qa import QAFinding
 from neuracore_types.utils.pydantic_to_ts import (
-    OPTIONAL_COMPUTED_FIELD_FLAG,
     REQUIRED_WITH_DEFAULT_FLAG,
-    fix_optional_computed_fields,
     fix_required_with_defaults,
 )
 from neuracore_types.utils.recording_name_generator import generate_recording_name
@@ -204,101 +194,15 @@ class EpisodeStatistics(BaseModel):
         return list(self.data.keys())
 
 
-class RecordingStatus(str, Enum):
-    """Recording status options."""
-
-    NORMAL = "NORMAL"
-    FLAGGED = "FLAGGED"
-    QA_FLAGGED = "QA_FLAGGED"
-
-
-_FLAGGED_TAG = RecordingTag(name=FLAGGED_TAG_NAME, source=RecordingTagSource.USER)
-
-
-def tags_from_legacy(
-    status: RecordingStatus | None, findings: list[QAFinding] | None
-) -> list[RecordingTag]:
-    """Return the tags that a stored status and its QA findings stand for.
-
-    FLAGGED gives the user tag ``flagged`` and one QA tag per failure reason.
-    QA_FLAGGED gives one QA tag per failure reason. NORMAL gives no tags,
-    also when findings are stored, because the user cleared the QA flag.
-
-    Args:
-        status: Stored status. None counts as NORMAL.
-        findings: Stored QA findings. None counts as no findings.
-
-    Returns:
-        The tags of the recording.
-    """
-    qa_tags = qa_tags_from_findings(findings or [])
-    if status == RecordingStatus.FLAGGED:
-        return [*qa_tags, _FLAGGED_TAG]
-    if status == RecordingStatus.QA_FLAGGED:
-        return qa_tags
-    return []
-
-
-def legacy_from_tags(
-    tags: list[RecordingTag],
-) -> tuple[RecordingStatus, list[QAFinding]]:
-    """Return the status and QA findings that a list of tags stands for.
-
-    Args:
-        tags: Tags of the recording.
-
-    Returns:
-        FLAGGED when the user tag ``flagged`` is present, else QA_FLAGGED when
-        a QA tag is present, else NORMAL. The findings are those of the QA
-        tags, in tag order.
-    """
-    qa_tags = [tag for tag in tags if tag.source == RecordingTagSource.QA]
-    findings = [finding for tag in qa_tags for finding in tag.findings]
-    if _FLAGGED_TAG in tags:
-        return RecordingStatus.FLAGGED, findings
-    if qa_tags:
-        return RecordingStatus.QA_FLAGGED, findings
-    return RecordingStatus.NORMAL, findings
-
-
-def _tags_with_status(
-    tags: list[RecordingTag], status: RecordingStatus
-) -> list[RecordingTag]:
-    """Return the tags after a client sets the legacy status.
-
-    FLAGGED adds the user tag ``flagged``. NORMAL removes it. QA_FLAGGED
-    changes nothing, because users cannot write QA tags.
-    """
-    if status == RecordingStatus.FLAGGED and _FLAGGED_TAG not in tags:
-        return [*tags, _FLAGGED_TAG]
-    if status == RecordingStatus.NORMAL:
-        return [tag for tag in tags if tag != _FLAGGED_TAG]
-    return tags
-
-
-def _fix_recording_metadata_schema(json_schema: JsonDict) -> None:
-    fix_required_with_defaults(json_schema)
-    fix_optional_computed_fields(json_schema)
-
-
 class RecordingMetadata(BaseModel):
     """Metadata details for a recording.
 
     Tags are kept in one order: QA tags in QAFailureReason order, then user
     tags in the order they were added.
 
-    When the input has no tags, the tags come from ``status`` and
-    ``qa_flag_reasons``. When the input has tags, ``status`` and
-    ``qa_flag_reasons`` come from the tags. An assignment to ``tags`` sets
-    the legacy fields from the new tags. An assignment to ``status`` adds or
-    removes the user tag ``flagged``, so a client that only knows the status
-    does not lose its change when the tags are read back.
-
     Attributes:
         name: Name of the recording.
         notes: Optional notes about the recording.
-        status: Current RecordingStatus of the recording
-        qa_flag_reasons: QA findings for the recording, if any.
         tags: Tags of the recording. Tag names are unique.
         tag_names: Names of the tags. Input values are ignored.
         tag_count: Number of tags. Input values are ignored.
@@ -317,60 +221,30 @@ class RecordingMetadata(BaseModel):
         max_length=NOTES_MAX_LENGTH,
         strip_whitespace=True,
     )
-    status: RecordingStatus = Field(
-        default=RecordingStatus.NORMAL, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
-    )
-    qa_flag_reasons: list[QAFinding] = Field(
+    tags: list[RecordingTag] = Field(
         default_factory=list, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    tags: list[RecordingTag] | None = None
 
-    model_config = ConfigDict(json_schema_extra=_fix_recording_metadata_schema)
-
-    @model_validator(mode="after")
-    def _sync_tags_and_status(self) -> "RecordingMetadata":
-        if self.tags is None:
-            super().__setattr__(
-                "tags", tags_from_legacy(self.status, self.qa_flag_reasons)
-            )
-        else:
-            super().__setattr__("tags", to_stored_tags(self.tags))
-            self._set_legacy_fields_from_tags(self.tags)
-        return self
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Keep the tags and the legacy status in step on assignment."""
-        if name == "status" and self.tags is not None:
-            tags = _tags_with_status(self.tags, RecordingStatus(value))
-            super().__setattr__("tags", tags)
-            self._set_legacy_fields_from_tags(tags)
-        elif name == "tags" and value is not None:
-            tags = to_stored_tags(value)
-            super().__setattr__("tags", tags)
-            self._set_legacy_fields_from_tags(tags)
-        else:
-            super().__setattr__(name, value)
-
-    def _set_legacy_fields_from_tags(self, tags: list[RecordingTag]) -> None:
-        status, findings = legacy_from_tags(tags)
-        super().__setattr__("status", status)
-        super().__setattr__("qa_flag_reasons", findings)
-
-    @computed_field(  # type: ignore[prop-decorator]
-        json_schema_extra=OPTIONAL_COMPUTED_FIELD_FLAG
+    model_config = ConfigDict(
+        validate_assignment=True, json_schema_extra=fix_required_with_defaults
     )
+
+    @field_validator("tags")
+    @classmethod
+    def _order_tags(cls, tags: list[RecordingTag]) -> list[RecordingTag]:
+        return to_stored_tags(tags)
+
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def tag_names(self) -> list[str]:
         """Names of the tags, in tag order."""
-        return [tag.name for tag in self.tags or []]
+        return [tag.name for tag in self.tags]
 
-    @computed_field(  # type: ignore[prop-decorator]
-        json_schema_extra=OPTIONAL_COMPUTED_FIELD_FLAG
-    )
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def tag_count(self) -> int:
         """Number of tags."""
-        return len(self.tags or [])
+        return len(self.tags)
 
 
 class Codec(str, Enum):
