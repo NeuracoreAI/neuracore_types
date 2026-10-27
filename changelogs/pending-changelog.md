@@ -17,6 +17,8 @@ Regional signalling fields, all optional: `SignallingTokenRequest` takes
 `epoch`, and `AvailableRobotCapacityUpdate` has `epochs` (robot ID to instance
 to epoch). An epoch is a time in microseconds since the Unix epoch.
 
-- `RecordingMetadata.tags` holds user tags and one QA tag per QA failure reason, `RecordingMetadata.tag_names` lists their names, and the legacy `status` and `qa_flag_reasons` stay in step with the tags.
+- `RecordingMetadata.tags` holds user tags and one QA tag per QA failure reason, and `RecordingMetadata.tag_names` lists their names.
 - Adds `RecordingTagCount` with the QA reason `description`, `RecordingTagRequest` and `is_qa_tag_name` to list, add and remove recording tags.
 - `QAFailureReason` members are declared in display order, most important first. Tags are stored with QA tags first in that order, then user tags in the order they were added.
+- Removes `RecordingStatus` and the `status` and `qa_flag_reasons` fields of `RecordingMetadata`. Use `RecordingMetadata.tags`, which is now required, together with `tag_names`. Input that still holds `status` or `qa_flag_reasons` is accepted and these keys are ignored. Also removes `tags_from_legacy` and `legacy_from_tags`. This is a breaking change.
+- `RecordingMetadata` now validates each field assignment, so assigning an invalid value raises a `ValidationError`.
