@@ -4,8 +4,11 @@ calcsize
 calib
 cnnmlp
 distilbert
+Edot
 extrinsics
 firestore
+Fitem
+Frgb
 fromarray
 frombuffer
 groot
