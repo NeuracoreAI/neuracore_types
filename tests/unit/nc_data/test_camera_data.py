@@ -63,19 +63,23 @@ class TestRGBCameraData:
     def test_serialization(self):
         """Test JSON serialization of RGB data."""
         frame = np.random.randint(0, 256, (50, 50, 3), dtype=np.uint8)
-        data = RGBCameraData(
-            frame=frame,
-            intrinsics=np.ones((3, 3), dtype=np.float32),
-            extrinsics=np.ones((4, 4), dtype=np.float32),
+        intrinsics = np.array(
+            [[615.37, 0.0, 1234.56], [0.0, 615.37, 319.7], [0.0, 0.0, 1.0]],
+            dtype=np.float32,
         )
+        extrinsics = np.eye(4, dtype=np.float32)
+        extrinsics[:3, 3] = [12.345, -0.678, 1.2345]
+        data = RGBCameraData(frame=frame, intrinsics=intrinsics, extrinsics=extrinsics)
 
         json_str = data.model_dump_json()
         loaded = RGBCameraData.model_validate_json(json_str)
 
         # Frame should be encoded/decoded correctly
         assert loaded.frame.shape == frame.shape
-        assert np.all(loaded.intrinsics == 1.0)
-        assert np.all(loaded.extrinsics == 1.0)
+        assert loaded.intrinsics.dtype == np.float32
+        assert loaded.extrinsics.dtype == np.float32
+        np.testing.assert_array_equal(loaded.intrinsics, intrinsics)
+        np.testing.assert_array_equal(loaded.extrinsics, extrinsics)
 
     def test_small_image(self):
         """Test RGB data with small image."""

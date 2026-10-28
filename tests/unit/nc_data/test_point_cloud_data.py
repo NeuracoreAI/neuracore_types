@@ -117,8 +117,12 @@ class TestPointCloudWire:
         n = 100
         points = np.random.randn(n, 3).astype(np.float16)
         rgb = np.random.randint(0, 256, (n, 3), dtype=np.uint8)
-        extrinsics = np.eye(4, dtype=np.float16)
-        intrinsics = np.eye(3, dtype=np.float16)
+        extrinsics = np.eye(4, dtype=np.float32)
+        extrinsics[:3, 3] = [12.345, -0.678, 1.2345]
+        intrinsics = np.array(
+            [[615.37, 0.0, 1234.56], [0.0, 615.37, 319.7], [0.0, 0.0, 1.0]],
+            dtype=np.float32,
+        )
         original = PointCloudData(
             timestamp=2.0,
             points=points,
@@ -129,6 +133,8 @@ class TestPointCloudWire:
         decoded = decode_point_cloud_frame(encode_wire_frame(original))
         np.testing.assert_array_equal(decoded.points, original.points)
         np.testing.assert_array_equal(decoded.rgb_points, original.rgb_points)
+        assert decoded.extrinsics.dtype == np.float32
+        assert decoded.intrinsics.dtype == np.float32
         np.testing.assert_array_equal(decoded.extrinsics, original.extrinsics)
         np.testing.assert_array_equal(decoded.intrinsics, original.intrinsics)
 

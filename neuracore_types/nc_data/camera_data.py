@@ -168,8 +168,8 @@ class CameraData(NCData):
                 min=np.array([1], dtype=np.uint8),
                 max=np.array([1], dtype=np.uint8),
             )
-        zero_ext = np.zeros((4, 4), dtype=np.float16)
-        zero_intr = np.zeros((3, 3), dtype=np.float16)
+        zero_ext = np.zeros((4, 4), dtype=np.float32)
+        zero_intr = np.zeros((3, 3), dtype=np.float32)
         extrinsics_stats = DataItemStats(
             mean=zero_ext,
             std=zero_ext,
@@ -228,7 +228,7 @@ class CameraData(NCData):
         Returns:
             Decoded NumPy array or None
         """
-        return np.array(v, dtype=np.float16) if isinstance(v, list) else v
+        return np.array(v, dtype=np.float32) if isinstance(v, list) else v
 
     @field_validator("intrinsics", mode="before")
     @classmethod
@@ -241,7 +241,7 @@ class CameraData(NCData):
         Returns:
             Decoded NumPy array or None
         """
-        return np.array(v, dtype=np.float16) if isinstance(v, list) else v
+        return np.array(v, dtype=np.float32) if isinstance(v, list) else v
 
     # --- Serializers (encode on dump) ---
     @field_serializer("frame", when_used="json")
@@ -301,8 +301,8 @@ class RGBCameraData(CameraData):
             CameraData: Sampled instance
         """
         return cls(
-            extrinsics=np.eye(4, dtype=np.float16),
-            intrinsics=np.eye(3, dtype=np.float16),
+            extrinsics=np.eye(4, dtype=np.float32),
+            intrinsics=np.eye(3, dtype=np.float32),
             frame=np.zeros((480, 640, 3), dtype=np.uint8),
         )
 
