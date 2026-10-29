@@ -10,3 +10,5 @@ Example: "This release adds support for multi-GPU training and improves streamin
 ## Summary
 
 <!-- Append your summary here -->
+
+- Removes `GPUType.NVIDIA_H100_80GB`: H100 GPUs are no longer offered. Code that names it must use another GPU type, such as `GPUType.NVIDIA_A100_80GB`.

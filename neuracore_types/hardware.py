@@ -6,7 +6,6 @@ from enum import Enum
 class GPUType(str, Enum):
     """GPU types available for training and deployment."""
 
-    NVIDIA_H100_80GB = "NVIDIA_H100_80GB"
     NVIDIA_A100_80GB = "NVIDIA_A100_80GB"
     NVIDIA_TESLA_A100 = "NVIDIA_TESLA_A100"
     NVIDIA_TESLA_V100 = "NVIDIA_TESLA_V100"
