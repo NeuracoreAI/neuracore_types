@@ -1,4 +1,4 @@
-"""Tests for recording tags and their link to the legacy recording status."""
+"""Tests for recording tags."""
 
 import re
 
@@ -13,16 +13,13 @@ from neuracore_types import (
     RecordingMetadata,
     RecordingSort,
     RecordingSortField,
-    RecordingStatus,
     RecordingTag,
     RecordingTagCount,
     RecordingTagRequest,
     RecordingTagSource,
     is_qa_tag_name,
-    legacy_from_tags,
     normalize_user_tag_name,
     qa_tags_from_findings,
-    tags_from_legacy,
 )
 
 STILL_MID_EARLY = QAFinding(reason=QAFailureReason.STILL_MID, start_time=1.0)
@@ -53,10 +50,6 @@ BAD_CHARACTER_MESSAGE = "Tag name must not hold a comma or a control character"
 UNIQUE_NAMES_MESSAGE = "Tag names of a recording must be unique"
 NOT_NORMALIZED_MESSAGE = "User tag name {name!r} is not normalized"
 NOT_A_REASON_MESSAGE = "QA tag name {name!r} is not a QA failure reason"
-METADATA_REQUIRED_FIELDS = {"name", "notes", "status", "qa_flag_reasons"}
-FLAGGED_STATUS = RecordingStatus.FLAGGED
-NORMAL_STATUS = RecordingStatus.NORMAL
-QA_FLAGGED_STATUS = RecordingStatus.QA_FLAGGED
 
 
 def pydantic_message(message):
@@ -152,121 +145,22 @@ def test_qa_tags_from_findings_returns_no_tags_for_no_findings():
     assert qa_tags_from_findings([]) == []
 
 
-@pytest.mark.parametrize(
-    ("status", "findings", "expected"),
-    [
-        (
-            RecordingStatus.FLAGGED,
-            [STILL_MID_EARLY, LARGE_GAPS, STILL_MID_LATE],
-            [LARGE_GAPS_TAG, STILL_MID_TAG, FLAGGED_TAG],
-        ),
-        (RecordingStatus.FLAGGED, None, [FLAGGED_TAG]),
-        (
-            RecordingStatus.QA_FLAGGED,
-            [STILL_MID_EARLY, LARGE_GAPS, STILL_MID_LATE],
-            [LARGE_GAPS_TAG, STILL_MID_TAG],
-        ),
-        (RecordingStatus.QA_FLAGGED, [], []),
-        (RecordingStatus.NORMAL, [LARGE_GAPS], []),
-        (None, [LARGE_GAPS], []),
-        (None, None, []),
-    ],
-)
-def test_tags_from_legacy_maps_status_and_findings(status, findings, expected):
-    assert tags_from_legacy(status, findings) == expected
-
-
-@pytest.mark.parametrize(
-    ("tags", "expected_status", "expected_findings"),
-    [
-        (
-            [REVIEW_TAG, STILL_MID_TAG, FLAGGED_TAG, LARGE_GAPS_TAG],
-            RecordingStatus.FLAGGED,
-            [STILL_MID_EARLY, STILL_MID_LATE, LARGE_GAPS],
-        ),
-        ([FLAGGED_TAG], RecordingStatus.FLAGGED, []),
-        ([REVIEW_TAG, LARGE_GAPS_TAG], RecordingStatus.QA_FLAGGED, [LARGE_GAPS]),
-        ([REVIEW_TAG], RecordingStatus.NORMAL, []),
-        ([], RecordingStatus.NORMAL, []),
-    ],
-)
-def test_legacy_from_tags_maps_tags_to_status_and_findings(
-    tags, expected_status, expected_findings
-):
-    assert legacy_from_tags(tags) == (expected_status, expected_findings)
-
-
-def test_metadata_without_tags_takes_tags_from_legacy_fields():
-    metadata = RecordingMetadata(
-        status=RecordingStatus.FLAGGED, qa_flag_reasons=[LARGE_GAPS]
-    )
-
-    assert metadata.tags == [LARGE_GAPS_TAG, FLAGGED_TAG]
-
-
-def test_metadata_with_tags_sets_legacy_fields_from_tags():
-    metadata = RecordingMetadata(
-        status=RecordingStatus.NORMAL,
-        qa_flag_reasons=[],
-        tags=[STILL_MID_TAG, FLAGGED_TAG],
-    )
-
-    assert metadata.status == RecordingStatus.FLAGGED
-    assert metadata.qa_flag_reasons == [STILL_MID_EARLY, STILL_MID_LATE]
-
-
-def test_metadata_with_empty_tags_clears_legacy_fields():
-    metadata = RecordingMetadata(
-        status=RecordingStatus.QA_FLAGGED, qa_flag_reasons=[LARGE_GAPS], tags=[]
-    )
-
-    assert metadata.status == RecordingStatus.NORMAL
-    assert metadata.qa_flag_reasons == []
-
-
-@pytest.mark.parametrize(
-    ("tags", "status", "expected_tags", "expected_status", "expected_findings"),
-    [
-        ([REVIEW_TAG], FLAGGED_STATUS, [REVIEW_TAG, FLAGGED_TAG], FLAGGED_STATUS, []),
-        (
-            [FLAGGED_TAG, REVIEW_TAG],
-            FLAGGED_STATUS,
-            [FLAGGED_TAG, REVIEW_TAG],
-            FLAGGED_STATUS,
-            [],
-        ),
-        (
-            [FLAGGED_TAG, REVIEW_TAG, LARGE_GAPS_TAG],
-            NORMAL_STATUS,
-            [LARGE_GAPS_TAG, REVIEW_TAG],
-            QA_FLAGGED_STATUS,
-            [LARGE_GAPS],
-        ),
-        ([REVIEW_TAG], QA_FLAGGED_STATUS, [REVIEW_TAG], NORMAL_STATUS, []),
-        ([FLAGGED_TAG], QA_FLAGGED_STATUS, [FLAGGED_TAG], FLAGGED_STATUS, []),
-    ],
-)
-def test_assigning_status_changes_only_the_flagged_tag(
-    tags, status, expected_tags, expected_status, expected_findings
-):
-    metadata = RecordingMetadata(tags=tags).model_copy()
-
-    metadata.status = status
-    reloaded = RecordingMetadata.model_validate(metadata.model_dump())
-
-    for result in (metadata, reloaded):
-        assert result.tags == expected_tags
-        assert result.status == expected_status
-        assert result.qa_flag_reasons == expected_findings
-
-
-def test_assigning_tags_sets_legacy_fields():
+def test_metadata_defaults_to_no_tags():
     metadata = RecordingMetadata()
 
-    metadata.tags = [STILL_MID_TAG, FLAGGED_TAG]
+    assert metadata.tags == []
+    assert metadata.tag_count == 0
 
-    assert metadata.status == RecordingStatus.FLAGGED
-    assert metadata.qa_flag_reasons == [STILL_MID_EARLY, STILL_MID_LATE]
+
+def test_metadata_ignores_legacy_status_fields_in_input():
+    metadata = RecordingMetadata.model_validate({
+        "status": "FLAGGED",
+        "qa_flag_reasons": [LARGE_GAPS.model_dump()],
+    })
+
+    assert metadata.tags == []
+    assert "status" not in metadata.model_dump()
+    assert "qa_flag_reasons" not in metadata.model_dump()
 
 
 @pytest.mark.parametrize("make_metadata", [build_with_tags, assign_tags])
@@ -339,7 +233,6 @@ def test_assigning_duplicate_tag_names_is_rejected_and_keeps_tags(first, second)
     assert metadata.tags == [LARGE_GAPS_TAG, ZETA_TAG]
     assert metadata.tag_names == ["LARGE_GAPS", "zeta"]
     assert metadata.tag_count == 2
-    assert metadata.status == RecordingStatus.QA_FLAGGED
 
 
 def test_metadata_dump_has_tag_names_and_tag_count_and_ignores_them_in_input():
@@ -360,24 +253,15 @@ def test_metadata_survives_a_dump_and_load_round_trip():
     assert RecordingMetadata.model_validate(metadata.model_dump()) == metadata
 
 
-def test_metadata_schema_keeps_new_members_optional_for_clients():
-    schema = RecordingMetadata.model_json_schema(mode="serialization")
-
-    assert {"tags", "tag_names", "tag_count"} <= set(schema["properties"])
-    assert not {"tags", "tag_names", "tag_count"} & set(schema["required"])
-    assert schema["properties"]["tag_count"] == {
-        "readOnly": True,
-        "title": "Tag Count",
-        "type": "integer",
-        "description": "Number of tags.",
-    }
-
-
 @pytest.mark.parametrize(
     ("model", "mode", "required"),
     [
-        (RecordingMetadata, "serialization", METADATA_REQUIRED_FIELDS),
-        (RecordingMetadata, "validation", METADATA_REQUIRED_FIELDS),
+        (
+            RecordingMetadata,
+            "serialization",
+            {"name", "notes", "tags", "tag_names", "tag_count"},
+        ),
+        (RecordingMetadata, "validation", {"name", "notes", "tags"}),
         (RecordingTag, "serialization", {"name", "source", "findings"}),
         (
             RecordingTagCount,
