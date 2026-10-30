@@ -10,5 +10,3 @@ Example: "This release adds support for multi-GPU training and improves streamin
 ## Summary
 
 <!-- Append your summary here -->
-
-- `to_safe_name` now URL-encodes sensor names the way ROS escapes topic names (`/` becomes `%2F` and `.` becomes `%2E`) instead of escaping `/` as `\`. `from_safe_name` reads both formats, since older SDK versions still upload with `\`.
