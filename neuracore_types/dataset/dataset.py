@@ -32,11 +32,13 @@ class RecordingSortField(str, Enum):
         CREATED_AT: Order by the time the recording was created.
         NAME: Order by the recording name.
         DURATION: Order by how long the recording ran for.
+        TAG_COUNT: Order by the number of tags on the recording.
     """
 
     CREATED_AT = "created_at"
     NAME = "name"
     DURATION = "duration"
+    TAG_COUNT = "tag_count"
 
 
 class SortDirection(str, Enum):
