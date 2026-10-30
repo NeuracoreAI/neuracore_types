@@ -11,6 +11,7 @@ Fitem
 Frgb
 fromarray
 frombuffer
+greenaug
 groot
 grpcio
 huggingface
