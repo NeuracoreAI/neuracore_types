@@ -8,6 +8,7 @@ from neuracore_types.nc_data import *  # noqa: F403
 from neuracore_types.qa import *  # noqa: F403
 from neuracore_types.signalling import *  # noqa: F403
 from neuracore_types.synchronization import *  # noqa: F403
+from neuracore_types.timestamps import *  # noqa: F403
 from neuracore_types.training import *  # noqa: F403
 from neuracore_types.upload import *  # noqa: F403
 
