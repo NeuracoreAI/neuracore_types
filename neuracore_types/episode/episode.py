@@ -3,12 +3,14 @@
 import time
 from datetime import datetime
 from enum import Enum
+from typing import Annotated
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     NonNegativeInt,
+    StringConstraints,
     computed_field,
     field_validator,
     model_validator,
@@ -240,18 +242,16 @@ class RecordingMetadata(BaseModel):
         tag_names: Names of the tags. Input values are ignored.
     """
 
-    name: str = Field(
+    name: Annotated[str, StringConstraints(strip_whitespace=True)] = Field(
         default_factory=generate_recording_name,
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
         max_length=NAME_MAX_LENGTH,
-        strip_whitespace=True,
         min_length=1,
     )
-    notes: str = Field(
+    notes: Annotated[str, StringConstraints(strip_whitespace=True)] = Field(
         default="",
         json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
         max_length=NOTES_MAX_LENGTH,
-        strip_whitespace=True,
     )
     tags: list[RecordingTag] = Field(
         default_factory=list, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
