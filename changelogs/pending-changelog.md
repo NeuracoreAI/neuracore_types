@@ -10,3 +10,4 @@ Example: "This release adds support for multi-GPU training and improves streamin
 ## Summary
 
 <!-- Append your summary here -->
+- Adds a `DONE` data type (`DoneData` / `BatchedDoneData`): a boolean episode done flag (0 while running, 1 once the task is complete) for training policies to predict when to stop.

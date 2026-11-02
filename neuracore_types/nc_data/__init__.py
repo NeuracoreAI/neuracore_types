@@ -28,6 +28,11 @@ from neuracore_types.nc_data.custom_1d_data import (
     Custom1DDataImportConfig,
     Custom1DDataStats,
 )
+from neuracore_types.nc_data.done_data import (
+    DoneData,
+    DoneDataImportConfig,
+    DoneDataStats,
+)
 from neuracore_types.nc_data.end_effector_pose_data import (
     EndEffectorPoseData,
     EndEffectorPoseDataStats,
@@ -77,6 +82,7 @@ NCDataUnion = Annotated[
         PointCloudData,
         LanguageData,
         Custom1DData,
+        DoneData,
     ],
     Field(discriminator="type"),
 ]
@@ -91,6 +97,7 @@ NCDataStatsUnion = Annotated[
         PointCloudDataStats,
         LanguageDataStats,
         Custom1DDataStats,
+        DoneDataStats,
     ],
     Field(discriminator="type"),
 ]
@@ -107,6 +114,7 @@ NCDataImportConfigUnion = Union[
     ParallelGripperOpenAmountDataImportConfig,
     LanguageDataImportConfig,
     Custom1DDataImportConfig,
+    DoneDataImportConfig,
 ]
 
 
@@ -139,6 +147,7 @@ class DataType(str, Enum):
     POSES = "POSES"
     LANGUAGE = "LANGUAGE"
     CUSTOM_1D = "CUSTOM_1D"
+    DONE = "DONE"
 
     def __str__(self) -> str:
         """Return the data type value for human-readable output."""
@@ -166,6 +175,7 @@ DATA_TYPE_TO_NC_DATA_CLASS: dict[DataType, type[NCData]] = {
     DataType.POSES: PoseData,
     DataType.LANGUAGE: LanguageData,
     DataType.CUSTOM_1D: Custom1DData,
+    DataType.DONE: DoneData,
 }
 
 DATA_TYPE_TO_NC_DATA_IMPORT_CONFIG_CLASS: dict[DataType, type[NCDataImportConfig]] = {
@@ -185,6 +195,7 @@ DATA_TYPE_TO_NC_DATA_IMPORT_CONFIG_CLASS: dict[DataType, type[NCDataImportConfig
     DataType.POSES: PoseDataImportConfig,
     DataType.LANGUAGE: LanguageDataImportConfig,
     DataType.CUSTOM_1D: Custom1DDataImportConfig,
+    DataType.DONE: DoneDataImportConfig,
 }
 DATA_TYPE_CONTENT_MAPPING: dict[DataType, str] = {
     DataType.RGB_IMAGES: "RGB",
@@ -201,6 +212,7 @@ DATA_TYPE_CONTENT_MAPPING: dict[DataType, str] = {
     DataType.POSES: "JSON",
     DataType.LANGUAGE: "JSON",
     DataType.CUSTOM_1D: "JSON",
+    DataType.DONE: "JSON",
 }
 
 

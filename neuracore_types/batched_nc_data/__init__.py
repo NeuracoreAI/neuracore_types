@@ -9,6 +9,7 @@ from neuracore_types.batched_nc_data.batched_camera_data import (
     BatchedRGBData,
 )
 from neuracore_types.batched_nc_data.batched_custom_1d_data import BatchedCustom1DData
+from neuracore_types.batched_nc_data.batched_done_data import BatchedDoneData
 from neuracore_types.batched_nc_data.batched_end_effector_pose_data import (
     BatchedEndEffectorPoseData,
 )
@@ -35,6 +36,7 @@ BatchedNCDataUnion = Annotated[
         BatchedPointCloudData,
         BatchedLanguageData,
         BatchedCustom1DData,
+        BatchedDoneData,
     ],
     Field(discriminator="type"),
 ]
@@ -55,4 +57,5 @@ DATA_TYPE_TO_BATCHED_NC_DATA_CLASS: dict[DataType, type[BatchedNCData]] = {
     DataType.POSES: BatchedPoseData,
     DataType.LANGUAGE: BatchedLanguageData,
     DataType.CUSTOM_1D: BatchedCustom1DData,
+    DataType.DONE: BatchedDoneData,
 }
