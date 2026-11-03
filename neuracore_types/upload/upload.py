@@ -189,12 +189,15 @@ class AvailableRobotInstance(BaseModel):
         robot_instance: The unique identifier for this robot instance.
         tracks: A dictionary of available media stream tracks for this instance.
         connections: The number of current connections to this instance.
+        epoch: Registration epoch of the instance in the region that lists it,
+            in microseconds since the Unix epoch.
     """
 
     robot_instance: NonNegativeInt
     # stream_id to list of tracks
     tracks: dict[str, list[RobotStreamTrack]]
     connections: int
+    epoch: NonNegativeInt | None = None
 
 
 class AvailableRobot(BaseModel):
@@ -250,6 +253,8 @@ class AvailableRobotCapacityUpdate(BaseModel):
     connection_updates: list[AvailableRobotConnectionUpdate] = Field(
         default_factory=list
     )
+    # robot_id to robot_instance to epoch, for the instances in this update
+    epochs: dict[str, dict[int, NonNegativeInt]] = Field(default_factory=dict)
 
 
 class BaseRecodingUpdatePayload(BaseModel):

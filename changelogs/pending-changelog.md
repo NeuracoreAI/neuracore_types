@@ -10,3 +10,9 @@ Example: "This release adds support for multi-GPU training and improves streamin
 ## Summary
 
 <!-- Append your summary here -->
+
+Regional signalling fields, all optional: `SignallingTokenRequest` takes
+`robot_instance` and `register_epoch`, `SignallingTokenResponse` returns
+`region_endpoints` (for an organization token), `AvailableRobotInstance` has
+`epoch`, and `AvailableRobotCapacityUpdate` has `epochs` (robot ID to instance
+to epoch). An epoch is a time in microseconds since the Unix epoch.
