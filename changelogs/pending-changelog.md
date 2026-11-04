@@ -11,3 +11,10 @@ Example: "This release adds support for multi-GPU training and improves streamin
 
 <!-- Append your summary here -->
 - Adds a `DONE` data type (`DoneData` / `BatchedDoneData`): a boolean episode done flag (0 while running, 1 once the task is complete) for training policies to predict when to stop.
+
+Samples carry `timestamp_us`, an integer count of microseconds on the recording
+clock. `timestamp` stays in seconds and is derived from `timestamp_us`.
+Synchronized episodes carry `start_timestamp_us` and `end_timestamp_us`.
+Recordings, the recording start request and the recording stop request carry
+the recording window in microseconds. `MICROSECONDS_PER_SECOND` is exported by
+the Python and npm packages. The package needs pydantic 2.12 or later.
