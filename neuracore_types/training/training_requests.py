@@ -1,12 +1,15 @@
 """Training request models."""
 
-from typing import Any
-
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from neuracore_types.episode.episode import CrossEmbodimentDescription
 from neuracore_types.hardware import GPUType
-from neuracore_types.synchronization.synchronization import SynchronizationDetails
+from neuracore_types.synchronization.synchronization import (
+    SYNCHRONIZATION_CONFIG_INPUT_NAMES,
+    SynchronizationConfig,
+)
+from neuracore_types.training.algorithm_config import AlgorithmConfig
+from neuracore_types.training.training_config import TrainingConfig
 
 
 class TrainingJobRequest(BaseModel):
@@ -16,7 +19,8 @@ class TrainingJobRequest(BaseModel):
         dataset_id: Identifier of the dataset to use for training.
         name: Optional name for the training job.
         algorithm_id: Identifier of the training algorithm to use.
-        algorithm_config: Configuration parameters for the training algorithm.
+        algorithm_config: Constructor arguments of the training algorithm.
+        training_config: Settings that control how the training run executes.
         frequency: Synchronization frequency in Hz.
         gpu_type: Type of GPU to use for training.
         num_gpus: Number of GPUs to use for training.
@@ -33,11 +37,14 @@ class TrainingJobRequest(BaseModel):
     dataset_id: str
     name: str
     algorithm_id: str
-    algorithm_config: dict[str, Any]
+    algorithm_config: AlgorithmConfig
+    training_config: TrainingConfig
     gpu_type: GPUType
     num_gpus: int
     disk_size_gb: int = 500
-    synchronization_details: SynchronizationDetails
+    synchronization_config: SynchronizationConfig = Field(
+        validation_alias=SYNCHRONIZATION_CONFIG_INPUT_NAMES
+    )
     input_cross_embodiment_description: CrossEmbodimentDescription
     output_cross_embodiment_description: CrossEmbodimentDescription
     resume_from_job_id: str | None = None
@@ -67,10 +74,11 @@ class InternalStartTrainingJobRequest(BaseModel):
         user_id: The ID of the user.
         job_uuid: The UUID of the job.
         dataset_id: The ID of the dataset.
-        synchronization_details: Details for dataset synchronization.
+        synchronization_config: Details for dataset synchronization.
         job_name: The name of the job.
         algorithm_id: The ID of the algorithm to use.
-        algorithm_config: Configuration parameters for the algorithm.
+        algorithm_config: Constructor arguments of the algorithm.
+        training_config: Settings that control how the training run executes.
         gpu_type: The type of GPU to use for the job.
         num_gpus: The number of GPUs to allocate for the job.
         input_cross_embodiment_description: Mapping of robot to input data
@@ -91,11 +99,14 @@ class InternalStartTrainingJobRequest(BaseModel):
     dataset_id: str
     job_name: str
     algorithm_id: str
-    algorithm_config: dict[str, Any]
+    algorithm_config: AlgorithmConfig
+    training_config: TrainingConfig
     gpu_type: GPUType
     num_gpus: int
     disk_size_gb: int = 500
-    synchronization_details: SynchronizationDetails
+    synchronization_config: SynchronizationConfig = Field(
+        validation_alias=SYNCHRONIZATION_CONFIG_INPUT_NAMES
+    )
     input_cross_embodiment_description: CrossEmbodimentDescription
     output_cross_embodiment_description: CrossEmbodimentDescription
     resume_from_job_id: str | None = None

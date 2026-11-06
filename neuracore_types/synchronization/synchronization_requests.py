@@ -2,9 +2,12 @@
 
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from neuracore_types.synchronization.synchronization import SynchronizationDetails
+from neuracore_types.synchronization.synchronization import (
+    SYNCHRONIZATION_CONFIG_INPUT_NAMES,
+    SynchronizationConfig,
+)
 
 
 class SynchronizeDatasetRequest(BaseModel):
@@ -12,11 +15,13 @@ class SynchronizeDatasetRequest(BaseModel):
 
     Attributes:
         dataset_id: Identifier of the dataset to synchronize.
-        synchronization_details: Details for how to perform the synchronization.
+        synchronization_config: Details for how to perform the synchronization.
     """
 
     dataset_id: str
-    synchronization_details: SynchronizationDetails
+    synchronization_config: SynchronizationConfig = Field(
+        validation_alias=SYNCHRONIZATION_CONFIG_INPUT_NAMES
+    )
 
 
 class SynchronizeRecordingStatus(str, Enum):
@@ -32,11 +37,13 @@ class SynchronizeRecordingRequest(BaseModel):
 
     Attributes:
         recording_id: The ID of the recording to synchronize.
-        synchronization_details: Details for how to perform the synchronization.
+        synchronization_config: Details for how to perform the synchronization.
     """
 
     recording_id: str
-    synchronization_details: SynchronizationDetails
+    synchronization_config: SynchronizationConfig = Field(
+        validation_alias=SYNCHRONIZATION_CONFIG_INPUT_NAMES
+    )
 
 
 class SynchronizeRecordingStartResponse(BaseModel):
