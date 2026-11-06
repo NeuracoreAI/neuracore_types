@@ -10,14 +10,22 @@ from neuracore_types import SignallingTokenRequest, SignallingTokenResponse
 
 def test_signalling_token_request_defaults_to_organization_scope():
     """A request without a robot covers the organization."""
-    assert SignallingTokenRequest().model_dump(mode="json") == {"robot_id": None}
+    assert SignallingTokenRequest().model_dump(mode="json") == {
+        "robot_id": None,
+        "robot_instance": None,
+        "register_epoch": False,
+    }
 
 
 def test_signalling_token_request_serializes_robot_id():
     """A request with a robot keeps the robot ID."""
     payload = SignallingTokenRequest(robot_id="robot123").model_dump(mode="json")
 
-    assert payload == {"robot_id": "robot123"}
+    assert payload == {
+        "robot_id": "robot123",
+        "robot_instance": None,
+        "register_epoch": False,
+    }
 
 
 def test_signalling_token_request_rejects_empty_robot_id():
