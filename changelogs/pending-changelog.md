@@ -10,3 +10,9 @@ Example: "This release adds support for multi-GPU training and improves streamin
 ## Summary
 
 <!-- Append your summary here -->
+
+Per-stream signalling epochs, all optional: `AvailableRobotInstance` and
+`AvailableRobotCapacityUpdate` have `stream_epochs` (stream ID to epoch). Each
+stream of a robot instance has its own registration epoch.
+`AvailableRobotInstance.epoch` and `AvailableRobotCapacityUpdate.epochs` are now
+the highest epoch of the instance's streams.
