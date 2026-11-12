@@ -10,3 +10,5 @@ Example: "This release adds support for multi-GPU training and improves streamin
 ## Summary
 
 <!-- Append your summary here -->
+
+- `RecordingStopRequest.tags` is an optional list of user tag names. The names are normalized and a repeated name is kept once.
