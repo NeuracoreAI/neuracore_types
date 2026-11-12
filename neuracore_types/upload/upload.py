@@ -5,9 +5,10 @@ from enum import Enum
 from typing import NamedTuple
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, field_validator
 
 from neuracore_types.episode.episode import Codec
+from neuracore_types.episode.recording_tags import normalize_user_tag_name
 from neuracore_types.nc_data import DataType
 from neuracore_types.timestamps import TimestampUs
 from neuracore_types.utils.pydantic_to_ts import (
@@ -472,8 +473,18 @@ class RecordingStopRequest(BaseModel):
             was called.
         end_timestamp_us: End of the recording in integer microseconds on the
             data clock.
+        tags: User tag names to add to the recording. Names are normalized on
+            validation and a repeated name is kept once.
     """
 
     recording_id: str
     end_time: float
     end_timestamp_us: TimestampUs | None = None
+    tags: list[str] | None = None
+
+    @field_validator("tags")
+    @classmethod
+    def _normalize_tags(cls, tags: list[str] | None) -> list[str] | None:
+        if tags is None:
+            return None
+        return list(dict.fromkeys(normalize_user_tag_name(name) for name in tags))
