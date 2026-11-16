@@ -58,7 +58,7 @@ jobs:
     - name: Get latest release tag
       id: get_tag
       run: |
-        LATEST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
+        LATEST_TAG=$(git tag --list "v*" --sort=-v:refname | head -n 1)
         if [ -z "$LATEST_TAG" ]; then
           echo "No previous release tag found"
           echo "tag=" >> $GITHUB_OUTPUT
@@ -390,6 +390,8 @@ jobs:
       run: |
         git add changelogs/
         git commit --amend --no-edit
+        # The amend makes a new commit, so move the release tag onto it.
+        git tag --force "v$(grep '^current_version' .bumpversion.cfg | cut -d '=' -f 2 | tr -d ' ')"
         git push origin main --tags
 
   publish-python:
