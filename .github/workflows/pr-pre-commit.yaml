@@ -13,36 +13,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7.0.1
       with:
         ref: ${{ github.event.inputs.ref || github.ref }}
-    - name: Setup Python
-      uses: actions/setup-python@v4
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v10.3.3
       with:
         python-version: '3.10'
     - name: Pre-Commit
-      uses: pre-commit/action@v3.0.1
+      run: uvx pre-commit run --color=always --show-diff-on-failure --all-files
 
     - name: Set up Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7.1.0
       with:
         node-version: '20'
         registry-url: 'https://registry.npmjs.org'
     
-    - name: Install Python dependencies
-      run: |
-        pip install --upgrade pip
-        pip install -e ".[dev,ml]"
-  
     - name: Run tests with pytest
-      run: |
-        pytest tests/unit
+      run: uv run --extra dev --extra ml pytest tests/unit
 
     - name: Install Node dependencies
       run: npm install
 
     - name: Validate that we can generate TypeScript types
-      run: python scripts/generate_types.py
+      run: uv run --extra dev --extra ml python scripts/generate_types.py
 
     - name: Build TypeScript
       run: npm run build
