@@ -293,6 +293,13 @@ class Codec(str, Enum):
 VIDEO_DATA_TYPES = (DataType.RGB_IMAGES, DataType.DEPTH_IMAGES)
 
 
+class RecordingSource(str, Enum):
+    """What a recording was started from."""
+
+    ROBOT_INSTANCE = "robot_instance"
+    IMPORT_SESSION = "import_session"
+
+
 class Recording(BaseModel):
     """Represents a robot recording with flat storage.
 
@@ -329,6 +336,10 @@ class Recording(BaseModel):
             this is the frame metadata file only, not the video files. Lets
             synchronization size its work without listing the bucket. Empty
             for recordings finalized before this field existed.
+        source: What the recording was started from. None for recordings
+            started before this field existed.
+        import_session_id: ID of the import session that started the
+            recording, when source is import_session.
     """
 
     id: str
@@ -363,6 +374,8 @@ class Recording(BaseModel):
     trace_json_size_bytes: dict[DataType, dict[str, NonNegativeInt]] = Field(
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
+    source: RecordingSource | None = None
+    import_session_id: str | None = None
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
 
     @model_validator(mode="after")
