@@ -47,6 +47,21 @@ def test_microsecond_fields_are_optional(generated_dir, interface, declaration):
     assert f"  {declaration}" in _interface_body(typescript, interface).splitlines()
 
 
+@pytest.mark.parametrize(
+    ("interface", "declaration"),
+    [
+        ("Recording", "source?: RecordingSource | null;"),
+        ("Recording", "import_session_id?: string | null;"),
+        ("PendingRecording", "source?: RecordingSource | null;"),
+        ("ImportSession", "instance_start: number;"),
+        ("ImportSession", "status: ImportSessionStatus;"),
+    ],
+)
+def test_import_session_types_are_generated(generated_dir, interface, declaration):
+    typescript = (generated_dir / "neuracore_types.ts").read_text()
+    assert f"  {declaration}" in _interface_body(typescript, interface).splitlines()
+
+
 def test_index_re_exports_constants(generated_dir):
     index = (generated_dir / "index.ts").read_text()
     assert "export * from './constants';" in index.splitlines()

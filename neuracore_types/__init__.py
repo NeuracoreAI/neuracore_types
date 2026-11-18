@@ -5,6 +5,7 @@ from neuracore_types.dataset import *  # noqa: F403
 from neuracore_types.endpoints import *  # noqa: F403
 from neuracore_types.episode import *  # noqa: F403
 from neuracore_types.hardware import *  # noqa: F403
+from neuracore_types.import_session import *  # noqa: F403
 from neuracore_types.nc_data import *  # noqa: F403
 from neuracore_types.qa import *  # noqa: F403
 from neuracore_types.signalling import *  # noqa: F403
