@@ -383,6 +383,19 @@ class TracesMetadataRequest(BaseModel):
     traces: dict[str, int] = {}  # trace_id -> total_bytes
 
 
+class CompletedFileUpload(BaseModel):
+    """A multipart upload whose parts the client has finished sending.
+
+    Attributes:
+        upload_id: The identifier of the multipart upload.
+        crc32c: The CRC32C of the whole file, as base64 of its 4 big-endian
+            bytes (the GCS and S3 convention).
+    """
+
+    upload_id: str
+    crc32c: str
+
+
 class TraceStatusUpdates(BaseModel):
     """Represents an update status/progress of a data trace.
 
@@ -390,11 +403,14 @@ class TraceStatusUpdates(BaseModel):
         status: The status of the trace upload.
         uploaded_bytes: The number of bytes uploaded.
         total_bytes: The total number of bytes expected.
+        uploaded_files: The multipart uploads the client finished for the
+            trace, for the backend to complete. Not stored on the trace.
     """
 
     status: RecordingDataTraceStatus | None = None
     uploaded_bytes: int | None = None
     total_bytes: int | None = None
+    uploaded_files: list[CompletedFileUpload] | None = None
 
     def stack(self, new_updates: "TraceStatusUpdates") -> "TraceStatusUpdates":
         """Stack new updates on top of existing updates.
