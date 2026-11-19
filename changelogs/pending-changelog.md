@@ -10,3 +10,5 @@ Example: "This release adds support for multi-GPU training and improves streamin
 ## Summary
 
 <!-- Append your summary here -->
+`TraceStatusUpdates` has an optional `uploaded_files` list of `CompletedFileUpload`
+(`upload_id`, `crc32c`), so clients can report the multipart uploads they finished.
