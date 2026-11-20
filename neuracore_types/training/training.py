@@ -17,7 +17,11 @@ from pydantic import (
 from neuracore_types.episode.episode import CrossEmbodimentDescription
 from neuracore_types.hardware import GPUType
 from neuracore_types.nc_data import DataType, NCDataStatsUnion
-from neuracore_types.synchronization.synchronization import SynchronizationDetails
+from neuracore_types.synchronization.synchronization import (
+    SYNCHRONIZATION_CONFIG_INPUT_NAMES,
+    SynchronizationConfig,
+)
+from neuracore_types.training.training_config import TrainingConfig
 from neuracore_types.utils.pydantic_to_ts import (
     REQUIRED_WITH_DEFAULT_FLAG,
     fix_required_with_defaults,
@@ -197,6 +201,7 @@ class TrainingJob(BaseModel):
         target_epochs: The epoch the job trains up to.
         step: The current step of the training job.
         algorithm_config: Configuration parameters for the algorithm.
+        training_config: Settings that control how the training run executes.
         gpu_type: The type of GPU used for the job.
         num_gpus: The number of GPUs used for the job.
         resumed_at: The time the job was resumed, if applicable.
@@ -247,6 +252,9 @@ class TrainingJob(BaseModel):
     algorithm_config: dict[str, Any] = Field(
         default_factory=lambda: {}, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
+    training_config: TrainingConfig = Field(
+        default_factory=TrainingConfig, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    )
     gpu_type: GPUType = Field(
         default=GPUType.NVIDIA_TESLA_T4, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
@@ -271,7 +279,9 @@ class TrainingJob(BaseModel):
     output_cross_embodiment_description: CrossEmbodimentDescription = Field(
         default_factory=lambda: {}, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
-    synchronization_details: SynchronizationDetails
+    synchronization_config: SynchronizationConfig = Field(
+        validation_alias=SYNCHRONIZATION_CONFIG_INPUT_NAMES
+    )
     wait_for_gpu: bool = Field(
         default=True, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )

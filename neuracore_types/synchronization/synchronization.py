@@ -1,6 +1,8 @@
 """Request models for dataset and recording synchronization operations."""
 
-from pydantic import BaseModel, ConfigDict, Field
+import sys
+
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from neuracore_types.episode.episode import CrossEmbodimentUnion
 from neuracore_types.utils.pydantic_to_ts import (
@@ -8,9 +10,13 @@ from neuracore_types.utils.pydantic_to_ts import (
     fix_required_with_defaults,
 )
 
+SYNCHRONIZATION_CONFIG_INPUT_NAMES = AliasChoices(
+    "synchronization_config", "synchronization_details"
+)
 
-class SynchronizationDetails(BaseModel):
-    """Details for synchronization requests.
+
+class SynchronizationConfig(BaseModel):
+    """Settings for synchronizing recordings.
 
     Attributes:
         frequency: Synchronization frequency in Hz.
@@ -26,10 +32,10 @@ class SynchronizationDetails(BaseModel):
             trimming. Only applies when joint positions are synchronized.
     """
 
-    frequency: int
+    frequency: int = Field(default=10, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
     cross_embodiment_union: CrossEmbodimentUnion | None = None
     max_delay_s: float = Field(
-        default=0.1, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+        default=sys.float_info.max, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
     allow_duplicates: bool = Field(
         default=True, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
@@ -44,7 +50,7 @@ class SynchronizationDetails(BaseModel):
     model_config = ConfigDict(frozen=True, json_schema_extra=fix_required_with_defaults)
 
     def __hash__(self) -> int:
-        """Compute a hash value for the SynchronizationDetails instance.
+        """Compute a hash value for the SynchronizationConfig instance.
 
         Returns:
             int: The computed hash value.
