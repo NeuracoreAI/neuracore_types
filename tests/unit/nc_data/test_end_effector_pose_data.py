@@ -5,6 +5,12 @@ import pytest
 import torch
 
 from neuracore_types import BatchedEndEffectorPoseData, EndEffectorPoseData
+from neuracore_types.batched_nc_data import DATA_TYPE_TO_BATCHED_NC_DATA_CLASS
+from neuracore_types.nc_data import (
+    DATA_TYPE_TO_NC_DATA_CLASS,
+    TARGET_OUTPUT_DATA_TYPES,
+    DataType,
+)
 
 
 class TestEndEffectorPoseData:
@@ -183,3 +189,44 @@ class TestEndEffectorPoseDataStatistics:
         assert len(concatenated.mean) == 14  # 7 + 7
         assert len(concatenated.q01) == 14
         assert len(concatenated.q99) == 14
+
+
+class TestEndEffectorTargetPosesDataType:
+    """Tests for END_EFFECTOR_TARGET_POSES DataType mapping."""
+
+    def test_target_data_type_exists(self):
+        """Test that END_EFFECTOR_TARGET_POSES DataType exists."""
+        assert hasattr(DataType, "END_EFFECTOR_TARGET_POSES")
+        assert DataType.END_EFFECTOR_TARGET_POSES.value == "END_EFFECTOR_TARGET_POSES"
+
+    def test_target_data_type_mapped_to_nc_data_class(self):
+        """Test that target DataType is mapped to EndEffectorPoseData."""
+        assert DataType.END_EFFECTOR_TARGET_POSES in DATA_TYPE_TO_NC_DATA_CLASS
+        assert (
+            DATA_TYPE_TO_NC_DATA_CLASS[DataType.END_EFFECTOR_TARGET_POSES]
+            == EndEffectorPoseData
+        )
+
+    def test_target_data_type_mapped_to_batched_nc_data_class(self):
+        """Test that target DataType is mapped to BatchedEndEffectorPoseData."""
+        assert DataType.END_EFFECTOR_TARGET_POSES in DATA_TYPE_TO_BATCHED_NC_DATA_CLASS
+        assert (
+            DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[DataType.END_EFFECTOR_TARGET_POSES]
+            == BatchedEndEffectorPoseData
+        )
+
+    def test_target_uses_same_data_class_as_state(self):
+        """Test that target and state use the same underlying data classes."""
+        assert (
+            DATA_TYPE_TO_NC_DATA_CLASS[DataType.END_EFFECTOR_TARGET_POSES]
+            == DATA_TYPE_TO_NC_DATA_CLASS[DataType.END_EFFECTOR_POSES]
+        )
+        assert (
+            DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[DataType.END_EFFECTOR_TARGET_POSES]
+            == DATA_TYPE_TO_BATCHED_NC_DATA_CLASS[DataType.END_EFFECTOR_POSES]
+        )
+
+    def test_target_is_a_target_output_data_type(self):
+        """Target EE poses align with the input timestep during training."""
+        assert DataType.END_EFFECTOR_TARGET_POSES in TARGET_OUTPUT_DATA_TYPES
+        assert DataType.END_EFFECTOR_POSES not in TARGET_OUTPUT_DATA_TYPES
