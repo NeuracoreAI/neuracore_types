@@ -9,4 +9,4 @@ Example: "This release adds support for multi-GPU training and improves streamin
 
 ## Summary
 
-This release adds `END_EFFECTOR_TARGET_POSES` as a first-class target data type, reusing the existing 7-D end-effector pose payload.
+<!-- Append your summary here -->
