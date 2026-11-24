@@ -3,7 +3,7 @@
 import time
 from datetime import datetime
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import (
     BaseModel,
@@ -17,6 +17,9 @@ from pydantic import (
 )
 
 from neuracore_types.episode.recording_tags import RecordingTag, to_stored_tags
+from neuracore_types.import_session.import_session import (
+    IMPORT_SESSION_ITEM_KEY_MAX_LENGTH,
+)
 from neuracore_types.nc_data import DataType, NCDataUnion
 from neuracore_types.nc_data.nc_data import DataItemStats, NCData
 from neuracore_types.timestamps import (
@@ -293,13 +296,61 @@ class Codec(str, Enum):
 VIDEO_DATA_TYPES = (DataType.RGB_IMAGES, DataType.DEPTH_IMAGES)
 
 
+class RecordingSourceType(str, Enum):
+    """What a recording was started from."""
+
+    ROBOT_INSTANCE = "robot_instance"
+    IMPORT_SESSION = "import_session"
+
+
+class RobotInstanceSource(BaseModel):
+    """A recording of one connected instance of a robot.
+
+    Attributes:
+        instance: The robot instance that was recorded.
+    """
+
+    type: Literal[RecordingSourceType.ROBOT_INSTANCE] = Field(
+        default=RecordingSourceType.ROBOT_INSTANCE,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    instance: NonNegativeInt
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+
+class ImportSessionSource(BaseModel):
+    """A recording imported from one item of a dataset import.
+
+    Attributes:
+        import_session_id: The import session that imported the item.
+        item_key: The source item, unique within its import session and the
+            same each time the import is resumed.
+    """
+
+    type: Literal[RecordingSourceType.IMPORT_SESSION] = Field(
+        default=RecordingSourceType.IMPORT_SESSION,
+        json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG,
+    )
+    import_session_id: str
+    item_key: str = Field(min_length=1, max_length=IMPORT_SESSION_ITEM_KEY_MAX_LENGTH)
+    model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+
+RecordingSource = Annotated[
+    RobotInstanceSource | ImportSessionSource, Field(discriminator="type")
+]
+
+
 class Recording(BaseModel):
     """Represents a robot recording with flat storage.
 
     Attributes:
         id: Unique identifier for the recording
         robot_id: ID of the robot being recorded
-        instance: The physical robot being recorded
+        instance: The robot instance recorded, the same as the instance of a
+            robot instance source. None for imported recordings, and then
+            left out when serialized so clients that require it read their
+            default.
         org_id: ID of the organization owning the recording
         created_by: ID of the user who created the recording
         created_at: Unix timestamp when recording started
@@ -329,12 +380,15 @@ class Recording(BaseModel):
             this is the frame metadata file only, not the video files. Lets
             synchronization size its work without listing the bucket. Empty
             for recordings finalized before this field existed.
+        source: What the recording was started from: a robot instance or an
+            item of an import session. None for recordings started before this
+            field existed.
     """
 
     id: str
     robot_id: str | None = None
-    instance: NonNegativeInt = Field(
-        default=0, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
+    instance: NonNegativeInt | None = Field(
+        default=None, exclude_if=lambda instance: instance is None
     )
     org_id: str
     created_by: str = Field(default="", json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG)
@@ -363,7 +417,24 @@ class Recording(BaseModel):
     trace_json_size_bytes: dict[DataType, dict[str, NonNegativeInt]] = Field(
         default_factory=dict, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
     )
+    source: RecordingSource | None = None
     model_config = ConfigDict(json_schema_extra=fix_required_with_defaults)
+
+    @model_validator(mode="after")
+    def _validate_instance_matches_source(self) -> "Recording":
+        """Keep instance in step with the source it mirrors."""
+        if isinstance(self.source, ImportSessionSource):
+            if self.instance is not None:
+                raise ValueError("an imported recording has no robot instance")
+        elif isinstance(self.source, RobotInstanceSource):
+            if self.instance is None:
+                self.instance = self.source.instance
+            elif self.instance != self.source.instance:
+                raise ValueError(
+                    f"instance {self.instance} does not match the source's "
+                    f"instance {self.source.instance}"
+                )
+        return self
 
     @model_validator(mode="after")
     def _validate_trace_json_size_bytes_data_types(self) -> "Recording":
