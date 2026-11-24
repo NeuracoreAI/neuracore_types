@@ -2,12 +2,24 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import NamedTuple
+from typing import Any, NamedTuple
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    NonNegativeInt,
+    field_validator,
+    model_validator,
+)
 
-from neuracore_types.episode.episode import Codec
+from neuracore_types.episode.episode import (
+    Codec,
+    RecordingSource,
+    RecordingSourceType,
+    RobotInstanceSource,
+)
 from neuracore_types.episode.recording_tags import normalize_user_tag_name
 from neuracore_types.nc_data import DataType
 from neuracore_types.timestamps import TimestampUs
@@ -273,12 +285,14 @@ class BaseRecodingUpdatePayload(BaseModel):
 
     recording_id: str
     robot_id: str
-    instance: NonNegativeInt
+    # None for an imported recording, which has no robot instance.
+    instance: NonNegativeInt | None = None
 
 
 class RecordingStartPayload(BaseRecodingUpdatePayload):
     """Payload for recording start notifications."""
 
+    instance: NonNegativeInt
     created_by: str
     dataset_ids: list[str] = Field(
         default_factory=list, json_schema_extra=REQUIRED_WITH_DEFAULT_FLAG
@@ -294,6 +308,7 @@ class RecordingStartPayload(BaseRecodingUpdatePayload):
 class RecordingStopPayload(BaseRecodingUpdatePayload):
     """Payload for recording stop notifications."""
 
+    instance: NonNegativeInt
     end_time: float
 
 
@@ -449,19 +464,43 @@ class RecordingStartRequest(BaseModel):
 
     Attributes:
         robot_id: Identifier of the robot to record.
-        instance: Instance number of the robot.
         dataset_id: Identifier of the dataset to associate with the recording.
         start_time: Client-side Unix timestamp captured when nc.start_recording()
             was called.
         start_timestamp_us: Start of the recording in integer microseconds on
             the data clock.
+        source: What is recorded: a robot instance, or an item of an import
+            session, which saves one recording per item key. A request with a
+            top-level ``instance`` instead, as clients before import sessions
+            send, records that robot instance.
     """
 
     robot_id: str
-    instance: int
     dataset_id: str
     start_time: float
     start_timestamp_us: TimestampUs | None = None
+    source: RecordingSource
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_top_level_instance(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or "instance" not in data:
+            return data
+        if data.get("source") is not None:
+            raise ValueError("send the robot instance in source, not also instance")
+        legacy = dict(data)
+        legacy["source"] = {
+            "type": RecordingSourceType.ROBOT_INSTANCE,
+            "instance": legacy.pop("instance"),
+        }
+        return legacy
+
+    @property
+    def instance(self) -> int | None:
+        """The recorded robot instance, or None when recording an import item."""
+        if isinstance(self.source, RobotInstanceSource):
+            return self.source.instance
+        return None
 
 
 class RecordingStopRequest(BaseModel):
